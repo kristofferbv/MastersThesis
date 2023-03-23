@@ -13,6 +13,7 @@ from gurobipy import GRB
  # holding costs
  # safety stock / parametre for å regne ut dette
  # bigM / dette kan sikkert regnes ut selv
+ # inventory levels of period 0
 
  # hente dette fra en fil?
 
@@ -20,7 +21,9 @@ from gurobipy import GRB
 #sets and parameters
 products = ["p1","p2"]
 
-timePeriods = ["t1","t2"]
+# need to define this such that it is possible to get the invnetory balancing constraints
+# perhaps better with numbers
+timePeriods = ["t0", "t1","t2"]
 
 nTimePeriods = 2
 
@@ -54,6 +57,11 @@ inventoryLevel = inventoryModel.addVars(products, timePeriods, lb=safetyStock, n
 
 
 #constraints
+
+# start inventory constraint
+# this will start as a parameter 
+startInventory = inventoryModel.addConstrs((inventoryLevel[product, "t0"] == 3) for product in products)
+
 
 # må ha med tidsperiode 0 og at denne gjelder fra 1 for å ikke å feil
 inventoryBalance = inventoryModel.addConstrs((inventoryLevel[product, timePeriod[-1]] + replenishmentQ[product, timePeriod] == demandForecast[product, timePeriod] + inventoryLevel[product, timePeriod] for product in products for timePeriod in timePeriods if timePeriod != timePeriod[0]), name="InventoryBalance")
