@@ -62,7 +62,7 @@ major_setup_cost = 100
 
 minor_setup_cost = {1:10, 2:20}
 
-demand_forecast = {(1,1):3 , (1,2):3, (2,1):1, (2,2):2}
+demand_forecast = {(1,1):10 , (1,2):10, (2,1):20, (2,2):20}
 
 holding_cost = {1: 2, 2:3}
 
@@ -88,7 +88,7 @@ startInventory = inventoryModel.addConstrs((inventory_level[product, time_period
 inventory_balance = inventoryModel.addConstrs((inventory_level[product, time_periods[i - 1]] + replenishment_q[product, time_periods[i]] == demand_forecast[(product, time_periods[i])] + inventory_level[product, time_periods[i]] for product in products for i in range(1, len(time_periods))), name="InventoryBalance")
 minor_setup_incur = inventoryModel.addConstrs((replenishment_q[product, time_periods[i]] <= bigM[product] * gp.quicksum(order_product[product, time_periods[i], tau_period] for tau_period in tau_periods[:(len(tau_periods) - time_periods[i])]) for product in products for i in range(1, len(time_periods))), name="MinorSetupIncur")
 major_setup_incur = inventoryModel.addConstrs((gp.quicksum(order_product[product, time_periods[i], tau_period] for product in products for tau_period in tau_periods[:len(tau_periods) - time_periods[i]]) <= place_order[time_periods[i]] * n_products for i in range(1, len(time_periods))), name="MajorSetupIncur")
-max_one_order = inventoryModel.addConstrs((gp.quicksum(order_product[product, time_periods[i], tau_period] for tau_period in tau_periods[:len(tau_periods) - time_periods[i]]) == 1 for product in products for i in range(1, len(time_periods))), name="MaxOneOrder")
+max_one_order = inventoryModel.addConstrs((gp.quicksum(order_product[product, time_periods[i], tau_period] for tau_period in tau_periods[:len(tau_periods) - time_periods[i]]) <= 1 for product in products for i in range(1, len(time_periods))), name="MaxOneOrder")
 minimum_inventory = inventoryModel.addConstrs(
     (inventory_level[product, time_periods[i]] >= (1 - gp.quicksum(order_product[product, time_periods[i], tau_period] for tau_period in tau_periods[:len(tau_periods)- time_periods[i]])) * safety_stock[product, time_periods[i], 1]
       + gp.quicksum(order_product[product, time_periods[i], tau_period] * 
