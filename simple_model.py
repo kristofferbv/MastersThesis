@@ -15,7 +15,6 @@ from gurobipy import GRB
  # bigM / dette kan sikkert regnes ut selv
  # inventory levels of period 0
 
- # hente dette fra en fil?
 rnd = np.random
 
 n_time_periods = 2  # number of time periods
@@ -33,32 +32,6 @@ demand_forecast = {(i,j): rnd.randint(1,10) for i in products for j in time_peri
 holding_cost = {i: rnd.random() for i in products}
 safety_stock = {(i,j,k): rnd.random() for i in products for j in time_periods for k in tau_periods}
 bigM = {i: rnd.random()*10 for i in products}
-
-
-
-
-
-
-# need to define this such that it is possible to get the inventory balancing constraints
-# perhaps better with numbers
-# timePeriods = ["t0", "t1","t2"]
-#
-# nTimePeriods = 2
-#
-# tauPeriods = ["tau0","tau1","tau2"]
-#
-# majorSetup = 100
-#
-# minorSetup = {"p1": 10, "p2":20}
-#
-# demandForecast = {("p1","t1"):3, ("p1", "t2"):5,
-#                   ("p2","t1"):1, ("p2", "t2"):2,}
-#
-# holdingCost = {"p1": 2, "p2":3}
-#
-# safetyStock = {"p1": 3, "p2":2}
-#
-# bigM = {"p1": 15, "p2":5}
 
 
 # create model
