@@ -18,76 +18,84 @@ from gurobipy import GRB
  # hente dette fra en fil?
 
 
-#sets and parameters
-products = ["p1","p2"]
 
-# need to define this such that it is possible to get the invnetory balancing constraints
-# perhaps better with numbers
-timePeriods = ["t0", "t1","t2"]
+import numpy as np
+import pandas as pd
 
-nTimePeriods = 2
+import gurobipy as gp
+from gurobipy import GRB
 
-tauPeriods = ["tau0","tau1","tau2"]
+# alt skal lages som en klasse med inputparametre:
+# antall produkter
+# antall tidsperioder
+# tau-parameter
+# majorsetup
+# minor setups
+# demand forecasts
+# holding costs
+# safety stock / parametre for å regne ut dette
+# bigM / dette kan sikkert regnes ut selv
+# inventory levels of period 0
 
-majorSetup = 100
+rnd = np.random
 
-minorSetup = {"p1": 10, "p2":20}
+n_time_periods = 2  # number of time periods
+n_products = 2
 
-demandForecast = {("p1","t1"):3, ("p1", "t2"):5, 
-                  ("p2","t1"):1, ("p2", "t2"):2,}
+# Sets
+products = [i for i in range(1, n_products + 1)]
+time_periods = [i for i in range(0, n_time_periods + 1)]
+tau_periods = [i for i in range(1, n_time_periods + 1)]
 
-holdingCost = {"p1": 2, "p2":3}
+# Parameters
+#major_setup_cost = 100
+#minor_setup_cost = {i: rnd.randint(1, 10) for i in products}
 
-safetyStock = {"p1": 3, "p2":2}
+#demand_forecast = {(i, j): rnd.randint(1, 10) for i in products for j in time_periods}
+#print(demand_forecast)
+ 
+#holding_cost = {i: rnd.random() for i in products}
+#safety_stock = {(i, j, k): rnd.random() for i in products for j in time_periods for k in tau_periods}
+#bigM = {i: rnd.random() * 10 for i in products}
 
-bigM = {"p1": 15, "p2":5}
+major_setup_cost = 100
 
+minor_setup_cost = {1:10, 2:20}
+
+demand_forecast = {(1,1):3 , (1,2):3, (2,1):1,(2,2):2}
+
+holding_cost = {1: 2, 2:3}
+
+safety_stock = {1: 3, 2:2}
+
+bigM = {1: 15, 2:5}
 
 # create model
 inventoryModel = gp.Model('Inventory Control 1')
 
-#create variables
-replenishmentQ = inventoryModel.addVars(products, timePeriods, lb= 0, name="ReplenishmentQ")
-
-orderProduct = inventoryModel.addVars(products, timePeriods, tauPeriods, vtype=GRB.BINARY, name="OrderProduct")
-
-placeOrder = inventoryModel.addVars(timePeriods, vtype=GRB.BINARY, name="PlaceOrder")
-
-inventoryLevel = inventoryModel.addVars(products, timePeriods, lb=safetyStock, name="InventoryLevel")
+# create variables
+replenishment_q = inventoryModel.addVars(products, time_periods[1:], lb=0, name="ReplenishmentQ")
+order_product = inventoryModel.addVars(products, time_periods[1:], tau_periods, vtype=GRB.BINARY, name="OrderProduct")
+place_order = inventoryModel.addVars(time_periods[1:], vtype=GRB.BINARY, name="PlaceOrder")
+inventory_level = inventoryModel.addVars(products, time_periods, lb=safety_stock, name="InventoryLevel")
 
 
-#constraints
-
+# constraints
 # start inventory constraint
-# this will start as a parameter 
-startInventory = inventoryModel.addConstrs((inventoryLevel[product, "t0"] == 3) for product in products)
+# this will start as a parameter
+startInventory = inventoryModel.addConstrs((inventory_level[product, time_periods[0]] == 3) for product in products)
 
+inventory_balance = inventoryModel.addConstrs((inventory_level[product, time_periods[i - 1]] + replenishment_q[product, time_periods[i]] == demand_forecast[(product, time_periods[i])] + inventory_level[product, time_periods[i]] for product in products for i in range(1, len(time_periods))), name="InventoryBalance")
+minor_setup_incur = inventoryModel.addConstrs((replenishment_q[product, time_periods[i]] <= bigM[product] * gp.quicksum(order_product[product, time_periods[i], tau_period] for tau_period in tau_periods[:(len(tau_periods) - time_periods[i])]) for product in products for i in range(1, len(time_periods))), name="MinorSetupIncur")
+major_setup_incur = inventoryModel.addConstrs((gp.quicksum(order_product[product, time_periods[i], tau_period] for product in products for tau_period in tau_periods[:len(tau_periods) - time_periods[i]]) <= place_order[time_periods[i]] * n_products for i in range(1, len(time_periods))), name="MajorSetupIncur")
+max_one_order = inventoryModel.addConstrs((gp.quicksum(order_product[product, time_periods[i], tau_period] for tau_period in tau_periods[:len(tau_periods) - time_periods[i]]) == 1 for product in products for i in range(1, len(time_periods))), name="MaxOneOrder")
+minimum_inventory = inventoryModel.addConstrs(
+    (inventory_level[product, time_periods[i]] >= (1 - gp.quicksum(order_product[product, time_periods[i], tau_period] for tau_period in tau_periods[:len(tau_periods)- time_periods[i]])) * safety_stock[product, time_periods[i], 1] + gp.quicksum(order_product[product, time_periods[i], tau_period] * 
+    (safety_stock[product, time_periods[i], tau_period] + gp.quicksum(demand_forecast[(product, time_periods[i] + x)] for x in range(1, tau_period))) for tau_period in tau_periods[:len(time_periods) - time_periods[i]]) for product
+    in products for i in range(1, len(time_periods))), name="minimumInventory")
 
-# må ha med tidsperiode 0 og at denne gjelder fra 1 for å ikke å feil
-inventoryBalance = inventoryModel.addConstrs((inventoryLevel[product, timePeriod[-1]] + replenishmentQ[product, timePeriod] == demandForecast[product, timePeriod] + inventoryLevel[product, timePeriod] for product in products for timePeriod in timePeriods if timePeriod != timePeriod[0]), name="InventoryBalance")
-
-# skal ikke ha tau i time periods, må finne ut hvordan man gjør sum fra til
-minorSetupIncur = inventoryModel.addConstrs((replenishmentQ[product,timePeriod] <= bigM(product) * gp.quicksum(orderProduct[product][timePeriod][tauPeriod] for tauPeriod in timePeriods) for product in products for timePeriod in timePeriods),  name="MinorSetupIncur")
-
-# skal ikke ha tau i time periods, må finne ut hvordan man gjør sum fra til
-majorSetupIncur = inventoryModel.addConstrs((gp.quicksum(orderProduct[product][timePeriod][tau] for product in products for tau in timePeriods) <= placeOrder[timePeriod] for timePeriod in timePeriods), name= "MajorSetupIncur")
-
-
-# enten =1 og ta fra tau=0 eller <=1 og ta fra tau = 1
-maxOneOrder = inventoryModel.addConstrs((gp.quicksum(orderProduct[product][timePeriod][tau] for tau in timePeriods) == 1  for product in products  for timePeriod in timePeriods), name= "MaxOneOrder")
-
-
-#summene blir feil her, må finne eks på sum fra 1 til .. 
-minimumInventory = inventoryModel.addConstrs((inventoryLevel[product, timePeriod] >= orderProduct[product, timePeriod, "tau0"] * safetyStock[product, timePeriod, "tau1"] + gp.quicksum(orderProduct[product, timePeriod, tauPeriod]*(safetyStock[product, timePeriod, tauPeriod] + gp.quicksum(demandForecast[product, timePeriod, 1+x] for x in range(1,tauPeriod) for tauPeriod in tauPeriods) )) for product in products for timePeriod in timePeriods), name="minimumInventory")
-
-
-#objective function
-
-obj = gp.quicksum(majorSetup*placeOrder[timePeriod] for timePeriod in timePeriods) + gp.quicksum(minorSetup * gp.quicksum(orderProduct[product, timePeriod, tauPeriod] for tauPeriod in tauPeriods) for product in products for timePeriod in timePeriods) + gp.quicksum(holdingCost[product]*inventoryLevel[product, timePeriod] for product in products for timePeriod in timePeriods)
-
+# objective function
+obj = gp.quicksum(major_setup_cost * place_order[time_periods[i]] for i in range(1, len(time_periods))) + gp.quicksum(minor_setup_cost[product] * gp.quicksum(order_product[product, time_periods[i], tau_period] for tau_period in tau_periods[:(len(tau_periods)-time_periods[i])]) for product in products for i in range(1, len(time_periods))) + gp.quicksum(holding_cost[product] * inventory_level[product, time_periods[i]] for product in products for i in range(1, len(time_periods)))
 
 inventoryModel.setObjective(obj, GRB.MINIMIZE)
-
 inventoryModel.optimize()
-
-
