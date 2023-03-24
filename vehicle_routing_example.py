@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from gurobipy import Model, GRB, quicksum
 
+# retrieved from https://www.youtube.com/watch?v=7_-Xuq2xKdc&ab_channel=Hern%C3%A1nC%C3%A1ceres
+
 rnd = np.random
 rnd.seed(0)
 
@@ -41,4 +43,3 @@ for i,j in active_arcs:
 plt.plot(xc[0], yc[0], c="r", marker="s")
 plt.scatter(xc[1:], yc[1:], c="b")
 plt.show()
-
