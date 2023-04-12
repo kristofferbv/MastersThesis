@@ -3,6 +3,7 @@ import pandas as pd
 
 import gurobipy as gp
 from gurobipy import GRB
+from config_utils import load_config
 
 # alt skal lages som en klasse med inputparametre:
 # antall produkter
@@ -15,6 +16,8 @@ from gurobipy import GRB
 # safety stock / parametre for å regne ut dette
 # bigM / dette kan sikkert regnes ut selv
 # inventory levels of period 0
+
+
 
 rnd = np.random
 
@@ -48,16 +51,16 @@ inventory_level = inventoryModel.addVars(products, time_periods, lb=safety_stock
 # this will start as a parameter
 startInventory = inventoryModel.addConstrs((inventory_level[product, time_periods[0]] == 3) for product in products)
 
-inventory_balance = inventoryModel.addConstrs((inventory_level[product, time_periods[i - 1]] + replenishment_q[product, time_periods[i]] == demand_forecast[(product, time_periods[i])] + inventory_level[product, time_periods[i]] for product in products for i in range(1, len(time_periods) + 1)), name="InventoryBalance")
-minor_setup_incur = inventoryModel.addConstrs((replenishment_q[product, time_period] <= bigM[product] * gp.quicksum(order_product[product, time_period, tau_period] for tau_period in tau_periods[:len(tau_periods) + 1 - time_period]) for product in products for time_period in time_periods), name="MinorSetupIncur")
+inventory_balance = inventoryModel.addConstrs((inventory_level[product, time_periods[i - 1]] + replenishment_q[product, time_periods[i]] == demand_forecast[(product, time_periods[i])] + inventory_level[product, time_periods[i]] for product in products for i in range(1, len(time_periods))), name="InventoryBalance")
+minor_setup_incur = inventoryModel.addConstrs((replenishment_q[product, time_period] <= bigM[product] * gp.quicksum(order_product[product, time_period, tau_period] for tau_period in tau_periods[:len(tau_periods) - time_period]) for product in products for time_period in time_periods), name="MinorSetupIncur")
 major_setup_incur = inventoryModel.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for product in products for tau_period in tau_periods[:len(tau_periods) - time_period]) <= place_order[time_period] * n_products for time_period in time_periods), name="MajorSetupIncur")
 max_one_order = inventoryModel.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for tau_period in tau_periods[:len(tau_periods) - time_period]) == 1 for product in products for time_period in time_periods), name="MaxOneOrder")
 minimum_inventory = inventoryModel.addConstrs(
-    (inventory_level[product, time_period] >= (1 - gp.quicksum(order_product[product, time_period, tau_period] for tau_period in tau_periods[:len(tau_periods) + 1 - time_period])) * safety_stock[product, time_period, 1] + gp.quicksum(order_product[product, time_period, tau_period] * (safety_stock[product, time_period, tau_period] + gp.quicksum(demand_forecast[(product, time_period + x)] for x in range(1, tau_period))) for tau_period in tau_periods[:len(time_periods) - time_period]) for product
+    (inventory_level[product, time_period] >= (1 - gp.quicksum(order_product[product, time_period, tau_period] for tau_period in tau_periods[:len(tau_periods) - time_period])) * safety_stock[product, time_period, 1] + gp.quicksum(order_product[product, time_period, tau_period] * (safety_stock[product, time_period, tau_period] + gp.quicksum(demand_forecast[(product, time_period + x)] for x in range(1, tau_period ))) for tau_period in tau_periods[:len(tau_periods) - time_period]) for product
      in products for time_period in time_periods), name="minimumInventory")
 
 # objective function
-obj = gp.quicksum(major_setup_cost * place_order[time_period] for time_period in time_periods) + gp.quicksum(minor_setup_cost[product] * gp.quicksum(order_product[product, time_period, tau_period] for tau_period in tau_periods[:len(tau_periods) + 1 - time_period]) for product in products for time_period in time_periods) + gp.quicksum(holding_cost[product] * inventory_level[product, time_period] for product in products for time_period in time_periods)
+obj = gp.quicksum(major_setup_cost * place_order[time_period] for time_period in time_periods) + gp.quicksum(minor_setup_cost[product] * gp.quicksum(order_product[product, time_period, tau_period] for tau_period in tau_periods[:len(tau_periods) - time_period]) for product in products for time_period in time_periods) + gp.quicksum(holding_cost[product] * inventory_level[product, time_period] for product in products for time_period in time_periods)
 
 inventoryModel.setObjective(obj, GRB.MINIMIZE)
 inventoryModel.optimize()
