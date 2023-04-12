@@ -12,23 +12,3 @@ big_m: [ 67, 4, 36, 22, 1, 2 ]
 epsilon: [ 0.00001 ]
 shipping_cost: [ 500 ]
 lower_bound_free_shipping: [ 4500 ]
-
-
-
-
-
-
-#n_time_periods: 2  # number of time periods
-#n_products: 3
-#
-#joint_setup_cost: 100
-#
-#minor_setup_cost: [10, 20, 30]
-#
-#demand_forecast: {0:[10 ,10], 1: [20,20], 2: [25, 10]}
-#
-#holding_cost: [2, 3, 1]
-#
-##safety_stock = {(1,1,1): 0, (1,1,2):0, (1,2,1):0, (2,1,1): 0, (2,1,2):0, (2,2,1):0, (3,1,1): 0, (3,1,2):0, (3,2,1):0 }
-#
-#big_m: [100, 100, 100]
