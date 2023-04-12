@@ -4,14 +4,29 @@ joint_setup_cost: 500
 minor_setup_cost: [ 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 ]
 # demand_forcast where key is product and list is sorted by time
 demand_forecast: { 0: [ 4, 5, 5, 2, 4, 5, 4, 6, 10, 0, 0, 13, 9 ], 1: [ 0, 3, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], 2: [ 6, 5, 11, 2, 3, 7, 2, 0, 0, 0, 0, 0, 0 ], 3: [ 3,1, 1, 6, 0, 0, 0, 0, 0, 3, 4, 2, 2 ], 4: [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ], 5: [ 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 ]}
-
-
 holding_cost: [ 7.15, 10.9, 0.85, 0.32, 6.56, 6.56 ]
 base_unit_cost: [ 71.5, 109.0, 8.49, 3.19, 65.55, 65.55 ]
-big_m: [ 67, 4, 36, 22, 1, 2 ]
+big_m: [ 100, 100, 100, 100, 100, 100 ]
+
+#big_m: [ 67, 4, 36, 22, 1, 2 ]
 epsilon: [ 0.00001 ]
 shipping_cost: [ 500 ]
 lower_bound_free_shipping: [ 4500 ]
+
+
+
+#n_products: 3
+#n_time_periods: 12
+#joint_setup_cost: 500
+#minor_setup_cost: [ 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 ]
+## demand_forcast where key is product and list is sorted by time
+#demand_forecast: { 0: [ 4, 5, 5, 2, 4, 5, 4, 6, 10, 0, 0, 13, 9 ], 1: [ 0, 3, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], 2: [ 6, 5, 11, 2, 3, 7, 2, 0, 0, 0, 0, 0, 0 ], 3: [ 3,1, 1, 6, 0, 0, 0, 0, 0, 3, 4, 2, 2 ], 4: [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ], 5: [ 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 ]}
+#holding_cost: [ 7.15, 10.9, 0.85, 0.32, 6.56, 6.56 ]
+#base_unit_cost: [ 71.5, 109.0, 8.49, 3.19, 65.55, 65.55 ]
+#big_m: [ 67, 4, 36, 22, 1, 2 ]
+#epsilon: [ 0.00001 ]
+#shipping_cost: [ 500 ]
+#lower_bound_free_shipping: [ 4500 ]
 
 
 
