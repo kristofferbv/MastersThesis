@@ -33,11 +33,11 @@ class DeterministicModel:
         # constraints
         # start inventory constraint
         # this will start as a parameter
-        startInventory = self.model.addConstrs((inventory_level[product, self.time_periods[0]] == 3) for product in self.products)
+        startInventory = self.model.addConstrs((inventory_level[product, self.time_periods[0]] == 0) for product in self.products)
         inventory_balance = self.model.addConstrs((inventory_level[product, self.time_periods[i - 1]] + replenishment_q[product, self.time_periods[i]] == self.demand_forecast[product][self.time_periods[i-1]] + inventory_level[product, self.time_periods[i]] for product in self.products for i in range(1, len(self.time_periods))), name="InventoryBalance")
         minor_setup_incur = self.model.addConstrs((replenishment_q[product, time_period] <= self.big_m[product] * gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) for product in self.products for time_period in self.time_periods), name="MinorSetupIncur")
         major_setup_incur = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for product in self.products for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) <= place_order[time_period] * self.n_products for time_period in self.time_periods), name="MajorSetupIncur")
-        max_one_order = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) == 1 for product in self.products for time_period in self.time_periods), name="MaxOneOrder")
+        max_one_order = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) <= 1 for product in self.products for time_period in self.time_periods), name="MaxOneOrder")
         if self.safety_stock == 0:
             minimum_inventory = self.model.addConstrs((inventory_level[product, time_period] >=  gp.quicksum(
                 order_product[product, time_period, tau_period] * (gp.quicksum(self.demand_forecast[product][time_period + x] for x in range(1, tau_period))) for tau_period in self.tau_periods[:len(self.tau_periods) - time_period])
