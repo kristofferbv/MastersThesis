@@ -40,7 +40,7 @@ from gurobipy import GRB
 rnd = np.random
 
 n_time_periods = 2  # number of time periods
-n_products = 2
+n_products = 3
 
 # Sets
 products = [i for i in range(1, n_products + 1)]
@@ -60,15 +60,15 @@ tau_periods = [i for i in range(1, n_time_periods + 1)]
 
 major_setup_cost = 100
 
-minor_setup_cost = {1:10, 2:20}
+minor_setup_cost = {1:10, 2:20, 3:30}
 
-demand_forecast = {(1,1):10 , (1,2):10, (2,1):20, (2,2):20}
+demand_forecast = {(1,1):10 , (1,2):10, (2,1):20, (2,2):20, (3,1):25, (3,2):10}
 
-holding_cost = {1: 2, 2:3}
+holding_cost = {1: 2, 2:3, 3:1}
 
-safety_stock = {(1,1,1): 0, (1,1,2):0, (1,2,1):0, (2,1,1): 0, (2,1,2):0, (2,2,1):0 }
+safety_stock = {(1,1,1): 0, (1,1,2):0, (1,2,1):0, (2,1,1): 0, (2,1,2):0, (2,2,1):0, (3,1,1): 0, (3,1,2):0, (3,2,1):0 }
 
-bigM = {1: 100, 2:100}
+bigM = {1: 100, 2:100, 3: 100}
 
 # create model
 inventoryModel = gp.Model('Inventory Control 1')
@@ -102,3 +102,6 @@ obj = gp.quicksum(major_setup_cost * place_order[time_periods[i]] for i in range
 
 inventoryModel.setObjective(obj, GRB.MINIMIZE)
 inventoryModel.optimize()
+
+for v in inventoryModel.getVars():
+    print(v.x)
