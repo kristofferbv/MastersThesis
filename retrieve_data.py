@@ -1,19 +1,9 @@
-import numpy as np
+import random
 import pandas as pd
-from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
 import matplotlib
-from statsmodels.tsa.ar_model import AutoReg
-import statsmodels.api as sm
-from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-from scipy import stats
-from sklearn.linear_model import LinearRegression
-import numpy
 
 # from mgarch_dcc_r import arch_test
 
-
-matplotlib.use('TkAgg')
 
 
 
@@ -101,6 +91,56 @@ def categorize_products(file_name, time_interval, should_write_to_file):
             erratic_demand.to_csv("data/erratic_weeks.csv")
     return intermittent_demand, lumpy_demand, smooth_demand, erratic_demand
 
+
+def read_products(start_date, end_date):
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
+
+    # Get number of weeks between start and end dates
+    num_weeks = len(pd.date_range(start=start_date, end=end_date, freq="W"))
+    df = pd.read_csv("data/erratic_weeks.csv", index_col=0)
+    df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])
+    df = df.groupby(["product_hash", pd.Grouper(key="requested_delivery_date", freq="w")])["sales_quantity"].sum()
+    df = df.reset_index()
+    # filter out the weeks outside the specified date range
+    mask = (df["requested_delivery_date"] >= start_date) & (df["requested_delivery_date"] <= end_date)
+
+    # mask = df['requested_delivery_date'].dt.isocalendar().week.between(1, 52, inclusive='both') & df['requested_delivery_date'].dt.year.between(2015, 2018, inclusive='both')
+    df = df[mask]
+    df.to_csv("testing.csv")
+    df = df.groupby("product_hash").filter(lambda x: len(x) >= num_weeks-5)
+    value_counts = df['product_hash'].value_counts()
+    smallest_counts = value_counts.nsmallest(n=1).iloc[-1]
+    # Getting product hash of the products with fewest weeks:
+    smallest_indexes = value_counts[value_counts == smallest_counts].index
+    # Filter the DataFrame to only include rows for 'product_hash' = product_hash_fewest_weeks
+    filtered_df = df[df["product_hash"].isin(smallest_indexes)]
+    # Find the first and last date for the first product in the filtered DataFrame
+    first_date = filtered_df.loc[filtered_df['product_hash'] == smallest_indexes[0]]["requested_delivery_date"].min()
+    last_date = filtered_df.loc[filtered_df['product_hash'] == smallest_indexes[0]]["requested_delivery_date"].max()
+    if (len(smallest_indexes)>1):
+        # Need to find the product that has the last first date, and the first last date
+        for index in smallest_indexes:
+            first_date = max(first_date, filtered_df[filtered_df['product_hash'] == index]["requested_delivery_date"].min())
+            last_date =  min(last_date, filtered_df[filtered_df['product_hash'] == index]["requested_delivery_date"].max())
+    # Filter so that all product hashes have the same start and end date
+    mask = (df["requested_delivery_date"] >= first_date) & (df["requested_delivery_date"] <= last_date)
+    df = df[mask]
+    # # Choosing 6 random product_hashes and filter by them
+    random_product_hashes = random.sample(df.product_hash.unique().tolist(), 6)
+    df = df[df["product_hash"].isin(random_product_hashes)]
+    products = []
+    # Creating a dataframe for each product and Grouping by week and aggregating by sum, and then adding to list.
+    for product_hash in random_product_hashes:
+        product_df = df.loc[df['product_hash'] == product_hash]
+        product_df = product_df.set_index("requested_delivery_date")
+        print(product_df)
+        products.append(product_df)
+    df = pd.concat(products)
+    # df.to_csv("jada.csv")
+    return products
+
+
 def main():
     categorize_products("data/sales_orders.csv", "w", True)
-main()
+# main()

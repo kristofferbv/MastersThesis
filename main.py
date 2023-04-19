@@ -1,65 +1,27 @@
-import deterministic_model as det_mod
-import pandas as pd
-import random
-
-
-def simulate(time_steps, products):
-    dict_demands = {}
-    # initialize model
-    deterministic_model = det_mod.DeterministicModel()
-    for time in range(time_steps):
-        for product_index in range(len(products)):
-            dict_demands[product_index] = products[product_index].head(time_steps).tolist()
-            # dropping the first row
-            products[product_index] = products[product_index].iloc[1:]
-        deterministic_model.set_demand_forecast(dict_demands)
-        deterministic_model.set_up_model()
-        deterministic_model.model.setParam("OutputFlag", 0)
-        deterministic_model.optimize()
-        for var in deterministic_model.model.getVars():
-            print(f"{var.varName}: {var.x:.2f}")
-
+import retrieve_data
+import simulation
+from config_utils import load_config
+import holt_winters_method
+import arima
+import recurrent_neural_network
+import deterministic_model
 
 if __name__ == '__main__':
-    # deterministic_model = det_mod.DeterministicModel()
+    # deterministic_model = deterministic_model.DeterministicModel()
     # deterministic_model.set_up_model()
     # deterministic_model.model.optimize()
-    # Define start and end dates
 
-    start_date = pd.to_datetime("2015-01-01")
-    end_date = pd.to_datetime("2018-01-01")
+    config = load_config("config.yml")
+    n_time_periods = config["n_time_periods"]  # number of time periods
+    products = retrieve_data.read_products("2016-01-01", "2020-12-30")
 
-    # Get number of weeks between start and end dates
-    num_weeks = len(pd.date_range(start=start_date, end=end_date, freq="W"))
-    df = pd.read_csv("data/erratic_weeks.csv", index_col=0)
-    df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])
+    start_date = "2020-01-01"
+    holt_winters_method.forecast(products[0]["sales_quantity"], start_date)
+    arima.forecast(products[0]["sales_quantity"], start_date)
+    recurrent_neural_network.forecast(products[0]["sales_quantity"], start_date)
 
-    # filter out the weeks outside the specified date range
-    mask = df['requested_delivery_date'].dt.isocalendar().week.between(1, 52, inclusive='both') & df['requested_delivery_date'].dt.year.between(2015, 2018, inclusive='both')
-    df = df[mask]
+    simulation.simulate(start_date, n_time_periods, products)
 
-    df['week'] = df['requested_delivery_date'].dt.isocalendar().week
-
-    # group the DataFrame by product_hash and count the number of unique weeks in each group
-    week_counts = df.groupby('product_hash')['week'].nunique()
-    # filter out any groups that don't have a count of weeks equal to the number of weeks between the specified dates
-    mask = week_counts.eq(df['week'].nunique())
-    df = df.groupby('product_hash').filter(lambda x: mask.loc[x.name])
-    # drop the week column
-    df = df.drop('week', axis=1)
-    # Choosing 6 random product_hashes and filter by them
-    random_product_hashes = random.sample(df.product_hash.unique().tolist(), 6)
-    df = df[df["product_hash"].isin(random_product_hashes)]
-    products = []
-    # Creating a dataframe for each product and Grouping by week and aggregating by sum, and then adding to list.
-    for product_hash in random_product_hashes:
-        product_df = df.loc[df['product_hash'] == product_hash]
-        product_df = product_df.set_index("requested_delivery_date")
-        product_df = product_df.groupby(pd.Grouper(freq="w"))["sales_quantity"].sum()
-        products.append(product_df)
-
-
-    simulate(13, products)
 
 
 
