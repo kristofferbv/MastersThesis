@@ -1,7 +1,6 @@
 from datetime import timedelta, datetime
 
-import deterministic_model as det_mod
-import holt_winters_method
+from MIP import deterministic_model as det_mod, holt_winters_method
 
 
 def simulate(start_date, time_periods, products):

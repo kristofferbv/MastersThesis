@@ -1,10 +1,5 @@
 import retrieve_data
-import simulation
-from config_utils import load_config
-import holt_winters_method
-import arima
-import recurrent_neural_network
-import deterministic_model
+from MIP.config_utils import load_config
 
 if __name__ == '__main__':
     # deterministic_model = deterministic_model.DeterministicModel()
@@ -14,13 +9,18 @@ if __name__ == '__main__':
     config = load_config("config.yml")
     n_time_periods = config["n_time_periods"]  # number of time periods
     products = retrieve_data.read_products("2016-01-01", "2020-12-30")
+    products2 = retrieve_data.read_products_2("2016-01-01", "2020-12-30")
+    print("PRODUKTER")
+    print(products)
+    print("PRODUKTER2")
+    print(products2)
 
-    start_date = "2020-01-01"
-    holt_winters_method.forecast(products[0]["sales_quantity"], start_date)
-    arima.forecast(products[0]["sales_quantity"], start_date)
-    recurrent_neural_network.forecast(products[0]["sales_quantity"], start_date)
-
-    simulation.simulate(start_date, n_time_periods, products)
+    # start_date = "2020-01-01"
+    # holt_winters_method.forecast(products[0]["sales_quantity"], start_date)
+    # arima.forecast(products[0]["sales_quantity"], start_date)
+    # recurrent_neural_network.forecast(products[0]["sales_quantity"], start_date)
+    #
+    # simulation.simulate(start_date, n_time_periods, products)
 
 
 

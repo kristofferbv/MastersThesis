@@ -107,7 +107,7 @@ def read_products(start_date, end_date):
 
     # mask = df['requested_delivery_date'].dt.isocalendar().week.between(1, 52, inclusive='both') & df['requested_delivery_date'].dt.year.between(2015, 2018, inclusive='both')
     df = df[mask]
-    df.to_csv("testing.csv")
+    # df.to_csv("testing.csv")
     df = df.groupby("product_hash").filter(lambda x: len(x) >= num_weeks-5)
     value_counts = df['product_hash'].value_counts()
     smallest_counts = value_counts.nsmallest(n=1).iloc[-1]
@@ -134,11 +134,49 @@ def read_products(start_date, end_date):
     for product_hash in random_product_hashes:
         product_df = df.loc[df['product_hash'] == product_hash]
         product_df = product_df.set_index("requested_delivery_date")
-        print(product_df)
         products.append(product_df)
     df = pd.concat(products)
     # df.to_csv("jada.csv")
     return products
+
+def read_products_2(start_date, end_date):
+    # Convert start_date and end_date to datetime objects
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
+
+    # Read the CSV file into a DataFrame
+    df = pd.read_csv("data/erratic_weeks.csv")
+
+    # Convert the 'requested_delivery_date' column to a datetime object
+    df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])
+
+    # Filter out the rows that fall outside the date range
+    df = df[(df['requested_delivery_date'] >= start_date) & (df['requested_delivery_date'] <= end_date)]
+
+    # Group by product_hash and requested_delivery_date (week) and sum the sales_quantity
+    df = df.groupby(['product_hash', pd.Grouper(key='requested_delivery_date', freq='W-SUN')])['sales_quantity'].sum().reset_index()
+
+    # Get the number of weeks between start_date and end_date
+    num_weeks = len(pd.date_range(start=start_date, end=end_date, freq='W-SUN'))
+
+    # Get a list of product hashes that have data for every week in the date range
+    valid_products = df.groupby('product_hash').apply(lambda x: len(x) == num_weeks).loc[lambda x: x].index.tolist()
+
+    # Choose 6 random product hashes from the list of valid products
+    random_product_hashes = random.sample(valid_products, k=len(valid_products))
+
+    # Filter the DataFrame to only include rows for the chosen product hashes
+    df = df[df['product_hash'].isin(random_product_hashes)]
+
+    # Create a list of DataFrames, one for each product
+    products = []
+    for product_hash in random_product_hashes:
+        product_df = df[df['product_hash'] == product_hash].set_index('requested_delivery_date')
+        products.append(product_df)
+
+    return products
+
+
 
 
 def main():

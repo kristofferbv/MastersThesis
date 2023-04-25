@@ -1,9 +1,7 @@
 import numpy as np
-import pandas as pd
 
 import gurobipy as gp
 from gurobipy import GRB
-from config_utils import load_config
 
 # alt skal lages som en klasse med inputparametre:
 # antall produkter
