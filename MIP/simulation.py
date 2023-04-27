@@ -11,11 +11,10 @@ def simulate(start_date, time_periods, products):
     for time in range(time_periods):
         start_date = start_date + timedelta(days=7)
         for product_index in range(len(products)):
-            dict_demands[product_index] = holt_winters_method.forecast(products[product_index]["sales_quantity"], start_date, time_periods)
-        print(dict_demands.values())
+            dict_demands[product_index] = holt_winters_method.forecast(products[product_index]["sales_quantity"], start_date)
         deterministic_model.set_demand_forecast(dict_demands)
         deterministic_model.set_up_model()
         deterministic_model.model.setParam("OutputFlag", 0)
         deterministic_model.optimize()
-        # for var in deterministic_model.model.getVars():
-        #     print(f"{var.varName}: {var.x:.2f}")
+        for var in deterministic_model.model.getVars():
+            print(f"{var.varName}: {var.x:.2f}")
