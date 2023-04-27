@@ -21,7 +21,7 @@ class DeterministicModel:
         self.safety_stock = 0
         self.big_m = config["big_m"]
         self.model = gp.Model('Inventory Control 1')
-        self.start_inventory = [0,0,0,0,0, 0]
+        self.start_inventory = [0,0,0,0,0,0]
         self.has_been_set_up = False
 
     def set_demand_forecast(self, demand_forcast):
@@ -50,7 +50,7 @@ class DeterministicModel:
         # constraints
         # start inventory constraint
         # this will start as a parameter
-        startInventory = self.model.addConstrs((inventory_level[product, self.time_periods[0]] == self.start_inventory[product]) for product in self.products)
+        start_inventory = self.model.addConstrs((inventory_level[product, self.time_periods[0]] == self.start_inventory[product]) for product in self.products)
         inventory_balance = self.model.addConstrs((inventory_level[product, self.time_periods[i - 1]] + replenishment_q[product, self.time_periods[i]] == self.demand_forecast[product][self.time_periods[i - 1]] + inventory_level[product, self.time_periods[i]] for product in self.products for i in range(1, len(self.time_periods))), name="InventoryBalance")
         minor_setup_incur = self.model.addConstrs((replenishment_q[product, time_period] <= self.big_m[product] * gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) for product in self.products for time_period in self.time_periods), name="MinorSetupIncur")
         major_setup_incur = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for product in self.products for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) <= place_order[time_period] * self.n_products for time_period in self.time_periods), name="MajorSetupIncur")
