@@ -6,7 +6,7 @@ if __name__ == '__main__':
     # deterministic_model.set_up_model()
     # deterministic_model.model.optimize()
 
-    config = load_config("config.yml")
+    config = load_config("MIP/config.yml")
     n_time_periods = config["n_time_periods"]  # number of time periods
     products = retrieve_data.read_products("2016-01-01", "2020-12-30")
     products2 = retrieve_data.read_products_2("2016-01-01", "2020-12-30")
