@@ -98,7 +98,7 @@ def read_products(start_date, end_date):
 
     # Get number of weeks between start and end dates
     num_weeks = len(pd.date_range(start=start_date, end=end_date, freq="W"))
-    df = pd.read_csv("MIP/data/erratic_weeks.csv", index_col=0)
+    df = pd.read_csv("data/erratic_weeks.csv", index_col=0)
     df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])
     df = df.groupby(["product_hash", pd.Grouper(key="requested_delivery_date", freq="w")])["sales_quantity"].sum()
     df = df.reset_index()
@@ -145,7 +145,7 @@ def read_products_2(start_date, end_date):
     end_date = pd.to_datetime(end_date)
 
     # Read the CSV file into a DataFrame
-    df = pd.read_csv("MIP/data/erratic_weeks.csv")
+    df = pd.read_csv("data/erratic_weeks.csv")
 
     # Convert the 'requested_delivery_date' column to a datetime object
     df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])

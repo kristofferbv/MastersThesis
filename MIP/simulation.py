@@ -1,6 +1,6 @@
 from datetime import timedelta, datetime
 
-from MIP import deterministic_model as det_mod, holt_winters_method, arima
+import deterministic_model as det_mod, holt_winters_method, arima
 
 def simulate(start_date, time_periods, products):
     dict_demands = {}

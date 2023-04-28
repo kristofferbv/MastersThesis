@@ -1,12 +1,12 @@
 import gurobipy as gp
 from gurobipy import GRB
-from MIP.config_utils import load_config
+from config_utils import load_config
 
 
 class DeterministicModel:
     def __init__(self):
 
-        config = load_config("MIP/config.yml")
+        config = load_config("config.yml")
         self.n_time_periods = config["n_time_periods"]  # number of time periods
         self.n_products = config["n_products"]
         self.products = [i for i in range(0, self.n_products)]

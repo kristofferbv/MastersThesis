@@ -1,15 +1,24 @@
 import retrieve_data
-from MIP import holt_winters_method, arima, recurrent_neural_network
-from MIP.config_utils import load_config
+import holt_winters_method, arima, recurrent_neural_network
+from config_utils import load_config
 import simulation
-import MIP.deterministic_model
+import deterministic_model
+import os
+import sys
+
+# Get the directory of the current script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Change the working directory to the directory of the current script
+os.chdir(current_dir)
+
 
 if __name__ == '__main__':
     # deterministic_model = MIP.deterministic_model.DeterministicModel()
     # deterministic_model.set_up_model()
     # deterministic_model.model.optimize()
 
-    config = load_config("MIP/config.yml")
+    config = load_config("config.yml")
     n_time_periods = config["n_time_periods"]  # number of time periods
     products = retrieve_data.read_products("2016-01-01", "2020-12-30")
     products2 = retrieve_data.read_products_2("2016-01-01", "2020-12-30")
