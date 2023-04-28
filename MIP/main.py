@@ -2,9 +2,10 @@ import retrieve_data
 from MIP import holt_winters_method, arima, recurrent_neural_network
 from MIP.config_utils import load_config
 import simulation
+import MIP.deterministic_model
 
 if __name__ == '__main__':
-    # deterministic_model = deterministic_model.DeterministicModel()
+    # deterministic_model = MIP.deterministic_model.DeterministicModel()
     # deterministic_model.set_up_model()
     # deterministic_model.model.optimize()
 
@@ -13,7 +14,8 @@ if __name__ == '__main__':
     products = retrieve_data.read_products("2016-01-01", "2020-12-30")
     products2 = retrieve_data.read_products_2("2016-01-01", "2020-12-30")
 
-    start_date = "2020-01-01"
+    start_date = products[0].index[208]
+    print(start_date)
     # holt_winters_method.forecast(products[0]["sales_quantity"], start_date)
     # arima.forecast(products[0]["sales_quantity"], start_date)
     # recurrent_neural_network.forecast(products[0]["sales_quantity"], start_date)
