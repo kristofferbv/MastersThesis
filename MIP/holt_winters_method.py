@@ -17,6 +17,10 @@ def forecast(df, date, shouldShowPlot = False):
     # Forecasting len(test) periods ahead
     forecast = fit.forecast(len(test))
 
+    # making sure we don't forecast negative values
+    forecast[forecast < 0] = 0
+
+
     if shouldShowPlot:
         # Evaluate the forecast
         plt.plot(train.index, train.values, label='Actual')
