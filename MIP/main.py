@@ -25,9 +25,6 @@ if __name__ == '__main__':
 
     start_date = products[0].index[208]
     print(start_date)
-    # holt_winters_method.forecast(products[0]["sales_quantity"], start_date)
-    # arima.forecast(products[0]["sales_quantity"], start_date)
-    # recurrent_neural_network.forecast(products[0]["sales_quantity"], start_date)
     simulation.simulate(start_date, n_time_periods, products)
 
 

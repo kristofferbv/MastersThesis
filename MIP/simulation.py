@@ -15,10 +15,19 @@ def simulate(start_date, time_periods, products):
         start_date = start_date + timedelta(days=7)
 
         # Update inventory levels based on previous actions and actual demand
-        if any(actions):
+        actual_demands = []
+        if time != 0:
             for product_index, product in enumerate(products):
                 actual_demand = products[product_index].loc[start_date, "sales_quantity"]
-                inventory_levels[product_index] += actions[time-1][product_index] - actual_demand
+                actual_demands.append(actual_demand)
+                added_inventory = max(0,actions[time-1][product_index] - actual_demand)
+                inventory_levels[product_index] += added_inventory
+            print("Actions at time period ", time-1)
+            print(actions[time - 1])
+            print("Actual_demand for period ", time-1)
+            print(actual_demands)
+            print("Inventory levels at start of time period ", time)
+            print(inventory_levels)
 
         for product_index in range(len(products)):
             dict_demands[product_index] = holt_winters_method.forecast(products[product_index]["sales_quantity"], start_date)
@@ -37,8 +46,6 @@ def simulate(start_date, time_periods, products):
                 # Only looking at the action at time t = 1, since that is the actual action for this period
                 if current_time == 1:
                     actions[time][product_index] = var.x
-                    print(f"{var.varName}: {var.x:.2f}")
-
 
 
 

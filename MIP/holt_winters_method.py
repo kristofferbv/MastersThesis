@@ -8,6 +8,7 @@ def forecast(df, date, shouldShowPlot = False):
     # Split the data into training and testing sets
     train = df.loc[df.index <= date]
     test = df.loc[df.index > date]
+
     # train.index.freq = 'W-SUN'
     # train = train.asfreq('W-SUN')
 
