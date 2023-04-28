@@ -2,7 +2,7 @@ from datetime import timedelta, datetime
 
 import deterministic_model as det_mod, holt_winters_method, arima
 
-def simulate(start_date, time_periods, products):
+def simulate(start_date, n_time_periods, products):
     dict_demands = {}
     # initialize model
     deterministic_model = det_mod.DeterministicModel()
@@ -10,7 +10,7 @@ def simulate(start_date, time_periods, products):
     actions = {}  # Store the first actions for each time step
     inventory_levels = deterministic_model.start_inventory.copy()
 
-    for time in range(time_periods):
+    for time in range(n_time_periods):
         deterministic_model = det_mod.DeterministicModel()
         start_date = start_date + timedelta(days=7)
 
@@ -30,7 +30,7 @@ def simulate(start_date, time_periods, products):
             print(inventory_levels)
 
         for product_index in range(len(products)):
-            dict_demands[product_index] = holt_winters_method.forecast(products[product_index]["sales_quantity"], start_date)
+            dict_demands[product_index] = holt_winters_method.forecast(products[product_index]["sales_quantity"], start_date)[:n_time_periods]
         deterministic_model = det_mod.DeterministicModel()
         deterministic_model.set_demand_forecast(dict_demands)
         deterministic_model.model.setParam("OutputFlag", 0)

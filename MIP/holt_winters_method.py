@@ -3,7 +3,7 @@ import numpy as np
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 import matplotlib.pyplot as plt
 
-# Load the data
+
 def forecast(df, date, shouldShowPlot = False):
     # Split the data into training and testing sets
     train = df.loc[df.index <= date]
