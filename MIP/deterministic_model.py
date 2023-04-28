@@ -23,6 +23,7 @@ class DeterministicModel:
         self.model = gp.Model('Inventory Control 1')
         self.start_inventory = [0,0,0,0,0,0]
         self.has_been_set_up = False
+        self.set_up_model()
 
     def set_demand_forecast(self, demand_forcast):
         self.demand_forecast = demand_forcast
@@ -72,3 +73,4 @@ class DeterministicModel:
 
         self.model.setObjective(obj, GRB.MINIMIZE)
         self.has_been_set_up = True
+
