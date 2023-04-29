@@ -1,14 +1,16 @@
 import gurobipy as gp
 from gurobipy import GRB
 from config_utils import load_config
+from scipy.stats import norm
 
+import math
 
 class DeterministicModel:
     def __init__(self):
 
         config = load_config("config.yml")
         self.n_time_periods = config["n_time_periods"]  # number of time periods
-        self.n_products = config["n_products"]
+        self.n_products = config["n_products"] # number of product types
         self.products = [i for i in range(0, self.n_products)]
         self.time_periods = [i for i in range(0, self.n_time_periods + 1)]
         self.tau_periods = [i for i in range(1, self.n_time_periods + 1)]
@@ -23,9 +25,18 @@ class DeterministicModel:
         self.model = gp.Model('Inventory Control 1')
         self.start_inventory = [0,0,0,0,0,0]
         self.has_been_set_up = False
+        self.service_level = config["service_level"]
 
-    def set_demand_forecast(self, demand_forcast):
-        self.demand_forecast = demand_forcast
+    def set_demand_forecast(self, demand_forecast):
+        self.demand_forecast = demand_forecast
+        self.model.update()
+
+    
+    def set_safety_stock(self, standard_deviations):
+        print("standard devations")
+        print(standard_deviations)
+        for product_index in range(self.n_products):
+            self.safety_stock = norm.ppf(self.service_level) * math.sqrt(standard_deviations[product_index]**2) 
         self.model.update()
 
     def reset_model(self):

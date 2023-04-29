@@ -1,9 +1,10 @@
-from datetime import timedelta, datetime
+from datetime import timedelta #, datetime
 
-import deterministic_model as det_mod, holt_winters_method, arima
+import deterministic_model as det_mod, holt_winters_method #, arima
 
 def simulate(start_date, n_time_periods, products):
     dict_demands = {}
+    dict_sds = {}
     # initialize model
     deterministic_model = det_mod.DeterministicModel()
 
@@ -29,10 +30,17 @@ def simulate(start_date, n_time_periods, products):
             print("Inventory levels at start of time period ", time)
             print(inventory_levels)
 
+
         for product_index in range(len(products)):
-            dict_demands[product_index] = holt_winters_method.forecast(products[product_index]["sales_quantity"], start_date)[:n_time_periods]
+            dict_demands[product_index] = holt_winters_method.forecast(products[product_index]["sales_quantity"], start_date)[:n_time_periods][0]
+            dict_sds[product_index] = holt_winters_method.forecast(products[product_index]["sales_quantity"], start_date)[:n_time_periods][1]
         deterministic_model = det_mod.DeterministicModel()
         deterministic_model.set_demand_forecast(dict_demands)
+        deterministic_model.set_safety_stock(dict_sds)
+
+        print("Safety stocks:")
+        print(deterministic_model.safety_stock)
+
         deterministic_model.model.setParam("OutputFlag", 0)
         deterministic_model.set_inventory_levels(inventory_levels)
         deterministic_model.set_up_model()
