@@ -30,6 +30,9 @@ def simulate(start_date, n_time_periods, products):
             print("Inventory levels at start of time period ", time)
             print(inventory_levels)
 
+        print("forecast output")
+
+        
 
         for product_index in range(len(products)):
             dict_demands[product_index] = holt_winters_method.forecast(products[product_index]["sales_quantity"], start_date)[:n_time_periods][0]
@@ -37,6 +40,10 @@ def simulate(start_date, n_time_periods, products):
         deterministic_model = det_mod.DeterministicModel()
         deterministic_model.set_demand_forecast(dict_demands)
         deterministic_model.set_safety_stock(dict_sds)
+
+        print("Dict-demands")
+        print(dict_demands)
+        print(dict_sds)
 
         print("Safety stocks:")
         print(deterministic_model.safety_stock)
@@ -53,6 +60,7 @@ def simulate(start_date, n_time_periods, products):
                 product_index, current_time = map(int, var.varName.split("[")[1].split("]")[0].split(","))
                 # Only looking at the action at time t = 1, since that is the actual action for this period
                 if current_time == 1:
+                    print(var)
                     actions[time][product_index] = var.x
 
 

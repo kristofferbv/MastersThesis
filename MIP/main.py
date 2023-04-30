@@ -20,8 +20,10 @@ if __name__ == '__main__':
 
     config = load_config("config.yml")
     n_time_periods = config["n_time_periods"]  # number of time periods
+    print(n_time_periods)
     products = retrieve_data.read_products("2016-01-01", "2020-12-30")
     products2 = retrieve_data.read_products_2("2016-01-01", "2020-12-30")
+
 
     start_date = products[0].index[208]
     print(start_date)

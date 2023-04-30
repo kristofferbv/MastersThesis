@@ -3,6 +3,8 @@ import numpy as np
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 import matplotlib.pyplot as plt
 
+import statistics
+
 
 def forecast(df, date, shouldShowPlot = False):
     # Split the data into training and testing sets
@@ -38,5 +40,8 @@ def forecast(df, date, shouldShowPlot = False):
         plt.show()
         mse = np.mean((test.values - forecast)**2)
         # print(f'MSE: {mse:.2f}')
-    return forecast.values
+
+    standard_deviation = statistics.stdev((test.values - forecast))
+
+    return forecast.values, standard_deviation
 
