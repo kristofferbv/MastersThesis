@@ -58,22 +58,34 @@ class DeterministicModel:
         replenishment_q = self.model.addVars(self.products, self.time_periods, lb=0, name="ReplenishmentQ")
         order_product = self.model.addVars(self.products, self.time_periods, self.tau_periods, vtype=GRB.BINARY, name="OrderProduct")
         place_order = self.model.addVars(self.time_periods, vtype=GRB.BINARY, name="PlaceOrder")
-        inventory_level = self.model.addVars(self.products, self.time_periods, lb=self.safety_stock, name="InventoryLevel")
+        #had lb= safety stock - but will not be valid for t=0, make sure iwth constraints later lower bound
+        inventory_level = self.model.addVars(self.products, self.time_periods, lb=0, name="InventoryLevel")
 
         # constraints
         # start inventory constraint
         # this will start as a parameter
+
+        print("Time periods")
+        print(self.time_periods)
+        print(self.products)
+
+        print("demand forecast")
+        print(self.demand_forecast)
+
+
         start_inventory = self.model.addConstrs((inventory_level[product, self.time_periods[0]] == self.start_inventory[product]) for product in self.products)
-        inventory_balance = self.model.addConstrs((inventory_level[product, self.time_periods[i - 1]] + replenishment_q[product, self.time_periods[i]] == self.demand_forecast[product][self.time_periods[i - 1]] + inventory_level[product, self.time_periods[i]] for product in self.products for i in range(1, len(self.time_periods))), name="InventoryBalance")
+        inventory_balance = self.model.addConstrs((inventory_level[product, self.time_periods[i - 1]] + replenishment_q[product, self.time_periods[i]] == self.demand_forecast[product][self.time_periods[i]] + inventory_level[product, self.time_periods[i]] for product in self.products for i in range(1, len(self.time_periods))), name="InventoryBalance")
         minor_setup_incur = self.model.addConstrs((replenishment_q[product, time_period] <= self.big_m[product] * gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) for product in self.products for time_period in self.time_periods), name="MinorSetupIncur")
         major_setup_incur = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for product in self.products for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) <= place_order[time_period] * self.n_products for time_period in self.time_periods), name="MajorSetupIncur")
         max_one_order = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) <= 1 for product in self.products for time_period in self.time_periods), name="MaxOneOrder")
-        if self.safety_stock == 0:
+        if self.safety_stock.any() == 0:
             minimum_inventory = self.model.addConstrs((inventory_level[product, time_period] >= 0 for product in self.products for time_period in self.time_periods[1:]), name="minimumInventory")
         else:
-            minimum_inventory = self.model.addConstrs((inventory_level[product, time_period] >= (1 - gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period])) * self.safety_stock[product, time_period, 1] + gp.quicksum(
-                order_product[product, time_period, tau_period] * (self.safety_stock[product, time_period, tau_period] + gp.quicksum(self.demand_forecast[(product, time_period + x)] for x in range(1, tau_period))) for tau_period in self.tau_periods[:len(self.tau_periods) - time_period])
-                                                       for product
+            #minimum_inventory = self.model.addConstrs((inventory_level[product, time_period] >= (1 - gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period])) * self.safety_stock[product, time_period, 1] + gp.quicksum(
+                #order_product[product, time_period, tau_period] * (self.safety_stock[product, time_period, tau_period] + gp.quicksum(self.demand_forecast[(product, time_period + x)] for x in range(1, tau_period))) for tau_period in self.tau_periods[:len(self.tau_periods) - time_period])
+                 #                                      for product
+                #                                       in self.products for time_period in self.time_periods), name="minimumInventory")
+            minimum_inventory = self.model.addConstrs((inventory_level[product, time_period] >= self.safety_stock[product] for product 
                                                        in self.products for time_period in self.time_periods), name="minimumInventory")
 
         # objective function
