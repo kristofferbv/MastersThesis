@@ -29,7 +29,6 @@ class DeterministicModel:
 
     def set_demand_forecast(self, demand_forecast):
         self.demand_forecast = demand_forecast
-        print(demand_forecast)
         self.model.update()
 
     
@@ -79,14 +78,16 @@ class DeterministicModel:
                 #order_product[product, time_period, tau_period] * (self.safety_stock[product, time_period, tau_period] + gp.quicksum(self.demand_forecast[(product, time_period + x)] for x in range(1, tau_period))) for tau_period in self.tau_periods[:len(self.tau_periods) - time_period])
                  #                                      for product
                 #                                       in self.products for time_period in self.time_periods), name="minimumInventory")
-        minimum_inventory = self.model.addConstrs((inventory_level[product, time_period] >= self.safety_stock[product] for product 
-                                              in self.products for time_period in self.time_periods), name="minimumInventory")
+        minimum_inventory = self.model.addConstrs((inventory_level[product, self.time_periods[i]] >= self.safety_stock[product] for product 
+                                              in self.products for i in range(1, len(self.time_periods))), name="minimumInventory")
 
         print("Safety stocks:")
         print(self.safety_stock)
+
         # objective function
         obj = gp.quicksum(self.major_setup_cost * place_order[time_period] for time_period in self.time_periods) + gp.quicksum(self.minor_setup_cost[product] * gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) for product in self.products for time_period in self.time_periods) + gp.quicksum(
             self.holding_cost[product] * inventory_level[product, time_period] for product in self.products for time_period in self.time_periods)
+
 
         self.model.setObjective(obj, GRB.MINIMIZE)
         self.has_been_set_up = True
