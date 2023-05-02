@@ -13,6 +13,10 @@ def simulate(start_date, n_time_periods, products):
 
     total_costs = 0
 
+    shortage_costs = 0
+    holding_costs = 0
+    setup_costs = 0
+
     for time in range(n_time_periods):
         deterministic_model = det_mod.DeterministicModel()
         start_date = start_date + timedelta(days=7)
@@ -25,26 +29,35 @@ def simulate(start_date, n_time_periods, products):
             for product_index, product in enumerate(products):
                 actual_demand = products[product_index].loc[start_date, "sales_quantity"]
                 actual_demands.append(actual_demand)
-                added_inventory = max(0,actions[time-1][product_index] - actual_demand)  # skal vi ikke her ta at inventory level skal være max av 0 of invnetory level før + actions - actual demand??
+                #added_inventory = max(0,actions[time-1][product_index] - actual_demand)  # skal vi ikke her ta at inventory level skal være max av 0 of invnetory level før + actions - actual demand??
 
                 #add holding costs or shortage costs
                 if inventory_levels[product_index] + actions[time-1][product_index] - actual_demand > 0:
-                    period_costs += (inventory_levels[product_index] + actions[time-1][product_index] - actual_demand)* deterministic_model.holding_cost[product_index]
+                    period_costs += (inventory_levels[product_index] + actions[time-1][product_index] - actual_demand) * deterministic_model.holding_cost[product_index]
+                    holding_costs += (inventory_levels[product_index] + actions[time-1][product_index] - actual_demand) * deterministic_model.holding_cost[product_index]
                 else:
                     period_costs += abs(inventory_levels[product_index] + actions[time-1][product_index] - actual_demand) * deterministic_model.shortage_cost[product_index]
+                    shortage_costs += abs(inventory_levels[product_index] + actions[time-1][product_index] - actual_demand) * deterministic_model.shortage_cost[product_index]
+                    print("Shortage costs")
+                    print(period_costs)
+
                 
                 major_setup_added = False
 
                 #add setup costs:
                 if actions[time-1][product_index] > 0:
                     period_costs += deterministic_model.minor_setup_cost[product_index]
+                    setup_costs += deterministic_model.minor_setup_cost[product_index]
 
                     #to only add major setup costs once if an order is made
                     if major_setup_added == False:
                         period_costs += deterministic_model.major_setup_cost
-                        major_setup_added = True
+                        setup_costs += deterministic_model.major_setup_cost
+                        major_setup_added = True        
 
-                inventory_levels[product_index] += added_inventory
+                previous_il = inventory_levels[product_index]
+
+                inventory_levels[product_index] = max(0, previous_il + actions[time-1][product_index] - actual_demand) 
 
             print("Period costs: ")
             print(period_costs)
@@ -62,9 +75,17 @@ def simulate(start_date, n_time_periods, products):
             print("Total costs at time peirod : ", time)
             print(total_costs)
 
+            print("Total holding costs:")
+            print(holding_costs)
+
+            print("Total shortage costs:")
+            print(shortage_costs)
+
+            print("Total setup costs:")
+            print(setup_costs)
+
         for product_index in range(len(products)):
-            dict_demands[product_index] = holt_winters_method.forecast(products[product_index]["sales_quantity"], start_date)[:n_time_periods][0]
-            dict_sds[product_index] = holt_winters_method.forecast(products[product_index]["sales_quantity"], start_date)[:n_time_periods][1]
+            dict_demands[product_index] , dict_sds[product_index] = holt_winters_method.forecast(products[product_index]["sales_quantity"], start_date)[:n_time_periods]
         deterministic_model = det_mod.DeterministicModel()
         deterministic_model.set_demand_forecast(dict_demands)
         deterministic_model.set_safety_stock(dict_sds)

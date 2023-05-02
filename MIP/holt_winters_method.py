@@ -16,6 +16,7 @@ def forecast(df, date, shouldShowPlot = False):
 
     # Fit the model and make forecasts
     model = ExponentialSmoothing(train, seasonal_periods=52, trend='add', seasonal='add')
+
     fit = model.fit()
     # Forecasting len(test) periods ahead
     forecast = fit.forecast(len(test))
@@ -43,5 +44,5 @@ def forecast(df, date, shouldShowPlot = False):
 
     standard_deviation = statistics.stdev((test.values - forecast))
 
-    return forecast.values, standard_deviation
+    return forecast.values, standard_deviation/5
 
