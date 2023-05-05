@@ -26,6 +26,7 @@ def simulate(start_date, n_time_periods, products):
         # Update inventory levels based on previous actions and actual demand
         actual_demands = []
         if time != 0:
+            major_setup_added = False
             for product_index, product in enumerate(products):
                 actual_demand = products[product_index].loc[start_date, "sales_quantity"]
                 actual_demands.append(actual_demand)
@@ -42,7 +43,7 @@ def simulate(start_date, n_time_periods, products):
                     print(period_costs)
 
                 
-                major_setup_added = False
+                
 
                 #add setup costs:
                 if actions[time-1][product_index] > 0:
@@ -53,6 +54,7 @@ def simulate(start_date, n_time_periods, products):
                     if major_setup_added == False:
                         period_costs += deterministic_model.major_setup_cost
                         setup_costs += deterministic_model.major_setup_cost
+                        print("major setup costs added")
                         major_setup_added = True        
 
                 previous_il = inventory_levels[product_index]
