@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 import statistics
 
 
-def forecast(df, date, shouldShowPlot = False):
+def forecast(df, date, shouldShowPlot = False, n_time_periods = 20):
     # Split the data into training and testing sets
-    train = df.loc[df.index <= date]
-    test = df.loc[df.index > date]
+    train = df.loc[df.index <= date]["sales_quantity"]
+    test = df.loc[df.index > date]["sales_quantity"]
 
     # train.index.freq = 'W-SUN'
     # train = train.asfreq('W-SUN')
@@ -19,7 +19,7 @@ def forecast(df, date, shouldShowPlot = False):
 
     fit = model.fit()
     # Forecasting len(test) periods ahead
-    forecast = fit.forecast(len(test))
+    forecast = fit.forecast(n_time_periods)
 
     # making sure we don't forecast negative values
     forecast[forecast < 0] = 0
@@ -27,9 +27,9 @@ def forecast(df, date, shouldShowPlot = False):
 
     if shouldShowPlot:
         # Evaluate the forecast
-        plt.plot(train.index, train.values, label='Actual')
-        plt.plot(test.index, test.values, label='Actual')
-        plt.plot(test.index, forecast.values, label='Forecast')
+        # plt.plot(train.index, train.values, label='Actual')
+        plt.plot(test.index[:n_time_periods], test.values[:n_time_periods], label='Actual')
+        plt.plot(test.index[:n_time_periods], forecast.values, label='Forecast')
 
         # Add labels and legend
         plt.xlabel('Date')
@@ -39,10 +39,10 @@ def forecast(df, date, shouldShowPlot = False):
 
         # Show the plot
         plt.show()
-        mse = np.mean((test.values - forecast)**2)
-        # print(f'MSE: {mse:.2f}')
+        mse = np.mean((test.values[:n_time_periods] - forecast) ** 2)
+        print(f'MSE: {mse:.2f}')
 
-    standard_deviation = statistics.stdev((test.values - forecast))
+    standard_deviation = statistics.stdev((test.values[:n_time_periods] - forecast))
 
-    return forecast.values, standard_deviation/5
+    return np.insert(forecast.values, 0 ,0), standard_deviation/5
 
