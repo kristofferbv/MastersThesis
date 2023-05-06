@@ -1,4 +1,4 @@
-#import pandas as pd
+# import pandas as pd
 import numpy as np
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 import matplotlib.pyplot as plt
@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import statistics
 
 
-def forecast(df, date, shouldShowPlot = False, n_time_periods = 20):
+def forecast(df, date, shouldShowPlot=False, n_time_periods=20):
     # Split the data into training and testing sets
     train = df.loc[df.index <= date]["sales_quantity"]
     test = df.loc[df.index > date]["sales_quantity"]
@@ -23,7 +23,6 @@ def forecast(df, date, shouldShowPlot = False, n_time_periods = 20):
 
     # making sure we don't forecast negative values
     forecast[forecast < 0] = 0
-
 
     if shouldShowPlot:
         # Evaluate the forecast
@@ -44,5 +43,5 @@ def forecast(df, date, shouldShowPlot = False, n_time_periods = 20):
 
     standard_deviation = statistics.stdev((test.values[:n_time_periods] - forecast))
 
-    return np.insert(forecast.values, 0 ,0), standard_deviation/5
+    return np.insert(forecast.values, 0, 0), [standard_deviation / 5] * (len(forecast) + 1)     # Dividing by 5 because safety stock is too high
 

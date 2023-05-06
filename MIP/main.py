@@ -13,15 +13,17 @@ os.chdir(current_dir)
 
 if __name__ == '__main__':
     config = load_config("config.yml")
-    n_time_periods = config["n_time_periods"]  # number of time periods
+    n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
+    should_analyse = config["main"]["should_analyse"]  # number of time periods
+
 
     # retrieve_data.categorize_products("data/sales_orders.csv", "m", True)
-    products = retrieve_data.read_products_3("2016-01-01", "2020-12-30")
-    print("number of products: ", len(products))
+    # products = retrieve_data.read_products_3("2016-01-01", "2020-12-30")
+    # print("number of products: ", len(products))
 
     # Reading the products created by the "read_products" function above
     products = retrieve_data.read_products_with_hashes("2016-01-10", "2020-12-30", ["569b6782ce5885fc4abf21cfde38f7d7", "92b1f191dfce9fff64b4effd954ccaab", "8ef91aac79542f11dedec4f79265ae3a", "2fa9c91f40d6780fd5b3c219699eb139", "1fb096daa569c811723ce8796722680e", "f7b3622f9eb50cb4eee149127c817c79"])
-    start_date = products[0].index[108]
+    start_date = products[0].index[208]
 
     should_analyse = False
     if should_analyse:  # analyse data and retrieve non_stationary products
@@ -37,7 +39,7 @@ if __name__ == '__main__':
     # holt_winters_method.forecast(products[0]["sales_quantity"], start_date, shouldShowPlot=True)
     # recurrent_neural_network.forecast(products[0]["sales_quantity"], start_date)
     # print(start_date)
-    # simulation.simulate(start_date, n_time_periods, products)
+    simulation.simulate(start_date, n_time_periods, products)
 
     """
     Algorithm for simulation optimization: 

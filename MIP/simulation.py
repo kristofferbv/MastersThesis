@@ -2,9 +2,14 @@ from datetime import timedelta
 import deterministic_model as det_mod
 import sarima
 import holt_winters_method
+from config_utils import load_config
 
 
-def simulate(start_date, n_time_periods, products, verbose=False):
+def simulate(start_date, n_time_periods, products):
+    config = load_config("config.yml")
+    forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
+    verbose = config["simulation"]["verbose"]  # number of time periods
+
     dict_demands = {}
     dict_sds = {}
     # initialize model
@@ -55,8 +60,8 @@ def simulate(start_date, n_time_periods, products, verbose=False):
 
                 previous_il = inventory_levels[product_index]
                 inventory_levels[product_index] = max(0, previous_il + actions[time - 1][product_index] - actual_demand)
-                total_costs += period_costs
 
+            total_costs += period_costs
             if verbose:
                 print("Period costs: ")
                 print(period_costs)
@@ -81,7 +86,13 @@ def simulate(start_date, n_time_periods, products, verbose=False):
                 print(setup_costs)
 
         for product_index in range(len(products)):
-            dict_demands[product_index], dict_sds[product_index] = sarima.forecast(products[product_index], start_date, n_time_periods = n_time_periods)
+            if forecasting_method == "holt_winter":
+                dict_demands[product_index], dict_sds[product_index] = holt_winters_method.forecast(products[product_index], start_date, n_time_periods = n_time_periods)
+            elif forecasting_method == "sarima":
+                dict_demands[product_index], dict_sds[product_index] = sarima.forecast(products[product_index], start_date, n_time_periods = n_time_periods)
+            else:
+                raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
+
         deterministic_model = det_mod.DeterministicModel()
         deterministic_model.set_demand_forecast(dict_demands)
         deterministic_model.set_safety_stock(dict_sds)

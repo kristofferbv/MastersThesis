@@ -121,4 +121,5 @@ def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=
     std_dev = std_dev.tolist()
     std_dev.insert(0, 0)
 
-    return predictions, std_dev[1]/10 #[x/10 for x in std_dev]
+    # Dividing by 10 because safety stock is too high
+    return predictions, [x/10 for x in std_dev]
