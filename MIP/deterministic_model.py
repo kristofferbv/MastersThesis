@@ -30,6 +30,10 @@ class DeterministicModel:
         self.shortage_cost = config["deterministic_model"]["shortage_cost"]
         self.should_include_safety_stock = config["deterministic_model"]["should_include_safety_stock"]
 
+        # change shortage cost based on formula
+        for product_index in range(self.n_products):
+            self.shortage_cost[product_index] = self.holding_cost[product_index]/(1/self.service_level[product_index] - 1)
+
     def set_demand_forecast(self, demand_forecast):
         self.demand_forecast = demand_forecast
         self.model.update()
