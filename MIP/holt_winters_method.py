@@ -44,5 +44,5 @@ def forecast(df, date, shouldShowPlot = False):
 
     standard_deviation = statistics.stdev((test.values - forecast))
 
-    return forecast.values, standard_deviation/5
+    return forecast.values, standard_deviation/10
 
