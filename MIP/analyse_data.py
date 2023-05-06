@@ -3,7 +3,7 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
 
-def get_non_stationary_products(products, start_date=None, should_plot=True, verbose=False):
+def get_non_stationary_products(products, start_date=None, should_plot=False, verbose=False):
     n = len(products)
 
     # Loop through the dataframes and axes, plotting each dataframe on a separate axis

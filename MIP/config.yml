@@ -14,6 +14,7 @@ deterministic_model:
   should_include_safety_stock: False
 main:
   should_analyse: False
+  stationary_products: True
 simulation:
   forecasting_method: "sarima"
   verbose: False
