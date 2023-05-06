@@ -177,7 +177,17 @@ def read_products_with_hashes(start_date, end_date, product_hashes):
 
     return products
 
+
 def read_products_3(start_date, end_date):
+    """
+    This function is an updated version of read_products, where also products that has some weeks without any data is included.
+    Args:
+        start_date:
+        end_date:
+
+    Returns: list of products (as dataframes) that has data from start_date to end_date
+
+    """
     start_date = pd.to_datetime(start_date)
     end_date = pd.to_datetime(end_date)
 

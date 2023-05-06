@@ -6,10 +6,10 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 import os
 import matplotlib.pyplot as plt
 from tqdm import tqdm_notebook
+from itertools import product
 
 
-
-def optimize_SARIMA(parameters_list, d, D, s, df, start_date):
+def optimize_SARIMA(df, start_date):
     """
         Return dataframe with parameters, corresponding AIC and SSE
 
@@ -19,6 +19,16 @@ def optimize_SARIMA(parameters_list, d, D, s, df, start_date):
         s - length of season
         exog - the exogenous variable
     """
+    p = range(0, 3, 1)
+    d = 1
+    q = range(0, 3, 1)
+    P = range(0, 3, 1)
+    D = 1
+    Q = range(0, 3, 1)
+    s = 4
+    parameters = product(p, q, P, Q)
+    parameters_list = list(parameters)
+
     df = df.asfreq("W")
     # Getting the product hash
     product_hash = df["product_hash"].iloc[0]
