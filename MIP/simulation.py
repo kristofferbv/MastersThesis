@@ -112,4 +112,5 @@ def simulate(start_date, n_time_periods, products):
                     actions[time][product_index] = var.x
     print("Total costs at after all periods : ")
     print(total_costs)
+    print(actions)
     return actions

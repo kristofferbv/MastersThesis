@@ -30,7 +30,8 @@ class DeterministicModel:
         self.shortage_cost = config["deterministic_model"]["shortage_cost"]
         self.should_include_safety_stock = config["deterministic_model"]["should_include_safety_stock"]
 
-        # change shortage cost based on formula
+        # change shortage cost based on formula 
+        # could make an if sentence if this could be set by the user
         for product_index in range(self.n_products):
             self.shortage_cost[product_index] = self.holding_cost[product_index]/(1/self.service_level[product_index] - 1)
 
