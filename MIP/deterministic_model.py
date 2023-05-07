@@ -72,6 +72,10 @@ class DeterministicModel:
         max_one_order = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) <= 1 for product in self.products for time_period in self.time_periods), name="MaxOneOrder")
         if self.should_include_safety_stock:
             minimum_inventory = self.model.addConstrs((inventory_level[product, time_period] >= 0 for product in self.products for time_period in self.time_periods[1:]), name="minimumInventory")
+            #minimum_inventory = self.model.addConstrs((inventory_level[product, time_period] >= (1 - gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period])) * self.safety_stock[product, time_period, 1] + gp.quicksum(
+           #     order_product[product, time_period, tau_period] * (self.safety_stock[product, time_period, tau_period] + gp.quicksum(self.demand_forecast[(product, time_period + x)] for x in range(1, tau_period))) for tau_period in self.tau_periods[2:len(self.tau_periods) - time_period])
+            #                                           for product
+             #                                          in self.products for time_period in self.time_periods), name="minimumInventory")
         else:
             minimum_inventory = self.model.addConstrs((inventory_level[product, self.time_periods[i]] >= self.safety_stock[product][i] for product
                                                        in self.products for i in range(1, len(self.time_periods))), name="minimumInventory")

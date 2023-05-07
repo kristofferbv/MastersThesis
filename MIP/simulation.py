@@ -113,4 +113,7 @@ def simulate(start_date, n_time_periods, products):
     print("Total costs at after all periods : ")
     print(total_costs)
     print(actions)
+    runtime = deterministic_model.model.Runtime
+    print("The run time is %f" % runtime)
+
     return actions
