@@ -11,7 +11,7 @@ deterministic_model:
   epsilon: [ 0.00001 ]
   shipping_cost: [ 500 ]
   lower_bound_free_shipping: [ 4500 ]
-  should_include_safety_stock: False
+  should_include_safety_stock: True
 main:
   should_analyse: False
   stationary_products: True
