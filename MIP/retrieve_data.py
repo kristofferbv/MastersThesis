@@ -103,7 +103,13 @@ def read_products(start_date, end_date, freq = "w"):
     else:
         df = pd.read_csv("data/smooth_months.csv", index_col=0)
     df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])
-    df = df.groupby(["product_hash", pd.Grouper(key="requested_delivery_date", freq=freq)])["sales_quantity"].sum()
+    df = df.groupby(["product_hash", pd.Grouper(key="requested_delivery_date", freq="w")]).agg({"sales_quantity": "sum", "unit_cost": "mean"})
+    # Calculate the average unit_cost for each product_hash
+    df['average_unit_cost'] = df.groupby('product_hash')['unit_cost'].transform('mean')
+
+    # If you want to keep only the new average_unit_cost column and drop the original unit_cost column
+    df = df.drop(columns=['unit_cost'])
+
     df = df.reset_index()
     # filter out the weeks outside the specified date range
     mask = (df["requested_delivery_date"] >= start_date) & (df["requested_delivery_date"] <= end_date)
@@ -159,7 +165,13 @@ def read_products_with_hashes(start_date, end_date, product_hashes):
     # Filter the DataFrame using the provided product_hashes
     df = df[df["product_hash"].isin(product_hashes)]
 
-    df = df.groupby(["product_hash", pd.Grouper(key="requested_delivery_date", freq="w")])["sales_quantity"].sum()
+    df = df.groupby(["product_hash", pd.Grouper(key="requested_delivery_date", freq="w")]).agg({"sales_quantity": "sum", "unit_cost": "mean"})
+    # Calculate the average unit_cost for each product_hash
+    df['average_unit_cost'] = df.groupby('product_hash')['unit_cost'].transform('mean')
+
+    # If you want to keep only the new average_unit_cost column and drop the original unit_cost column
+    df = df.drop(columns=['unit_cost'])
+
     df = df.reset_index()
 
     # Filter out the weeks outside the specified date range
@@ -201,7 +213,14 @@ def read_products_3(start_date, end_date):
     df = df[(df['requested_delivery_date'] >= start_date) & (df['requested_delivery_date'] <= end_date)]
 
     # Group by product_hash and requested_delivery_date (week) and sum the sales_quantity
-    df = df.groupby(['product_hash', pd.Grouper(key='requested_delivery_date', freq='W-SUN')])['sales_quantity'].sum().reset_index()
+    df = df.groupby(["product_hash", pd.Grouper(key="requested_delivery_date", freq="w")]).agg({"sales_quantity": "sum", "unit_cost": "mean"})
+    # Calculate the average unit_cost for each product_hash
+    df['average_unit_cost'] = df.groupby('product_hash')['unit_cost'].transform('mean')
+
+    # If you want to keep only the new average_unit_cost column and drop the original unit_cost column
+    df = df.drop(columns=['unit_cost'])
+
+    df = df.reset_index()
 
     # Define the time periods
     january_2016 = pd.to_datetime("2016-01-01")

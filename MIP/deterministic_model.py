@@ -46,6 +46,10 @@ class DeterministicModel:
         self.demand_forecast = demand_forecast
         self.model.update()
 
+    def set_holding_costs(self, unit_cost):
+        # Multiply unit cost by 0.1 to get holding costs
+        self.holding_cost = [0.1 * x for x in unit_cost]
+
     def set_safety_stock(self, standard_deviations):
         for product_index in range(self.n_products):
             self.safety_stock[product_index] = norm.ppf(self.service_level[product_index]) * np.array(standard_deviations[product_index])

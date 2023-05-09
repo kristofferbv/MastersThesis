@@ -9,14 +9,16 @@ def simulate(start_date, n_time_periods, products):
     config = load_config("config.yml")
     forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
     verbose = config["simulation"]["verbose"]  # number of time periods
+    should_set_holding_cost_dynamically = config["simulation"]["should_set_holding_cost_dynamically"]
+    if should_set_holding_cost_dynamically:
+        unit_costs = [df.iloc[0]['average_unit_cost'] for df in products]
 
     dict_demands = {}
     dict_sds = {}
     # initialize model
-    deterministic_model = det_mod.DeterministicModel()
 
     actions = {}  # Store the first actions for each time step
-    inventory_levels = deterministic_model.start_inventory.copy()
+    inventory_levels = [0 for i in range(len(products))]
 
     total_costs = 0
 
@@ -25,7 +27,6 @@ def simulate(start_date, n_time_periods, products):
     setup_costs = 0
 
     for time in range(n_time_periods):
-        deterministic_model = det_mod.DeterministicModel()
         start_date = start_date + timedelta(days=7)
 
         period_costs = 0
@@ -87,16 +88,17 @@ def simulate(start_date, n_time_periods, products):
 
         for product_index in range(len(products)):
             if forecasting_method == "holt_winter":
-                dict_demands[product_index], dict_sds[product_index] = holt_winters_method.forecast(products[product_index], start_date, n_time_periods = n_time_periods)
+                dict_demands[product_index], dict_sds[product_index] = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
             elif forecasting_method == "sarima":
-                dict_demands[product_index], dict_sds[product_index] = sarima.forecast(products[product_index], start_date, n_time_periods = n_time_periods)
+                dict_demands[product_index], dict_sds[product_index] = sarima.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
             else:
                 raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
 
         deterministic_model = det_mod.DeterministicModel()
         deterministic_model.set_demand_forecast(dict_demands)
+        if should_set_holding_cost_dynamically:
+            deterministic_model.set_holding_costs(unit_costs)
         deterministic_model.set_safety_stock(dict_sds)
-
         deterministic_model.model.setParam("OutputFlag", 0)
         deterministic_model.set_inventory_levels(inventory_levels)
         deterministic_model.set_up_model()
