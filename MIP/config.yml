@@ -18,3 +18,4 @@ main:
 simulation:
   forecasting_method: "sarima"
   verbose: False
+  should_set_holding_cost_dynamically: True

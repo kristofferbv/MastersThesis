@@ -22,7 +22,7 @@ def get_non_stationary_products(products, start_date=None, should_plot=False, ve
                 print(f'p-value: {ad_fuller_result[1]}')
                 print("product_hash", df["product_hash"].iloc[0])
     # Plotting it:
-    if should_plot:
+    if should_plot and len(stationary_products) != 0:
         fig, axes = plt.subplots(nrows=len(stationary_products), sharex=True, figsize=(10, len(stationary_products) * 3))
         for i, (ax, df) in enumerate(zip(axes, stationary_products)):
             if start_date is not None:
