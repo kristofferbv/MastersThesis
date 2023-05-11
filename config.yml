@@ -11,7 +11,7 @@ deterministic_model:
   epsilon: [ 0.00001 ]
   shipping_cost: [ 500 ]
   lower_bound_free_shipping: [ 4500 ]
-  should_include_safety_stock: False
+  should_include_safety_stock: True
 main:
   should_analyse: False
   stationary_products: True
@@ -39,9 +39,9 @@ critic:
   layers: [200,800,200]                            # Example: [30,30]
   activation_functions: ["relu","relu","relu"]  # Example: ["relu","relu"]. Examples of activation functions are relu linear, sigmoid, tanh
   learning_rate: 0.0001
-  output_activation_function: "softmax"
+  output_activation_function: "linear"
   optimizer: "Adam"                                 # Examples of optimizers are Adagrad, Stochastic Gradient Descent (SGD), RMSprop or Adam
-  loss_function: "categorical_crossentropy"
+  loss_function: "mse"
   batch_size: 128                                   # Normal values: 32, 64, 128
   epochs: 10000
   epsilon: 1

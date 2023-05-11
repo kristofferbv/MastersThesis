@@ -2,7 +2,7 @@ import numpy as np
 from keras.optimizers import Adam
 import tensorflow as tf
 from config_utils import load_config
-from reinforcement_learning.actor import get_stochastic_action
+from reinforcement_learning.actor import get_stochastic_action, unflatten_action
 
 
 class A2CAgent:
@@ -26,30 +26,34 @@ class A2CAgent:
 
             while not done:
                 action_prob = self.actor.predict(state)
+                # print(action_prob)
                 # getting action based on probability distribution
                 action = get_stochastic_action(action_prob)
+                individual_actions = unflatten_action(action)
                 # Use this for stochastic action if probability distribution is an 1D array:
                 # action = np.random.choice(len(action_prob[0]), p=action_prob[0])
 
-                print("actions")
-                print(action)
-                next_state, reward, done, _ = self.env.step(action)
+                # print("actions")
+                # print(action)
+                next_state, reward, done, _ = self.env.step(individual_actions)
                 total_reward += reward
                 target = reward + (1 - done) * self.discount_rate * self.critic.predict(next_state)
                 td_error = target - self.critic.predict(state)
+                # print(td_error)
 
                 # Train the Critic
-                print("PREDICTION", self.critic.predict(state))
+                # print("PREDICTION", self.critic.predict(state))
 
                 self.critic.fit(state, target, verbose=0)
 
                 # Train the Actor
                 with tf.GradientTape() as tape:
-                    action_prob = self.actor(state)
+                    state_batch = np.expand_dims(state, axis=0)
+                    action_prob = self.actor.model(state_batch)
                     log_prob = tf.math.log(tf.reduce_sum(action_prob * action, axis=1))
                     actor_loss = -tf.reduce_mean(td_error * log_prob)
-                actor_gradients = tape.gradient(actor_loss, self.actor.trainable_variables)
-                self.actor_optimizer.apply_gradients(zip(actor_gradients, self.actor.trainable_variables))
+                actor_gradients = tape.gradient(actor_loss, self.actor.model.trainable_variables)
+                self.actor_optimizer.apply_gradients(zip(actor_gradients, self.actor.model.trainable_variables))
 
                 state = next_state
             print(f'Epoch {episode + 1}/{n_episodes}: Total Reward: {total_reward}')
