@@ -1,3 +1,4 @@
+import os
 import random
 import pandas as pd
 import matplotlib
@@ -80,12 +81,12 @@ def categorize_products(file_name, time_interval, should_write_to_file):
     if should_write_to_file:
         if time_interval == "m":
             # 'months' in the filename indicates that the demand interval is in months
-            intermittent_demand.to_csv("intermittent_months.csv")
+            intermittent_demand.to_csv("data/intermittent_months.csv")
             lumpy_demand.to_csv("data/lumpy_months.csv")
             smooth_demand.to_csv("data/smooth_months.csv")
             erratic_demand.to_csv("data/erratic_months.csv")
         else:
-            intermittent_demand.to_csv("intermittent_weeks.csv")
+            intermittent_demand.to_csv("data/intermittent_weeks.csv")
             lumpy_demand.to_csv("data/lumpy_weeks.csv")
             smooth_demand.to_csv("data/smooth_weeks.csv")
             erratic_demand.to_csv("data/erratic_weeks.csv")
@@ -99,9 +100,15 @@ def read_products(start_date, end_date, freq = "w"):
     # Get number of weeks between start and end dates
     num_weeks = len(pd.date_range(start=start_date, end=end_date, freq=freq))
     if (freq == "w"):
-        df = pd.read_csv("data/erratic_weeks.csv", index_col=0)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # construct the path to the file
+        file_path = os.path.join(current_dir, "data/erratic_weeks.csv")
+        df = pd.read_csv(file_path, index_col=0)
     else:
-        df = pd.read_csv("data/smooth_months.csv", index_col=0)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # construct the path to the file
+        file_path = os.path.join(current_dir, "data/erratic_months.csv")
+        df = pd.read_csv(file_path, index_col=0)
     df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])
     df = df.groupby(["product_hash", pd.Grouper(key="requested_delivery_date", freq="w")]).agg({"sales_quantity": "sum", "unit_cost": "mean"})
     # Calculate the average unit_cost for each product_hash
@@ -158,8 +165,10 @@ def read_products(start_date, end_date, freq = "w"):
 def read_products_with_hashes(start_date, end_date, product_hashes):
     start_date = pd.to_datetime(start_date)
     end_date = pd.to_datetime(end_date)
-
-    df = pd.read_csv("data/erratic_weeks.csv", index_col=0)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # construct the path to the file
+    file_path = os.path.join(current_dir, "data/erratic_weeks.csv")
+    df = pd.read_csv(file_path, index_col=0)
     df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])
 
     # Filter the DataFrame using the provided product_hashes
@@ -202,9 +211,11 @@ def read_products_3(start_date, end_date):
     """
     start_date = pd.to_datetime(start_date)
     end_date = pd.to_datetime(end_date)
-
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # construct the path to the file
+    file_path = os.path.join(current_dir, "data/erratic_weeks.csv")
     # Read the CSV file into a DataFrame
-    df = pd.read_csv("data/erratic_weeks.csv")
+    df = pd.read_csv(file_path)
 
     # Convert the 'requested_delivery_date' column to a datetime object
     df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])
@@ -259,7 +270,10 @@ def read_products_2(start_date, end_date):
     end_date = pd.to_datetime(end_date)
 
     # Read the CSV file into a DataFrame
-    df = pd.read_csv("data/erratic_weeks.csv")
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # construct the path to the file
+    file_path = os.path.join(current_dir, "data/erratic_weeks.csv")
+    df = pd.read_csv(file_path)
 
     # Convert the 'requested_delivery_date' column to a datetime object
     df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])
@@ -294,5 +308,8 @@ def read_products_2(start_date, end_date):
 
 
 def main():
-    categorize_products("data/sales_orders.csv", "w", True)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # construct the path to the file
+    file_path = os.path.join(current_dir, "data/sales_orders.csv")
+    categorize_products(file_path, "w", True)
 # main()

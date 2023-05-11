@@ -4,13 +4,11 @@ from config_utils import load_config
 from scipy.stats import norm
 import numpy as np
 
-import math
-
 
 class DeterministicModel:
     def __init__(self):
 
-        config = load_config("config.yml")
+        config = load_config("../config.yml")
         self.n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
         self.n_products = config["deterministic_model"]["n_products"]  # number of product types
         self.products = [i for i in range(0, self.n_products)]

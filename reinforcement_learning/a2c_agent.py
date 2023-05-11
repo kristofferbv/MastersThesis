@@ -1,0 +1,77 @@
+import numpy as np
+from keras.optimizers import Adam
+import tensorflow as tf
+from config_utils import load_config
+from reinforcement_learning.actor import get_stochastic_action
+
+
+class A2CAgent:
+    def __init__(self, actor, critic, env):
+        self.actor = actor
+        self.critic = critic
+        config = load_config("config.yml")
+        self.discount_rate = config["a2c"]["discount_rate"]
+        self.n_episodes = config["a2c"]["n_episodes"]
+        self.actor_optimizer = actor.optimizer
+        self.critic_optimizer = critic.optimizer
+        self.env = env
+
+    def train_a2c(self, n_episodes = None):
+        if n_episodes is None:
+            n_episodes = self.n_episodes
+        for episode in range(n_episodes):
+            state = self.env.reset()
+            done = False
+            total_reward = 0
+
+            while not done:
+                action_prob = self.actor.predict(state)
+                # getting action based on probability distribution
+                action = get_stochastic_action(action_prob)
+                # Use this for stochastic action if probability distribution is an 1D array:
+                # action = np.random.choice(len(action_prob[0]), p=action_prob[0])
+
+                print("actions")
+                print(action)
+                next_state, reward, done, _ = self.env.step(action)
+                total_reward += reward
+                target = reward + (1 - done) * self.discount_rate * self.critic.predict(next_state)
+                td_error = target - self.critic.predict(state)
+
+                # Train the Critic
+                print("PREDICTION", self.critic.predict(state))
+
+                self.critic.fit(state, target, verbose=0)
+
+                # Train the Actor
+                with tf.GradientTape() as tape:
+                    action_prob = self.actor(state)
+                    log_prob = tf.math.log(tf.reduce_sum(action_prob * action, axis=1))
+                    actor_loss = -tf.reduce_mean(td_error * log_prob)
+                actor_gradients = tape.gradient(actor_loss, self.actor.trainable_variables)
+                self.actor_optimizer.apply_gradients(zip(actor_gradients, self.actor.trainable_variables))
+
+                state = next_state
+            print(f'Epoch {episode + 1}/{n_episodes}: Total Reward: {total_reward}')
+
+    def evaluate_a2c(a2c_model, env, n_episodes):
+        total_rewards = []
+
+        for episode in range(n_episodes):
+            state = env.reset()
+            done = False
+            total_reward = 0
+
+            while not done:
+                action_prob = a2c_model.actor.predict(np.expand_dims(state, axis=0))
+                action = np.argmax(action_prob[0])
+
+                next_state, reward, done, _ = env.step(action)
+                total_reward += reward
+                state = next_state
+
+            total_rewards.append(total_reward)
+
+        avg_reward = np.mean(total_rewards)
+        print(f'Average reward over {n_episodes} episodes: {avg_reward}')
+        return avg_reward

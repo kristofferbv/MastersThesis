@@ -2,7 +2,6 @@ import random
 
 import retrieve_data
 from analyse_data import plot_sales_quantity, get_non_stationary_products, decompose_sales_quantity
-import holt_winters_method, sarima, recurrent_neural_network
 from config_utils import load_config
 import os
 import simulation
@@ -14,7 +13,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(current_dir)
 
 if __name__ == '__main__':
-    config = load_config("config.yml")
+    config = load_config("../config.yml")
     n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
     n_products = config["deterministic_model"]["n_products"]
     should_analyse = config["main"]["should_analyse"]

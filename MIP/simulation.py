@@ -6,7 +6,7 @@ from config_utils import load_config
 
 
 def simulate(start_date, n_time_periods, products):
-    config = load_config("config.yml")
+    config = load_config("../config.yml")
     forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
     verbose = config["simulation"]["verbose"]  # number of time periods
     should_set_holding_cost_dynamically = config["simulation"]["should_set_holding_cost_dynamically"]
