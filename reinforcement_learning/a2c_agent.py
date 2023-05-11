@@ -4,6 +4,18 @@ import tensorflow as tf
 from config_utils import load_config
 from reinforcement_learning.actor import get_stochastic_action, unflatten_action
 
+"""
+state_t = s 
+action = a
+state_t+1 = s'
+reward_t+1 = r
+
+
+V(s) = r + discount_factor * V(s')
+
+s' = last_state, v(s') = reward
+
+"""
 
 class A2CAgent:
     def __init__(self, actor, critic, env):
@@ -26,10 +38,12 @@ class A2CAgent:
 
             while not done:
                 action_prob = self.actor.predict(state)
+                print(action_prob)
                 # print(action_prob)
                 # getting action based on probability distribution
                 action = get_stochastic_action(action_prob)
                 individual_actions = unflatten_action(action)
+                print(individual_actions)
                 # Use this for stochastic action if probability distribution is an 1D array:
                 # action = np.random.choice(len(action_prob[0]), p=action_prob[0])
 

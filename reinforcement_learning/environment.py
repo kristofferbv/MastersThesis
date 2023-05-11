@@ -53,8 +53,8 @@ class JointReplenishmentEnv(gym.Env, ABC):
             if action[i] > 0:
                 self.inventory_levels[i] += action[i]
                 major_setup_triggered = True
-
         # Calculate the minor and major setup costs
+        #TODO! remember to change minor_costs
         minor_cost = np.sum(a*b for a, b in zip(action, self.minor_setup_cost))
         major_cost = self.major_setup_cost if major_setup_triggered else 0
 
@@ -64,7 +64,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         for i, product in enumerate(self.products):
             demand = product.iloc[self.current_period]['sales_quantity']
             self.inventory_levels[i] = max(self.inventory_levels[i] - demand, 0)
-            shortage_cost += (demand - self.inventory_levels[i]) * self.shortage_cost[i]
+            shortage_cost += min((demand - self.inventory_levels[i]), 0) * self.shortage_cost[i]
             holding_cost += self.inventory_levels[i] * self.holding_cost[i]
 
         # Update the current period
@@ -73,7 +73,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # done = self.current_period >= len(self.products[0])
 
         # Calculate the total cost
-        total_cost = minor_cost + major_cost + shortage_cost
+        total_cost = minor_cost + major_cost + shortage_cost + holding_cost
 
         return self._get_observation(), -total_cost, done, {}
 

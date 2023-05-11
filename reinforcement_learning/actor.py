@@ -25,6 +25,7 @@ def get_stochastic_action_2(prob_distributions):
         actions_list.append(action)
     return actions_list
 
+# For each product, we randomly select an action based on the provided probability distribution.
 def get_greedy_action(prob_distributions):
     # `prob_distributions` is now a 1D array of joint action probabilities
     joint_action = np.argmax(prob_distributions[0])  # Select joint action with highest probability
@@ -150,6 +151,5 @@ class Actor:
 
         # Get the probability distribution over actions
         action_prob = self.model.predict(state, verbose=0)
-
         # Return the action probabilities
         return action_prob
