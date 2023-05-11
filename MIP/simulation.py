@@ -114,6 +114,12 @@ def simulate(start_date, n_time_periods, products):
                     actions[time][product_index] = var.x
     print("Total costs at after all periods : ")
     print(total_costs)
+    print("Total shortage costs")
+    print(shortage_costs)
+    print("Holding costs:")
+    print(holding_costs)
+    print("Setup costs")
+    print(setup_costs)
     print(actions)
     runtime = deterministic_model.model.Runtime
     print("The run time is %f" % runtime)

@@ -5,6 +5,8 @@ from scipy.stats import norm
 import numpy as np
 
 import math
+from collections import defaultdict
+
 
 
 class DeterministicModel:
@@ -15,13 +17,13 @@ class DeterministicModel:
         self.n_products = config["deterministic_model"]["n_products"]  # number of product types
         self.products = [i for i in range(0, self.n_products)]
         self.time_periods = [i for i in range(0, self.n_time_periods + 1)]
-        self.tau_periods = [i for i in range(0, self.n_time_periods + 1)]
+        self.tau_periods = [i for i in range(1, self.n_time_periods + 1)]
 
         # Parameters
         self.major_setup_cost = config["deterministic_model"]["joint_setup_cost"]
         self.minor_setup_cost = config["deterministic_model"]["minor_setup_cost"]
         self.holding_cost = config["deterministic_model"]["holding_cost"]
-        self.safety_stock = {}
+        self.safety_stock = defaultdict(dict)
         self.big_m = config["deterministic_model"]["big_m"]
         self.model = gp.Model('Inventory Control 1')
         self.start_inventory = [0, 0, 0, 0, 0, 0]
@@ -51,12 +53,19 @@ class DeterministicModel:
     def set_holding_costs(self, unit_cost):
         # Multiply unit cost by 0.1 to get holding costs
         self.holding_cost = [0.1 * x for x in unit_cost]
+        for product_index in range(self.n_products):
+            self.shortage_cost[product_index] = self.holding_cost[product_index]/(1/self.service_level[product_index] - 1)
+        #print("Shortage")
+        #print(self.shortage_cost)
 
     def set_safety_stock(self, standard_deviations):
         for product_index in range(self.n_products):
-            self.safety_stock[product_index] = norm.ppf(self.service_level[product_index]) * np.array(standard_deviations[product_index])
-        
-        print(self.safety_stock)
+            for tau_period in range(len(self.tau_periods)):
+                self.safety_stock[product_index][tau_period] = norm.ppf(self.service_level[product_index]) * np.sqrt(standard_deviations[product_index][tau_period]**2) 
+            #self.safety_stock[product_index][0] = self.safety_stock[product_index][1]
+
+        #print(self.safety_stock)
+
         self.model.update()
 
     def reset_model(self):
@@ -72,6 +81,10 @@ class DeterministicModel:
         self.model.update()
 
     def set_up_model(self):
+
+
+
+
         if self.has_been_set_up:
             return
         replenishment_q = self.model.addVars(self.products, self.time_periods, lb=0, name="ReplenishmentQ")
@@ -86,9 +99,11 @@ class DeterministicModel:
         major_setup_incur = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for product in self.products for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) <= place_order[time_period] * self.n_products for time_period in self.time_periods), name="MajorSetupIncur")
         max_one_order = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) <= 1 for product in self.products for time_period in self.time_periods), name="MaxOneOrder")
         if self.should_include_safety_stock:
-            minimum_inventory = self.model.addConstrs((inventory_level[product, self.time_periods[i]] >= gp.quicksum(order_product[product, self.time_periods[i], self.tau_periods[j]] for j in range(0,2)) *  self.safety_stock[product][i] +
-                                                       gp.quicksum(order_product[product, self.time_periods[i], self.tau_periods[j]] * (self.safety_stock[product][i]) for j in (2, len(self.time_periods)-i))
+            minimum_inventory = self.model.addConstrs((inventory_level[product, self.time_periods[i]] >= 100
+                                                       #gp.quicksum(order_product[product, self.time_periods[i], self.tau_periods[j]] for j in range(0,2)) *  self.safety_stock[product][i] +
+                                                       #gp.quicksum(order_product[product, self.time_periods[i], self.tau_periods[j]] * (self.safety_stock[product][i]) for j in (2, len(self.time_periods)-i))
                                                     for product in self.products for i in range(1, len(self.time_periods))), name="minimumInventory")
+
         else:
             minimum_inventory = self.model.addConstrs((inventory_level[product, time_period] >= 0 for product in self.products for time_period in self.time_periods[1:]), name="minimumInventory")
             
