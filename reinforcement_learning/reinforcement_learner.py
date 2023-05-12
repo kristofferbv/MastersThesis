@@ -18,11 +18,12 @@ if __name__ == "__main__":
     env = JointReplenishmentEnv(products)
     # state_shape is the input shape for critic and actor
     state_shape = env.observation_space.shape
-    print(state_shape)
+    # Since agent space only consist of the state of a singe product
+    state_shape_agent = state_shape[1]
     # action shape is the output shape of the actor
-    action_shape = env.action_space.shape
+    action_shape = env.action_space.n
 
-    actor = Actor(state_shape, action_shape)
+    actor = Actor(state_shape_agent, action_shape)
     critic = Critic(state_shape)
 
     # Train the A2C model

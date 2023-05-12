@@ -1,7 +1,9 @@
 import numpy as np
 from gurobipy import Model
-from keras import Sequential, Input
+from keras import Sequential, Input, optimizers
 from keras.layers import Dense, Flatten
+import tensorflow as tf
+
 
 from config_utils import load_config
 import keras
@@ -40,7 +42,7 @@ def get_stochastic_action(prob_distributions):
     try:
         joint_action = np.random.choice(actions, p=prob_distributions[0])  # Sample a joint action
     except:
-        print("joint action: ", prob_distributions)
+        print("probability distribution: ", prob_distributions)
     return joint_action
 
 
@@ -97,10 +99,31 @@ class Actor:
             model.add(Dense(int(self.dense_layers[i]), activation=self.dense_activation_functions[i]))
 
         # Change the output size to represent all possible joint actions.
-        model.add(Dense(6 ** 6, activation=self.output_activation_function))
+        model.add(Dense(self.output_size, activation=self.output_activation_function))
 
         model.compile(optimizer=self.optimizer,
                       loss=loss_function)
+
+        return model
+
+    def create_network_5(self, optimizer, loss_function):
+        # Define the input layer
+        inputs = Input(shape=self.input_shape)
+
+        # Add hidden layers
+        x = Dense(64, activation='relu')(inputs)
+        x = Dense(64, activation='relu')(x)
+
+        # Output layer with softmax activation for discrete actions
+        outputs = Dense(self.output_size, activation='softmax')(x)
+
+        # Create the actor model
+        model = tf.keras.Model(inputs=inputs, outputs=outputs)
+
+        # Compile the model
+        optimizer = optimizers.Adam(learning_rate=0.001)
+        self.optimizer = optimizer
+        model.compile(optimizer=optimizer, loss='categorical_crossentropy')
 
         return model
 

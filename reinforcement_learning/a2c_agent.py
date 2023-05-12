@@ -28,66 +28,59 @@ class A2CAgent:
         self.critic_optimizer = critic.optimizer
         self.env = env
 
-    def train_a2c(self, n_episodes = None):
+    def train_a2c(self, n_episodes = None, verbose = True):
         if n_episodes is None:
             n_episodes = self.n_episodes
-            # Initialize running average and standard deviation of rewards
-            running_avg_reward = 0
-            running_std_reward = 1  # Initialize to 1 to avoid division by zero issues
+        # Initialize running average and standard deviation of rewards
+        running_avg_reward = 0
+        running_std_reward = 1  # Initialize to 1 to avoid division by zero issues
 
         for episode in range(n_episodes):
-            state = self.env.reset()
+            states = self.env.reset()
             done = False
             total_reward = 0
             td_errors = []
 
             while not done:
-                action_prob = self.actor.predict(state)
-                # print(action_prob)
-                # print(action_prob)
-                # getting action based on probability distribution
-                action = get_stochastic_action(action_prob)
-                individual_actions = unflatten_action(action)
-                # print(individual_actions)
-                # Use this for stochastic action if probability distribution is an 1D array:
-                # action = np.random.choice(len(action_prob[0]), p=action_prob[0])
-                # print("actions")
-                # print(action)
-                next_state, reward, done, _ = self.env.step(individual_actions)
-                # print("prdiction1", self.critic.predict(state))
-                # print("state1:", state)
-                # print("prediction2", self.critic.predict(next_state))
-                # print("state2", next_state)
-                # print("reward", reward)
-                # print("individual actions", individual_actions)
-                total_reward += reward
+                actions = []
+                for i, state in enumerate(states):
+                    action_prob = self.actor.predict(state)
+                    action = get_stochastic_action(action_prob)
+                    actions.append(action)
+                next_states, rewards, done, _ = self.env.step(actions)
+                total_reward += sum(rewards)
 
-                # Update the running average and standard deviation
-                running_avg_reward = 0.99 * running_avg_reward + 0.01 * reward
-                running_std_reward = np.sqrt(0.99 * running_std_reward ** 2 + 0.01 * (reward - running_avg_reward) ** 2)
-                # Normalize the reward
-                reward = (reward - running_avg_reward) / running_std_reward
+                running_avg_reward = 0.99 * running_avg_reward + 0.01 * sum(rewards)
+                running_std_reward = np.sqrt(0.99 * running_std_reward ** 2 + 0.01 * (sum(rewards) - running_avg_reward) ** 2)
+                rewards = [(reward - running_avg_reward) / running_std_reward for reward in rewards]
 
-                target = reward + (1 - done) * self.discount_rate * self.critic.predict(next_state)
-                td_error = target - self.critic.predict(state)
+                target = sum(rewards) + (1 - done) * self.discount_rate * self.critic.predict(next_states)
+                td_error = target - self.critic.predict(states)
                 td_errors.append(td_error)
-                # print(td_error)
+                if verbose:
+                    print("actions", actions)
+                    print("total reward: ", total_reward)
+                    print("prdiction next", self.critic.predict(next_states))
+                    print("state: ", states)
+                    print("next state: ", next_states)
+                    print("td error: ", td_error)
 
-                # Train the Critic
-                # print("PREDICTION", self.critic.predict(state))
+                self.critic.fit(states, target, verbose=0)
 
-                self.critic.fit(state, target, verbose=0)
+                for i, (state, action, td_error) in enumerate(zip(states, actions, td_errors)):
+                    with tf.GradientTape() as tape:
+                        state_batch = np.expand_dims(state, axis=0)
+                        action_prob = self.actor.model(state_batch)
+                        epsilon = 1e-8  # small constant to avoid zero values
+                        log_prob = tf.math.log(tf.reduce_sum(action_prob * action, axis=1) + epsilon)
+                        actor_loss = -tf.reduce_mean(td_error * log_prob)
+                    actor_gradients = tape.gradient(actor_loss, self.actor.model.trainable_variables)
+                    # Apply gradient clipping
+                    # actor_gradients, _ = tf.clip_by_global_norm(actor_gradients, 1.0)
+                    self.actor_optimizer.apply_gradients(zip(actor_gradients, self.actor.model.trainable_variables))
 
-                # Train the Actor
-                with tf.GradientTape() as tape:
-                    state_batch = np.expand_dims(state, axis=0)
-                    action_prob = self.actor.model(state_batch)
-                    log_prob = tf.math.log(tf.reduce_sum(action_prob * action, axis=1))
-                    actor_loss = -tf.reduce_mean(td_error * log_prob)
-                actor_gradients = tape.gradient(actor_loss, self.actor.model.trainable_variables)
-                self.actor_optimizer.apply_gradients(zip(actor_gradients, self.actor.model.trainable_variables))
+                states = next_states
 
-                state = next_state
             print(f'Epoch {episode + 1}/{n_episodes}: Total Reward: {total_reward}')
             print("sum td errors: ", sum(abs(x) for x in td_errors))
             print("std dev td errors: ", np.std(td_errors))
