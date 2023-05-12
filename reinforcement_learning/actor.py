@@ -15,6 +15,7 @@ def get_greedy_action_2(prob_distributions):
         actions_list.append(action)
     return actions_list
 
+
 # For each product, we randomly select an action based on the provided probability distribution.
 def get_stochastic_action_2(prob_distributions):
     # Assuming `prob_distributions` is the nested list of probability distributions
@@ -25,17 +26,23 @@ def get_stochastic_action_2(prob_distributions):
         actions_list.append(action)
     return actions_list
 
+
 # For each product, we randomly select an action based on the provided probability distribution.
 def get_greedy_action(prob_distributions):
     # `prob_distributions` is now a 1D array of joint action probabilities
     joint_action = np.argmax(prob_distributions[0])  # Select joint action with highest probability
     return joint_action
 
+
 def get_stochastic_action(prob_distributions):
     # `prob_distributions` is now a 1D array of joint action probabilities
     actions = np.arange(len(prob_distributions[0]))  # Generate an array of joint action indices
-    joint_action = np.random.choice(actions, p=prob_distributions[0])  # Sample a joint action
+    try:
+        joint_action = np.random.choice(actions, p=prob_distributions[0])  # Sample a joint action
+    except:
+        print("joint action: ", prob_distributions)
     return joint_action
+
 
 def unflatten_action(joint_action, num_actions=6, num_products=6):
     actions_list = []
@@ -152,4 +159,8 @@ class Actor:
         # Get the probability distribution over actions
         action_prob = self.model.predict(state, verbose=0)
         # Return the action probabilities
+        weights = self.model.get_weights()
+        # for i, layer_weights in enumerate(weights):
+        #     print(f"Layer {i} weights:")
+        #     print(layer_weights)
         return action_prob

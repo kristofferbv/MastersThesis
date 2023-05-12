@@ -47,9 +47,9 @@ class Critic:
 
         for i in range(len(self.dense_layers)):
             model.add(Dense(int(self.dense_layers[i]), activation=self.dense_activation_functions[i]))
-        model.add(Dense(1))
+        model.add(Dense(1, activation=self.output_activation_function))
         model.compile(optimizer=self.optimizer,
-                      loss=loss_function, metrics=[keras.metrics.categorical_accuracy])
+                      loss=loss_function)
 
         return model
 
@@ -66,15 +66,18 @@ class Critic:
         # Return the value
         return value
 
-    def fit(self, states, targets, verbose=0):
+    def fit(self, state, target, verbose=0):
         """
         Train the critic network given the states and targets.
         """
         # Reshape the states and targets to match the expected input shapes
-        states = np.array(states)
-        states = states.reshape(1, 6, 6)
-        targets = np.array(targets)
-        targets = targets.reshape(1, 1)
+        # states = np.array(state)
+        states = np.expand_dims(state, axis=0)
+        targets = np.expand_dims(target, axis=0)
+
+        #
+        # targets = np.array(targets)
+        # targets = targets.reshape(1, 1)
 
         # Train the critic network
         self.model.fit(states, targets, verbose=0, epochs=100)

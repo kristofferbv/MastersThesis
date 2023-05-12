@@ -12,6 +12,21 @@ deterministic_model:
   shipping_cost: [ 500 ]
   lower_bound_free_shipping: [ 4500 ]
   should_include_safety_stock: True
+rl_model:
+  n_products: 6
+  n_time_periods: 13
+  joint_setup_cost: 5
+  minor_setup_cost: [1,1,1,1,1,1]
+  holding_cost: [0.7,0.7,0.7,0.7,0.7,0.7 ]
+  shortage_cost: [ 14,  14,  14,  14,  14,  14 ]
+  base_unit_cost: [ 7.15, 10.9, 0.84, 0.319, 6.555, 6.555 ]
+  big_m: [ 10, 10, 10, 10, 10, 10 ]
+  service_level: [ 0.95, 0.95, 0.95, 0.95 , 0.95 ,0.95 ]
+  epsilon: [ 0.00001 ]
+  shipping_cost: [ 500 ]
+  lower_bound_free_shipping: [ 4500 ]
+  should_include_safety_stock: True
+
 main:
   should_analyse: False
   stationary_products: True
@@ -21,12 +36,12 @@ simulation:
   should_set_holding_cost_dynamically: True
 
 actor:
-  layers: [200,800,200]                            # Example: [30,30]
+  layers: [30,30]                         # Example: [30,30]
   activation_functions: ["relu","relu","relu"]  # Example: ["relu","relu"]. Examples of activation functions are relu linear, sigmoid, tanh
   learning_rate: 0.0001
   output_activation_function: "softmax"
-  optimizer: "Adam"                                 # Examples of optimizers are Adagrad, Stochastic Gradient Descent (SGD), RMSprop or Adam
-  loss_function: "categorical_crossentropy"
+  optimizer: "SGD"                                 # Examples of optimizers are Adagrad, Stochastic Gradient Descent (SGD), RMSprop or Adam
+  loss_function: "mse"
   batch_size: 128                                   # Normal values: 32, 64, 128
   epochs: 10000
   epsilon: 1
@@ -38,7 +53,7 @@ actor:
 critic:
   layers: [200,800,200]                            # Example: [30,30]
   activation_functions: ["relu","relu","relu"]  # Example: ["relu","relu"]. Examples of activation functions are relu linear, sigmoid, tanh
-  learning_rate: 0.0001
+  learning_rate: 0.001
   output_activation_function: "linear"
   optimizer: "Adam"                                 # Examples of optimizers are Adagrad, Stochastic Gradient Descent (SGD), RMSprop or Adam
   loss_function: "mse"
@@ -52,6 +67,6 @@ critic:
 
 a2c:
   discount_rate: 0.99
-  n_episodes: 100
+  n_episodes: 1000
 environment:
-  n_periods_historical_data: 5
+  n_periods_historical_data: 10

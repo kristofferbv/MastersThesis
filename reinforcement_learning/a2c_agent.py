@@ -31,28 +31,46 @@ class A2CAgent:
     def train_a2c(self, n_episodes = None):
         if n_episodes is None:
             n_episodes = self.n_episodes
+            # Initialize running average and standard deviation of rewards
+            running_avg_reward = 0
+            running_std_reward = 1  # Initialize to 1 to avoid division by zero issues
+
         for episode in range(n_episodes):
             state = self.env.reset()
             done = False
             total_reward = 0
+            td_errors = []
 
             while not done:
                 action_prob = self.actor.predict(state)
-                print(action_prob)
+                # print(action_prob)
                 # print(action_prob)
                 # getting action based on probability distribution
                 action = get_stochastic_action(action_prob)
                 individual_actions = unflatten_action(action)
-                print(individual_actions)
+                # print(individual_actions)
                 # Use this for stochastic action if probability distribution is an 1D array:
                 # action = np.random.choice(len(action_prob[0]), p=action_prob[0])
-
                 # print("actions")
                 # print(action)
                 next_state, reward, done, _ = self.env.step(individual_actions)
+                # print("prdiction1", self.critic.predict(state))
+                # print("state1:", state)
+                # print("prediction2", self.critic.predict(next_state))
+                # print("state2", next_state)
+                # print("reward", reward)
+                # print("individual actions", individual_actions)
                 total_reward += reward
+
+                # Update the running average and standard deviation
+                running_avg_reward = 0.99 * running_avg_reward + 0.01 * reward
+                running_std_reward = np.sqrt(0.99 * running_std_reward ** 2 + 0.01 * (reward - running_avg_reward) ** 2)
+                # Normalize the reward
+                reward = (reward - running_avg_reward) / running_std_reward
+
                 target = reward + (1 - done) * self.discount_rate * self.critic.predict(next_state)
                 td_error = target - self.critic.predict(state)
+                td_errors.append(td_error)
                 # print(td_error)
 
                 # Train the Critic
@@ -71,6 +89,8 @@ class A2CAgent:
 
                 state = next_state
             print(f'Epoch {episode + 1}/{n_episodes}: Total Reward: {total_reward}')
+            print("sum td errors: ", sum(abs(x) for x in td_errors))
+            print("std dev td errors: ", np.std(td_errors))
 
     def evaluate_a2c(a2c_model, env, n_episodes):
         total_rewards = []
