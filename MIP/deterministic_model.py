@@ -46,7 +46,6 @@ class DeterministicModel:
                 self.service_level[product_index][tau_period] = service_levels[product_index] 
            
 
-        print(self.service_level)
 
 
     def set_demand_forecast(self, demand_forecast):
@@ -60,19 +59,26 @@ class DeterministicModel:
             self.shortage_cost[product_index] = self.holding_cost[product_index]/(1/self.service_level[product_index][self.tau_periods[0]] - 1)
     
 
-    def set_safety_stock(self, standard_deviations):
-        for product_index in range(self.n_products):
-            for time_period in range(self.n_time_periods):
-                self.safety_stock[product_index][time_period] = {}
-                for tau_period in range(len(self.tau_periods)):
-                    self.safety_stock[product_index][time_period][tau_period] = norm.ppf(self.service_level[product_index][tau_period]) * np.sqrt(standard_deviations[product_index][tau_period]**2) 
+    #def set_safety_stock(self, standard_deviations):
+     #   for product_index in range(self.n_products):
+      #      for time_period in range(self.n_time_periods):
+       #         self.safety_stock[product_index][time_period] = {}
+        #        for tau_period in range(len(self.tau_periods)):
+         #           self.safety_stock[product_index][time_period][tau_period] = norm.ppf(self.service_level[product_index][tau_period]) * np.sqrt(standard_deviations[product_index][tau_period]**2) 
             #self.safety_stock[product_index][0] = self.safety_stock[product_index][1]
-        self.model.update()
+        #self.model.update()
+        #self.set_up_model()
 
-
-        print(self.safety_stock)
+    def set_safety_stock(self, standard_deviations):
+        print(self.time_periods)
+        print(self.tau_periods)
+        for product_index in range(self.n_products):
+            for time_period in range(1, self.n_time_periods):
+                self.safety_stock[product_index][time_period] = {}
+                for tau_period in range(1, self.n_time_periods - time_period+1):
+                    squared_sum = sum(standard_deviations[product_index][time_period+t]**2 for t in range(1, tau_period - time_period + 1))
+                    self.safety_stock[product_index][time_period][tau_period] = norm.ppf(self.service_level[product_index][tau_period]) * np.sqrt(squared_sum)
         self.model.update()
-        self.set_up_model()
 
     def reset_model(self):
         self.model.reset(0)
@@ -104,31 +110,40 @@ class DeterministicModel:
         minor_setup_incur = self.model.addConstrs((replenishment_q[product, time_period] <= self.big_m[product] * gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) for product in self.products for time_period in self.time_periods), name="MinorSetupIncur")
         major_setup_incur = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for product in self.products for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) <= place_order[time_period] * self.n_products for time_period in self.time_periods), name="MajorSetupIncur")
         max_one_order = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) <= 1 for product in self.products for time_period in self.time_periods), name="MaxOneOrder")
+        
+        
         if self.should_include_safety_stock:
-            #for product in self.products:
-             #   for i in range(1, len(self.time_periods)):
-              #      safety_stock_key = self.safety_stock[product][self.time_periods[i]][self.tau_periods[0]]
-               #     print(f"Product: {product}, Time Period: {self.time_periods[i]}, Safety Stock Key: {safety_stock_key}")
-                #    inventory_level_key = (product, self.time_periods[i])
-                 #   print(f"Inventory Level Key: {inventory_level_key}")
-                  #  inventory_level_value = inventory_level[inventory_level_key]
-                   # print(f"Inventory Level Value: {inventory_level_value}")
-
-                   # inventory_level_constr = self.model.addConstr(
-                   #     inventory_level_value >= order_product[product, self.time_periods[i], self.tau_periods[0]] * safety_stock_key,
-                   #     name=f"MinimumInventoryNotOrdering_{product}_{self.time_periods[i]}"
-                   # )
-                    #print(f"Constraint added: {inventory_level_constr}")
-
-    
-            minimum_inventory_ordering = self.model.addConstrs((inventory_level[product, self.time_periods[i]] >= 
-                                                       gp.quicksum(order_product[product, self.time_periods[i], self.tau_periods[j]] for j in range(0,2)) *  self.safety_stock[product][self.time_periods[1]][self.tau_periods[1]] 
-                                                    #gp.quicksum(order_product[product, self.time_periods[i], self.tau_periods[j]] * (self.safety_stock[product][i][j] + gp.quicksum(self.demand_forecast[product][self.time_periods[i+t]] 
-                                                    #for t in range(1, j))) for j in (2, len(self.time_periods)-i))
-                                                    for product in self.products for i in range(1, len(self.time_periods))), name="minimumInventoryOrdering")
-            
-            minimum_inventory_not_ordering = self.model.addConstrs((inventory_level[product, self.time_periods[i]] >= order_product[product, self.time_periods[i], self.tau_periods[0]] * self.safety_stock[product][self.time_periods[i]][self.tau_periods[0]]
-                                                                    for product in self.products for i in range(1, len(self.time_periods))), name="minimumInventoryNotOrdering")
+            print(self.safety_stock)
+            '''
+            minimum_inventory_ordering = self.model.addConstrs((inventory_level[self.products[p], self.time_periods[i]] >= 
+                                                       gp.quicksum(order_product[self.products[p], self.time_periods[i], self.tau_periods[j]] for j in range(0,2)) *  self.safety_stock[p][1][1] 
+                                                   +gp.quicksum(order_product[self.products[p], self.time_periods[i], self.tau_periods[j]] * (self.safety_stock[p][i][j] 
+                                                    + gp.quicksum(self.demand_forecast[self.products[p]][self.time_periods[i + t]] for t in range(1, j + 1)))
+                                                    for j in range(2, min(len(self.tau_periods)-i, self.n_time_periods-1)))
+                                                     for p in range(self.n_products) for i in range(1, self.n_time_periods-1)), name="minimumInventoryOrdering")
+            '''
+            #sjekke om denne blir riktig
+            minimum_inventory_ordering = self.model.addConstrs(
+    (
+        inventory_level[self.products[p], self.time_periods[i]] >= 
+        gp.quicksum(
+            order_product[self.products[p], self.time_periods[i], self.tau_periods[j]] * (
+                self.safety_stock[p][self.time_periods[i]][j-1] +
+                gp.quicksum(
+                    self.demand_forecast[self.products[p]][self.time_periods[i + t]]
+                    for t in range(1, j+1)
+                )
+            )
+            for j in range(1, min(i + self.n_time_periods - i + 1, self.n_time_periods) - i + 1)
+        )
+        for p in range(self.n_products)
+        for i in range(1, self.n_time_periods)
+    ),
+    name="minimumInventoryOrdering"
+)
+           
+            minimum_inventory_not_ordering = self.model.addConstrs((inventory_level[self.products[p], self.time_periods[i]] >= self.safety_stock[p][i][1]
+                                                                    for p in range (self.n_products) for i in range(1, self.n_time_periods-1)), name="minimumInventoryNotOrdering")
 
         else:
             minimum_inventory = self.model.addConstrs((inventory_level[product, time_period] >= 0 for product in self.products for time_period in self.time_periods[1:]), name="minimumInventory")
