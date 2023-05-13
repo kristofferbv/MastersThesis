@@ -4,6 +4,7 @@ from tensorflow import keras
 from keras import layers
 import gym
 import scipy.signal
+import actor as a
 import time
 
 import generate_data_dataframe
@@ -49,7 +50,7 @@ class Buffer:
     def __init__(self, observation_dimensions, size, gamma=0.99, lam=0.95):
         # Buffer initialization
         self.observation_buffer = np.zeros(
-            (size, observation_dimensions), dtype=np.float32
+            (size, *observation_dimensions), dtype=np.float32
         )
         self.action_buffer = np.zeros(size, dtype=np.int32)
         self.advantage_buffer = np.zeros(size, dtype=np.float32)
@@ -104,10 +105,14 @@ class Buffer:
 
 
 def mlp(x, sizes, activation=tf.tanh, output_activation=None):
+    # Flatten the input if it's not already flat
+    x = keras.layers.Flatten()(x)
+
     # Build a feedforward neural network
     for size in sizes[:-1]:
-        x = layers.Dense(units=size, activation=activation)(x)
-    return layers.Dense(units=sizes[-1], activation=output_activation)(x)
+        x = keras.layers.Dense(units=size, activation=activation)(x)
+
+    return keras.layers.Dense(units=sizes[-1], activation=output_activation)(x)
 
 
 def logprobabilities(logits, a):
@@ -122,6 +127,7 @@ def logprobabilities(logits, a):
 # Sample action from actor
 @tf.function
 def sample_action(observation):
+    observation = tf.reshape(observation, [1, *observation.shape])
     logits = actor(observation)
     action = tf.squeeze(tf.random.categorical(logits, 1), axis=1)
     return logits, action
@@ -169,16 +175,18 @@ def train_value_function(observation_buffer, return_buffer):
 # Initialize the environment and get the dimensionality of the
 # observation space and the number of possible actions
 # env = gym.make("CartPole-v0")
-observation_dimensions = env.observation_space.shape[0]
-num_actions = env.action_space.n
+observation_dimensions = env.observation_space.shape
+num_actions = 4^2
 
 # Initialize the buffer
 buffer = Buffer(observation_dimensions, steps_per_epoch)
 
 # Initialize the actor and the critic as keras models
-observation_input = keras.Input(shape=(observation_dimensions,), dtype=tf.float32)
+observation_input = keras.Input(shape=observation_dimensions, dtype=tf.float32)
 logits = mlp(observation_input, list(hidden_sizes) + [num_actions], tf.tanh, None)
+print(logits)
 actor = keras.Model(inputs=observation_input, outputs=logits)
+
 value = tf.squeeze(
     mlp(observation_input, list(hidden_sizes) + [1], tf.tanh, None), axis=1
 )
@@ -208,18 +216,18 @@ for epoch in range(epochs):
 
         # Get the logits, action, and take one step in the environment
         # observation = observation.reshape(1, -1)
-        print(observation)
         logits, action = sample_action(observation)
-        observation_new, reward, done, *_ = env.step(action[0].numpy())
-        episode_return += reward
+        individual_actions = a.unflatten_action(action[0].numpy(), 4,2)
+        observation_new, reward, done, *_ = env.step(individual_actions)
+        episode_return += sum(reward)
         episode_length += 1
 
         # Get the value and log-probability of the action
-        value_t = critic(observation)
+        value_t = critic(tf.reshape(observation, [1, *observation.shape]))
         logprobability_t = logprobabilities(logits, action)
 
         # Store obs, act, rew, v_t, logp_pi_t
-        buffer.store(observation, action, reward, value_t, logprobability_t)
+        buffer.store(observation, action, sum(reward), value_t, logprobability_t)
 
         # Update the observation
         observation = observation_new
@@ -259,5 +267,5 @@ for epoch in range(epochs):
 
     # Print mean return and length for each epoch
     print(
-        f" Epoch: {epoch + 1}. Mean Return: {sum_return / num_episodes}. Mean Length: {sum_length / num_episodes}"
+        f" Epoch: {epoch + 1}. Mean Reward: {sum_return / num_episodes}. Mean Length: {sum_length / num_episodes}"
     )
