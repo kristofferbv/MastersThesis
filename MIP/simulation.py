@@ -18,6 +18,7 @@ def simulate(start_date, n_time_periods, products):
     # initialize model
 
     actions = {}  # Store the first actions for each time step
+    orders = {}
     inventory_levels = [0 for i in range(len(products))]
 
     total_costs = 0
@@ -38,9 +39,11 @@ def simulate(start_date, n_time_periods, products):
             for product_index, product in enumerate(products):
                 actual_demand = products[product_index].loc[start_date, "sales_quantity"]
                 actual_demands.append(actual_demand)
+
                 # added_inventory = max(0,actions[time-1][product_index] - actual_demand)  # skal vi ikke her ta at inventory level skal være max av 0 of invnetory level før + actions - actual demand??
 
                 # add holding costs or shortage costs
+       
                 if inventory_levels[product_index] + actions[time - 1][product_index] - actual_demand > 0:
                     holding_costs += (inventory_levels[product_index] + actions[time - 1][product_index] - actual_demand) * deterministic_model.holding_cost[product_index]
                     period_costs += (inventory_levels[product_index] + actions[time - 1][product_index] - actual_demand) * deterministic_model.holding_cost[product_index]
@@ -106,18 +109,36 @@ def simulate(start_date, n_time_periods, products):
 
         # Extract and store the first action for each product in the current time step
         actions[time] = {}
+        threshold = 1e-10
+
+        orders[time] = {}
+
         for var in deterministic_model.model.getVars():
             if var.varName.startswith("ReplenishmentQ"):
                 product_index, current_time = map(int, var.varName.split("[")[1].split("]")[0].split(","))
                 # Only looking at the action at time t = 1, since that is the actual action for this period
                 if current_time == 1:
-                    actions[time][product_index] = var.x        
+                    actions[time][product_index] = var.x
+                    if abs(actions[time][product_index]) < threshold:
+                        actions[time][product_index] = 0
+
+            if var.varName.startswith("OrderProduct"):
+                for tau in deterministic_model.tau_periods:
+                    product_index, current_time, tau = map(int, var.varName.split("[")[1].split("]")[0].split(","))
+                    # Only looking at the action at time t = 1, since that is the actual action for this period
+                    if current_time == 1:
+                        if product_index not in orders[time]:
+                            orders[time][product_index] = {}
+                        orders[time][product_index][tau] = var.x
+                        if abs(orders[time][product_index][tau]) < threshold:
+                            orders[time][product_index][tau] = 0
+
         # Replace small values with zero
-        threshold = 1e-10
-        for product_index, product_actions in actions.items():
-            for time_step, action in product_actions.items():
-                if abs(action) < threshold:
-                    actions[product_index][time_step] = 0.0
+        #threshold = 1e-10
+        #for product_index, product_actions in actions.items():
+         #   for time_step, action in product_actions.items():
+         #       if abs(action) < threshold:
+         #           actions[product_index][time_step] = 0.0
     
 
 
@@ -130,6 +151,8 @@ def simulate(start_date, n_time_periods, products):
     print("Setup costs")
     print(setup_costs)
     print(actions)
+    print("orders")
+    print(orders)
     runtime = deterministic_model.model.Runtime
     print("The run time is %f" % runtime)
 

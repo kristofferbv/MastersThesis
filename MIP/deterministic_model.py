@@ -41,8 +41,8 @@ class DeterministicModel:
         service_levels = config["deterministic_model"]["service_level"]
 
         for product_index in range(self.n_products):
-            self.service_level[product_index][0] = service_levels[product_index] *0.5
-            self.service_level[product_index][1] = service_levels[product_index] * 0.5
+            self.service_level[product_index][0] = service_levels[product_index]
+            self.service_level[product_index][1] = service_levels[product_index] 
 
             for tau_period in range(2, len(self.tau_periods)):
                 self.service_level[product_index][tau_period] = self.service_level[product_index][tau_period-1] 
@@ -122,7 +122,6 @@ class DeterministicModel:
                                                     for j in range(2, len(self.time_periods)-i))
                                                      for p in range(self.n_products) for i in range(1, self.n_time_periods-1)), name="minimumInventoryOrdering")
             '''
-            #sjekke om denne blir riktig
             minimum_inventory_ordering = self.model.addConstrs(
     (
         inventory_level[self.products[p], self.time_periods[i]] >= 
