@@ -27,8 +27,9 @@ if __name__ == '__main__':
     else:
         products = retrieve_data.read_products_3("2016-01-01", "2020-12-30")
         products = random.sample(get_non_stationary_products(products), n_products)
+    products = products[:4]
 
-    start_date = products[0].index[208]
+    start_date = products[0].index[0]
 
     if should_analyse:  # analysing plotting, decomposing and testing for stationarity
         plot_sales_quantity(products[:20])

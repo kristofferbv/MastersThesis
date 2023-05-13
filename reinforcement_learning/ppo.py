@@ -13,7 +13,7 @@ from reinforcement_learning.environment import JointReplenishmentEnv
 
 # Hyperparameters of the PPO algorithm
 steps_per_epoch = 4000
-epochs = 30
+epochs = 3000
 gamma = 0.99
 clip_ratio = 0.2
 policy_learning_rate = 3e-4
@@ -29,7 +29,7 @@ hidden_sizes = (64, 64)
 should_use_real_products = True
 if should_use_real_products:
     products = retrieve_data.read_products_with_hashes("2016-01-10", "2020-12-30", ["569b6782ce5885fc4abf21cfde38f7d7", "92b1f191dfce9fff64b4effd954ccaab", "8ef91aac79542f11dedec4f79265ae3a", "2fa9c91f40d6780fd5b3c219699eb139", "1fb096daa569c811723ce8796722680e", "f7b3622f9eb50cb4eee149127c817c79"])
-    products = [df["sales_quantity"] for df in products][:2]
+    products = [df["sales_quantity"] for df in products][:4]
 else :
     df = generate_data_dataframe.generate_data(2, weeks=204)
     # Group your DataFrame by 'ID' and convert each group to a DataFrame
@@ -180,7 +180,7 @@ def train_value_function(observation_buffer, return_buffer):
 # observation space and the number of possible actions
 # env = gym.make("CartPole-v0")
 observation_dimensions = env.observation_space.shape
-num_actions = 4^2
+num_actions = env.action_space.n**len(products)
 
 # Initialize the buffer
 buffer = Buffer(observation_dimensions, steps_per_epoch)
@@ -217,9 +217,9 @@ for epoch in range(epochs):
         # Get the logits, action, and take one step in the environment
         # observation = observation.reshape(1, -1)
         logits, action = sample_action(observation)
-        individual_actions = a.unflatten_action(action[0].numpy(), 4,2)
+        individual_actions = a.unflatten_action(action[0].numpy(), env.action_space.n,len(products))
         observation_new, reward, done, *_ = env.step(individual_actions)
-        episode_return += sum(reward)
+        episode_return += reward
         episode_length += 1
 
         # Get the value and log-probability of the action
@@ -227,7 +227,7 @@ for epoch in range(epochs):
         logprobability_t = logprobabilities(logits, action)
 
         # Store obs, act, rew, v_t, logp_pi_t
-        buffer.store(observation, action, sum(reward), value_t, logprobability_t)
+        buffer.store(observation, action, reward, value_t, logprobability_t)
 
         # Update the observation
         observation = observation_new

@@ -1,5 +1,5 @@
 deterministic_model:
-  n_products: 6
+  n_products: 4
   n_time_periods: 13
   joint_setup_cost: 500
   minor_setup_cost: [ 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 ]
