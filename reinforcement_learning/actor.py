@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 from gurobipy import Model
 from keras import Sequential, Input, optimizers
@@ -40,7 +42,10 @@ def get_stochastic_action(prob_distributions):
     # `prob_distributions` is now a 1D array of joint action probabilities
     actions = np.arange(len(prob_distributions[0]))  # Generate an array of joint action indices
     try:
-        joint_action = np.random.choice(actions, p=prob_distributions[0])  # Sample a joint action
+        if np.random.random() < 0.1:
+            return random.choice(actions)
+        else:
+            joint_action = np.random.choice(actions, p=prob_distributions[0])  # Sample a joint action
     except:
         print("probability distribution: ", prob_distributions)
     return joint_action

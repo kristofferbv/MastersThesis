@@ -36,7 +36,7 @@ simulation:
   should_set_holding_cost_dynamically: True
 
 actor:
-  layers: [30,30]                         # Example: [30,30]
+  layers: [20,20]                        # Example: [30,30]
   activation_functions: ["relu","relu","relu"]  # Example: ["relu","relu"]. Examples of activation functions are relu linear, sigmoid, tanh
   learning_rate: 0.0001
   output_activation_function: "softmax"
@@ -51,7 +51,7 @@ actor:
   stochastic: False
 
 critic:
-  layers: [200,800,200]                            # Example: [30,30]
+  layers: [20, 20]                             # Example: [30,30]
   activation_functions: ["relu","relu","relu"]  # Example: ["relu","relu"]. Examples of activation functions are relu linear, sigmoid, tanh
   learning_rate: 0.0001
   output_activation_function: "linear"
@@ -66,7 +66,7 @@ critic:
   stochastic: False
 
 a2c:
-  discount_rate: 0.99
+  discount_rate: 0.9
   n_episodes: 1000
 environment:
-  n_periods_historical_data: 5
+  n_periods_historical_data: 10
