@@ -6,7 +6,6 @@ from keras import Sequential, Input, optimizers
 from keras.layers import Dense, Flatten
 import tensorflow as tf
 
-
 from config_utils import load_config
 import keras
 
@@ -42,7 +41,7 @@ def get_stochastic_action(prob_distributions):
     # `prob_distributions` is now a 1D array of joint action probabilities
     actions = np.arange(len(prob_distributions[0]))  # Generate an array of joint action indices
     try:
-        if np.random.random() < 0.1:
+        if np.random.random() < 0.2:
             return random.choice(actions)
         else:
             joint_action = np.random.choice(actions, p=prob_distributions[0])  # Sample a joint action
@@ -90,6 +89,25 @@ class Actor:
         else:
             self.model = keras.models.load_model(model_path)
 
+    def get_stochastic_action(self, prob_distributions):
+        # `prob_distributions` is now a 1D array of joint action probabilities
+        actions = np.arange(len(prob_distributions[0]))  # Generate an array of joint action indices
+        try:
+            if np.random.random() < self.epsilon:
+                joint_action = random.choice(actions)
+            else:
+                joint_action = np.random.choice(actions, p=prob_distributions[0])  # Sample a joint action
+        except:
+            print("probability distribution: ", prob_distributions)
+        return joint_action
+
+    def reduce_exploration_rate(self, episode):
+        if episode > 100 and self.epsilon != self.epsilon_min_value:
+            self.epsilon = self.epsilon * self.epsilon_decay
+            print("EPSILON ", self.epsilon)
+        if self.epsilon < self.epsilon_min_value:
+            self.epsilon = self.epsilon_min_value
+
     def create_network(self, optimizer, loss_function):
         optimizer = eval("keras.optimizers." + optimizer)
         self.optimizer = optimizer(learning_rate=self.learning_rate)
@@ -111,71 +129,6 @@ class Actor:
 
         return model
 
-    def create_network_5(self, optimizer, loss_function):
-        # Define the input layer
-        inputs = Input(shape=self.input_shape)
-
-        # Add hidden layers
-        x = Dense(64, activation='relu')(inputs)
-        x = Dense(64, activation='relu')(x)
-
-        # Output layer with softmax activation for discrete actions
-        outputs = Dense(self.output_size, activation='softmax')(x)
-
-        # Create the actor model
-        model = tf.keras.Model(inputs=inputs, outputs=outputs)
-
-        # Compile the model
-        optimizer = optimizers.Adam(learning_rate=0.001)
-        self.optimizer = optimizer
-        model.compile(optimizer=optimizer, loss='categorical_crossentropy')
-
-        return model
-
-    def create_network_multi_agent_1(self, optimizer, loss_function):
-        optimizer = eval("keras.optimizers." + optimizer)
-        self.optimizer = optimizer(learning_rate=self.learning_rate)
-        loss_function = eval("keras.losses." + loss_function)
-
-        model = Sequential()
-        model.add(Input(shape=self.input_shape))
-
-        for i in range(len(self.dense_layers)):
-            model.add(Dense(int(self.dense_layers[i]), activation=self.dense_activation_functions[i]))
-
-        # TODO! Figure out if we should flatten the data before the last layer, because now the dimension would be a list of list. One list for each product, containing 100 probabilities (corresponding to actions)
-        # Just setting 100 here, meaning each product can order between 0 and 100.
-        model.add(Dense(100, activation=self.output_activation_function))
-        model.compile(optimizer=self.optimizer,
-                      loss=loss_function, metrics=[keras.metrics.categorical_accuracy])
-
-        return model
-
-    def create_network_multi_agent_2(self, optimizer, loss_function):
-        optimizer = eval("keras.optimizers." + optimizer)
-        self.optimizer = optimizer(learning_rate=self.learning_rate)
-        loss_function = eval("keras.losses." + loss_function)
-
-        # Define the input layer
-        inputs = Input(shape=(self.input_size,))
-
-        # Define the hidden layers
-        x = inputs
-        for i in range(len(self.dense_layers)):
-            x = Dense(int(self.dense_layers[i]), activation=self.dense_activation_functions[i])(x)
-
-        # Define a separate output layer for each product
-        outputs = []
-        for _ in range(self.output_size[0]):
-            outputs.append(Dense(self.output_size[1], activation=self.output_activation_function)(x))
-
-        # Create the model
-        model = Model(inputs=inputs, outputs=outputs)
-
-        model.compile(optimizer=self.optimizer,
-                      loss=loss_function, metrics=[keras.metrics.categorical_accuracy])
-
-        return model
 
     def predict(self, state):
         """
@@ -187,7 +140,7 @@ class Actor:
         # Get the probability distribution over actions
         action_prob = self.model.predict(state, verbose=0)
         # Return the action probabilities
-        weights = self.model.get_weights()
+        # weights = self.model.get_weights()
         # for i, layer_weights in enumerate(weights):
         #     print(f"Layer {i} weights:")
         #     print(layer_weights)

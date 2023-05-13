@@ -41,7 +41,6 @@ class Critic:
         model = Sequential()
         model.add(Input(shape=self.input_shape))
         # Need to flatten the architecture (I think)
-        model.add(Flatten())
 
         # model.add(Input(shape=(self.input_size,)))
 

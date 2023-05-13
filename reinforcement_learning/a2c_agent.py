@@ -34,7 +34,7 @@ class A2CAgent:
         # Initialize running average and standard deviation of rewards
         running_avg_reward = 0
         running_std_reward = 1  # Initialize to 1 to avoid division by zero issues
-        batch_states, batch_actions, batch_td_errors = [], [], []
+        batch_states, batch_actions, batch_td_errors, batch_action_prob = [], [], [], []
         for episode in range(n_episodes):
             states = self.env.reset()
             done = False
@@ -43,10 +43,12 @@ class A2CAgent:
 
             while not done:
                 actions = []
+                actions_prob = []
                 for i, state in enumerate(states):
                     action_prob = self.actor.predict(state)
-                    action = get_stochastic_action(action_prob)
+                    action = self.actor.get_stochastic_action(action_prob)
                     actions.append(action)
+                    actions_prob.append(action_prob)
                 next_states, rewards, done, _ = self.env.step(actions)
                 total_reward += sum(rewards)
 
@@ -60,6 +62,9 @@ class A2CAgent:
                 batch_states.extend(np.expand_dims(states, axis=0))
                 batch_actions.extend(actions)
                 batch_td_errors.extend(td_error)
+                batch_action_prob.append(actions_prob[0])
+                batch_action_prob.append(actions_prob[1])
+
                 if verbose:
                     print("actions", actions)
                     print("total reward: ", total_reward)
@@ -69,50 +74,50 @@ class A2CAgent:
                     print("td error: ", td_error)
                 states = next_states
 
-            # if len(batch_states) >= 13:
-            # TODO! fix this
-            batch_states = np.array(batch_states)
-            with tf.GradientTape() as tape:
-                state_values = self.critic.model(batch_states)
-                critic_loss = tf.reduce_mean(tf.square(np.array(batch_td_errors) - state_values))
-            critic_gradients = tape.gradient(critic_loss, self.critic.model.trainable_variables)
-            self.critic_optimizer.apply_gradients(zip(critic_gradients, self.critic.model.trainable_variables))
+            if episode%10 == 0:
+                self.actor.reduce_exploration_rate(episode)
 
-            for state, action, td_error in zip(batch_states, batch_actions, batch_td_errors):
+            if len(batch_states) >= 100:
+                batch_states = np.array(batch_states)
                 with tf.GradientTape() as tape:
-                    action_prob = self.actor.model(state)
-                    epsilon = 1e-8  # small constant to avoid zero values
-                    log_prob = tf.math.log(tf.reduce_sum(action_prob * action, axis=1) + epsilon)
-                    actor_loss = -tf.reduce_mean(td_error * log_prob)
-                actor_gradients = tape.gradient(actor_loss, self.actor.model.trainable_variables)
-                actor_gradients, _ = tf.clip_by_global_norm(actor_gradients, 1.0)
-                self.actor_optimizer.apply_gradients(zip(actor_gradients, self.actor.model.trainable_variables))
+                    state_values = self.critic.model(batch_states)
+                    critic_loss = tf.reduce_mean(tf.square(np.array(batch_td_errors) - state_values))
+                critic_gradients = tape.gradient(critic_loss, self.critic.model.trainable_variables)
+                critic_gradients, _ = tf.clip_by_global_norm(critic_gradients, 0.2)  # Apply gradient clipping
+                self.critic_optimizer.apply_gradients(zip(critic_gradients, self.critic.model.trainable_variables))
 
-            # with tf.GradientTape() as tape:
-            #     state_values = self.critic.model(np.expand_dims(np.array(states), axis=0))
-            #     critic_loss = tf.reduce_mean(tf.square(target - state_values))
-            # critic_gradients = tape.gradient(critic_loss, self.critic.model.trainable_variables)
-            # self.critic_optimizer.apply_gradients(zip(critic_gradients, self.critic.model.trainable_variables))
-            #
-            # for i, (state, action, td_error) in enumerate(zip(states, actions, td_errors)):
-            #     with tf.GradientTape() as tape:
-            #         state_batch = np.expand_dims(state, axis=0)
-            #         action_prob = self.actor.model(state_batch)
-            #         epsilon = 1e-8  # small constant to avoid zero values
-            #         log_prob = tf.math.log(tf.reduce_sum(action_prob * action, axis=1) + epsilon)
-            #         actor_loss = -tf.reduce_mean(td_error * log_prob)
-            #     actor_gradients = tape.gradient(actor_loss, self.actor.model.trainable_variables)
-            #     # Apply gradient clipping
-            #     self.actor_optimizer.apply_gradients(zip(actor_gradients, self.actor.model.trainable_variables))
-            # Clear the batch
-            batch_states, batch_actions, batch_td_errors = [], [], []
+                for state, action, td_error, action_prob in zip(batch_states, batch_actions, batch_td_errors, batch_action_prob):
+                    with tf.GradientTape() as tape:
+                        action_prob = self.actor.model(state)
+                        epsilon = 1e-8  # small constant to avoid zero values
+                        log_prob = tf.math.log(tf.reduce_sum(action_prob * action, axis=1) + epsilon)
+                        actor_loss = -tf.reduce_mean(td_error * log_prob)
+                    actor_gradients = tape.gradient(actor_loss, self.actor.model.trainable_variables)
+                    actor_gradients, _ = tf.clip_by_global_norm(actor_gradients, 0.2)
+                    self.actor_optimizer.apply_gradients(zip(actor_gradients, self.actor.model.trainable_variables))
+                print(f'Epoch {episode + 1}/{n_episodes}: Total Reward: {total_reward}')
+                print("sum of absolute td errors: ", sum(abs(x) for x in td_errors))
+                print("std dev td errors: ", np.std(td_errors))
 
+                # with tf.GradientTape() as tape:
+                #     state_values = self.critic.model(np.expand_dims(np.array(states), axis=0))
+                #     critic_loss = tf.reduce_mean(tf.square(target - state_values))
+                # critic_gradients = tape.gradient(critic_loss, self.critic.model.trainable_variables)
+                # self.critic_optimizer.apply_gradients(zip(critic_gradients, self.critic.model.trainable_variables))
+                #
+                # for i, (state, action, td_error) in enumerate(zip(states, actions, td_errors)):
+                #     with tf.GradientTape() as tape:
+                #         state_batch = np.expand_dims(state, axis=0)
+                #         action_prob = self.actor.model(state_batch)
+                #         epsilon = 1e-8  # small constant to avoid zero values
+                #         log_prob = tf.math.log(tf.reduce_sum(action_prob * action, axis=1) + epsilon)
+                #         actor_loss = -tf.reduce_mean(td_error * log_prob)
+                #     actor_gradients = tape.gradient(actor_loss, self.actor.model.trainable_variables)
+                #     # Apply gradient clipping
+                #     self.actor_optimizer.apply_gradients(zip(actor_gradients, self.actor.model.trainable_variables))
+                # Clear the batch
+                batch_states, batch_actions, batch_td_errors = [], [], []
 
-
-
-            print(f'Epoch {episode + 1}/{n_episodes}: Total Reward: {total_reward}')
-            print("sum td errors: ", sum(abs(x) for x in td_errors))
-            print("std dev td errors: ", np.std(td_errors))
 
     def evaluate_a2c(a2c_model, env, n_episodes):
         total_rewards = []

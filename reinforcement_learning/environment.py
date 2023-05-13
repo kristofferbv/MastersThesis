@@ -3,6 +3,7 @@ from abc import ABC
 
 import gym
 import numpy as np
+import pandas as pd
 from gym import spaces
 from sklearn.preprocessing import StandardScaler
 import config_utils
@@ -29,6 +30,8 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.start_inventory = [0, 0, 0, 0, 0, 0]
         self.n_periods = rl_config["n_time_periods"]
         self.n_periods_historical_data = config["environment"]["n_periods_historical_data"]
+        self.rolling_window = config["environment"]["rolling_window_forecast"]
+
         self.products = products
         self.scaled_products = self.normalize_demand(products[:])
 
@@ -43,7 +46,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
     def reset(self, **kwargs):
         # Reset the environment to the initial state. Setting start period so that we can ensure we have all historical data required for the first state
-        self.current_period = self.n_periods_historical_data
+        self.current_period = max(self.rolling_window, self.n_periods_historical_data)
         self.inventory_levels = [0 for _ in self.products]
 
         return self._get_observation()
@@ -65,7 +68,9 @@ class JointReplenishmentEnv(gym.Env, ABC):
                 minor_cost = 0
 
             # Simulate demand and calculate shortage cost and holding cost.
-            demand = product.iloc[self.current_period]['sales_quantity'] / 10  # dividing by 10 for training purpose only
+            # print(product)
+            # print(self.current_period)
+            demand = product.iloc[self.current_period] / 10  # dividing by 10 for training purpose only
             shortage_cost = abs(min((self.inventory_levels[i] - demand), 0)) * self.shortage_cost[i]
             self.inventory_levels[i] = max(self.inventory_levels[i] - demand, 0)
             holding_cost = self.inventory_levels[i] * self.holding_cost[i]
@@ -78,22 +83,22 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
         # Update the current period
         self.current_period += 1
-        done = self.current_period == self.n_periods + self.n_periods_historical_data
+        done = self.current_period == self.n_periods + max(self.rolling_window, self.n_periods_historical_data)
 
         return self._get_observation(), individual_rewards, done, {}
-
 
     def _get_observation(self):
         # Create an observation of the stock levels for the last n_periods_lookahead and the current inventory levels
         observation = []
         total_forecast = 0
         for i, product in enumerate(self.scaled_products):
-            historical_demand = product.iloc[max(self.current_period - self.n_periods_historical_data, 0):self.current_period]['sales_quantity'].values / 10
-            forecast = sum(historical_demand) / len(historical_demand)
+            historical_demand = product.iloc[max(self.current_period - self.n_periods_historical_data, 0):self.current_period].values / 10
+            forecast_demand = product.iloc[max(self.current_period - self.rolling_window, 0):self.current_period].values / 10
+            forecast = sum(forecast_demand) / len(forecast_demand)
             total_forecast += forecast
             if len(historical_demand) < self.n_periods_historical_data:
                 historical_demand = np.pad(historical_demand, (self.n_periods_historical_data - len(historical_demand), 0), mode='constant', constant_values=0)
-            inv = [self.inventory_levels[i]/10, forecast]
+            inv = [self.inventory_levels[i] / 10, forecast]
             observation.append(np.concatenate((inv, historical_demand)))
             # observation.append(np.concatenate(([self.inventory_levels[i]], historical_demand)))
 
@@ -111,17 +116,19 @@ class JointReplenishmentEnv(gym.Env, ABC):
         return np.array(observation)
 
     def normalize_demand(self, products):
+        products_reshaped = []
         for product in products:
-        # Initialize the scaler
+            # Initialize the scaler
             scaler = StandardScaler()
 
             # Fit the scaler on your data
-            scaler.fit(product['sales_quantity'].values.reshape(-1, 1))
+            scaler.fit(product.values.reshape(-1, 1))
 
             # Now you can use this scaler to transform your data
-            normalized_sales_quantity = scaler.transform(product['sales_quantity'].values.reshape(-1, 1))
+            normalized_sales_quantity = scaler.transform(product.values.reshape(-1, 1))
 
-            # Replace the 'sales_quantity' column with the normalized values
-            product['sales_quantity'] = normalized_sales_quantity
-        return products
-
+            # Convert the normalized numpy array back to Series
+            normalized_series = pd.Series(normalized_sales_quantity.flatten(), index=product.index)
+            # Add the normalized series to the list
+            products_reshaped.append(normalized_series)
+        return products_reshaped
