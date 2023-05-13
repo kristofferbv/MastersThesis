@@ -111,7 +111,16 @@ def simulate(start_date, n_time_periods, products):
                 product_index, current_time = map(int, var.varName.split("[")[1].split("]")[0].split(","))
                 # Only looking at the action at time t = 1, since that is the actual action for this period
                 if current_time == 1:
-                    actions[time][product_index] = var.x
+                    actions[time][product_index] = var.x        
+        # Replace small values with zero
+        threshold = 1e-10
+        for product_index, product_actions in actions.items():
+            for time_step, action in product_actions.items():
+                if abs(action) < threshold:
+                    actions[product_index][time_step] = 0.0
+    
+
+
     print("Total costs at after all periods : ")
     print(total_costs)
     print("Total shortage costs")

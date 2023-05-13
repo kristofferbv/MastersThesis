@@ -41,9 +41,12 @@ class DeterministicModel:
         service_levels = config["deterministic_model"]["service_level"]
 
         for product_index in range(self.n_products):
-            self.service_level[product_index][0] = service_levels[product_index]
-            for tau_period in range(1, len(self.tau_periods)):
-                self.service_level[product_index][tau_period] = service_levels[product_index] 
+            self.service_level[product_index][0] = service_levels[product_index] *0.5
+            self.service_level[product_index][1] = service_levels[product_index] * 0.5
+
+            for tau_period in range(2, len(self.tau_periods)):
+                self.service_level[product_index][tau_period] = self.service_level[product_index][tau_period-1] 
+
            
 
 
@@ -77,6 +80,7 @@ class DeterministicModel:
                     squared_sum = sum(standard_deviations[product_index][time_period+t]**2 for t in range(1, tau_period + 1))
                     self.safety_stock[product_index][time_period][tau_period] = norm.ppf(self.service_level[product_index][tau_period]) * np.sqrt(squared_sum)
         self.model.update()
+        print(self.safety_stock)
 
     def reset_model(self):
         self.model.reset(0)
@@ -110,11 +114,9 @@ class DeterministicModel:
         max_one_order = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) <= 1 for product in self.products for time_period in self.time_periods), name="MaxOneOrder")
         
         
-        if self.should_include_safety_stock:
-            print(self.safety_stock)
-            
+        if self.should_include_safety_stock:            
             minimum_inventory_ordering = self.model.addConstrs((inventory_level[self.products[p], self.time_periods[i]] >= 
-                                                       gp.quicksum(order_product[self.products[p], self.time_periods[i], self.tau_periods[j]] for j in range(0,2)) *  self.safety_stock[p][1][1] 
+                                                       gp.quicksum(order_product[self.products[p], self.time_periods[i], self.tau_periods[j]] for j in range(1,2)) *  self.safety_stock[p][1][1] 
                                                    +gp.quicksum(order_product[self.products[p], self.time_periods[i], self.tau_periods[j]] * (self.safety_stock[p][i][j] 
                                                     + gp.quicksum(self.demand_forecast[self.products[p]][self.time_periods[i + t]] for t in range(1, j + 1)))
                                                     for j in range(2, len(self.time_periods)-i))

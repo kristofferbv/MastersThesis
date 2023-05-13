@@ -1,8 +1,8 @@
 deterministic_model:
   n_products: 6
   n_time_periods: 13
-  joint_setup_cost: 500
-  minor_setup_cost: [ 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 ]
+  joint_setup_cost: 5000
+  minor_setup_cost: [ 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0 ]
   holding_cost: [ 7.15,7.15,7.15,7.15, 7.15, 7.15 ]
   shortage_cost: [ 140,  140,  140,  140,  140,  140 ]
   base_unit_cost: [ 71.5, 109.0, 8.49, 3.19, 65.55, 65.55 ]
