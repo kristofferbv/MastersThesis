@@ -70,13 +70,11 @@ class DeterministicModel:
         #self.set_up_model()
 
     def set_safety_stock(self, standard_deviations):
-        print(self.time_periods)
-        print(self.tau_periods)
         for product_index in range(self.n_products):
             for time_period in range(1, self.n_time_periods):
                 self.safety_stock[product_index][time_period] = {}
                 for tau_period in range(1, self.n_time_periods - time_period+1):
-                    squared_sum = sum(standard_deviations[product_index][time_period+t]**2 for t in range(1, tau_period - time_period + 1))
+                    squared_sum = sum(standard_deviations[product_index][time_period+t]**2 for t in range(1, tau_period + 1))
                     self.safety_stock[product_index][time_period][tau_period] = norm.ppf(self.service_level[product_index][tau_period]) * np.sqrt(squared_sum)
         self.model.update()
 
@@ -114,12 +112,12 @@ class DeterministicModel:
         
         if self.should_include_safety_stock:
             print(self.safety_stock)
-            '''
+            
             minimum_inventory_ordering = self.model.addConstrs((inventory_level[self.products[p], self.time_periods[i]] >= 
                                                        gp.quicksum(order_product[self.products[p], self.time_periods[i], self.tau_periods[j]] for j in range(0,2)) *  self.safety_stock[p][1][1] 
                                                    +gp.quicksum(order_product[self.products[p], self.time_periods[i], self.tau_periods[j]] * (self.safety_stock[p][i][j] 
                                                     + gp.quicksum(self.demand_forecast[self.products[p]][self.time_periods[i + t]] for t in range(1, j + 1)))
-                                                    for j in range(2, min(len(self.tau_periods)-i, self.n_time_periods-1)))
+                                                    for j in range(2, len(self.time_periods)-i))
                                                      for p in range(self.n_products) for i in range(1, self.n_time_periods-1)), name="minimumInventoryOrdering")
             '''
             #sjekke om denne blir riktig
@@ -140,7 +138,7 @@ class DeterministicModel:
         for i in range(1, self.n_time_periods)
     ),
     name="minimumInventoryOrdering"
-)
+)'''
            
             minimum_inventory_not_ordering = self.model.addConstrs((inventory_level[self.products[p], self.time_periods[i]] >= self.safety_stock[p][i][1]
                                                                     for p in range (self.n_products) for i in range(1, self.n_time_periods-1)), name="minimumInventoryNotOrdering")
