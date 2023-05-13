@@ -14,7 +14,7 @@ deterministic_model:
   should_include_safety_stock: True
 rl_model:
   n_products: 6
-  n_time_periods: 5
+  n_time_periods: 13
   joint_setup_cost: 500
   minor_setup_cost: [ 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 ]
   holding_cost: [ 7.15,7.15,7.15,7.15, 7.15, 7.15 ]

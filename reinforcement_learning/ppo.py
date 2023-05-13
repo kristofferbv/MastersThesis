@@ -235,7 +235,7 @@ for epoch in range(epochs):
         # Finish trajectory if reached to a terminal state
         terminal = done
         if terminal or (t == steps_per_epoch - 1):
-            last_value = 0 if done else critic(observation.reshape(1, -1))
+            last_value = 0 if done else critic(np.expand_dims(observation, axis=0))
             buffer.finish_trajectory(last_value)
             sum_return += episode_return
             sum_length += episode_length
