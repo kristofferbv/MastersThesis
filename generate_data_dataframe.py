@@ -40,6 +40,6 @@ def plot_data(df):
     plt.show()
 
 
-# Generate and plot data
-df = generate_data(5, 30)
-plot_data(df)
+# # Generate and plot data
+# df = generate_data(5, 30)
+# plot_data(df)
