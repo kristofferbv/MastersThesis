@@ -213,11 +213,11 @@ for epoch in range(epochs):
 
     # Iterate over the steps of each epoch
     for t in range(steps_per_epoch):
-
         # Get the logits, action, and take one step in the environment
         # observation = observation.reshape(1, -1)
         logits, action = sample_action(observation)
         individual_actions = a.unflatten_action(action[0].numpy(), env.action_space.n,len(products))
+        individual_actions.append(epoch)
         observation_new, reward, done, *_ = env.step(individual_actions)
         episode_return += reward
         episode_length += 1

@@ -33,7 +33,7 @@ main:
 simulation:
   forecasting_method: "sarima"
   verbose: False
-  should_set_holding_cost_dynamically: True
+  should_set_holding_cost_dynamically: False
 
 actor:
   layers: [128,128]                        # Example: [30,30]

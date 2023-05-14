@@ -24,7 +24,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.major_setup_cost = rl_config["joint_setup_cost"]
         self.minor_setup_cost = rl_config["minor_setup_cost"]
         self.holding_cost = rl_config["holding_cost"]
-        self.shortage_cost = rl_config["holding_cost"]
+        self.shortage_cost = rl_config["shortage_cost"]
         self.safety_stock = {}
         self.big_m = rl_config["big_m"]
         self.start_inventory = [0, 0, 0, 0, 0, 0]
@@ -52,6 +52,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         return self._get_observation()
 
     def step(self, action):
+        epoch = action.pop()
         # Apply the replenishment action
         major_setup_triggered = False
         for i, product in enumerate(self.products):
@@ -59,15 +60,20 @@ class JointReplenishmentEnv(gym.Env, ABC):
                 self.inventory_levels[i] += action[i]
                 major_setup_triggered = True
         # Calculate the minor and major setup costs
-        # TODO! remember to change minor_costs
-        minor_cost = np.sum((a > 1) * b for a, b in zip(action, self.minor_setup_cost))
+        minor_cost = np.sum((a >= 1) * b for a, b in zip(action, self.minor_setup_cost))
         major_cost = self.major_setup_cost if major_setup_triggered else 0
 
         # Simulate demand and calculate shortage cost and holding cost.
         shortage_cost = 0
         holding_cost = 0
+        if epoch == 100:
+            print("tidssteg: ", self.current_period - max(self.rolling_window, self.n_periods_historical_data))
+            print("inventory level ", self.inventory_levels)
         for i, product in enumerate(self.products):
             demand = product.iloc[self.current_period] / 10  # dividing by 10 for training purpose only
+            if epoch == 100:
+                print("demand product " + str(i) + ":", demand)
+                print("shortage", self.inventory_levels[i] - demand)
             shortage_cost += abs(min((self.inventory_levels[i] - demand), 0)) * self.shortage_cost[i]
             self.inventory_levels[i] = max(self.inventory_levels[i] - demand, 0)
             holding_cost += self.inventory_levels[i] * self.holding_cost[i]
@@ -78,6 +84,10 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # Update the current period
         self.current_period += 1
         done = self.current_period == self.n_periods + max(self.rolling_window, self.n_periods_historical_data)
+        if epoch == 100:
+            print("inventory after demand and action", self.inventory_levels)
+            print("actions", action)
+            print("total costs", total_cost)
 
         return self._get_observation(), -total_cost, done, {}
 
