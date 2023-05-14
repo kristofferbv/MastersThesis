@@ -80,7 +80,7 @@ class DeterministicModel:
                     squared_sum = sum(standard_deviations[product_index][time_period+t]**2 for t in range(1, tau_period + 1))
                     self.safety_stock[product_index][time_period][tau_period] = norm.ppf(self.service_level[product_index][tau_period]) * np.sqrt(squared_sum)
         self.model.update()
-        print(self.safety_stock)
+        #print(self.safety_stock)
 
     def reset_model(self):
         self.model.reset(0)
