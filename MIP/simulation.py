@@ -16,6 +16,7 @@ def simulate(start_date, n_time_periods, products):
     dict_demands = {}
     dict_sds = {}
     actions = {}  # Store the first actions for each time step
+    orders = {}
     inventory_levels = [0 for i in range(len(products))]
 
     total_costs = 0
@@ -36,6 +37,9 @@ def simulate(start_date, n_time_periods, products):
             for product_index, product in enumerate(products):
                 actual_demand = products[product_index].loc[start_date, "sales_quantity"]
                 actual_demands.append(actual_demand)
+                #print("inventory levels at the beginning of period ", time)
+                #print(inventory_levels)
+
                 # added_inventory = max(0,actions[time-1][product_index] - actual_demand)  # skal vi ikke her ta at inventory level skal være max av 0 of invnetory level før + actions - actual demand??
 
                 # add holding costs or shortage costs
@@ -67,8 +71,10 @@ def simulate(start_date, n_time_periods, products):
 
                 print("Actions at time period ", time - 1)
                 print(actions[time - 1])
+
                 print("Actual_demand for period ", time - 1)
                 print(actual_demands)
+
                 print("Inventory levels at start of time period ", time)
                 print(inventory_levels)
 
@@ -97,6 +103,7 @@ def simulate(start_date, n_time_periods, products):
         if should_set_holding_cost_dynamically:
             deterministic_model.set_holding_costs(unit_costs)
         deterministic_model.set_safety_stock(dict_sds)
+        deterministic_model.set_big_m()
         deterministic_model.model.setParam("OutputFlag", 0)
         deterministic_model.set_inventory_levels(inventory_levels)
         deterministic_model.set_up_model()
@@ -104,15 +111,42 @@ def simulate(start_date, n_time_periods, products):
 
         # Extract and store the first action for each product in the current time step
         actions[time] = {}
+        threshold = 1e-10
+
+        orders[time] = {}
+
         for var in deterministic_model.model.getVars():
             if var.varName.startswith("ReplenishmentQ"):
                 product_index, current_time = map(int, var.varName.split("[")[1].split("]")[0].split(","))
                 # Only looking at the action at time t = 1, since that is the actual action for this period
                 if current_time == 1:
                     actions[time][product_index] = var.x
+                    if abs(actions[time][product_index]) < threshold:
+                        actions[time][product_index] = 0
+
+            if var.varName.startswith("OrderProduct"):
+                for tau in deterministic_model.tau_periods:
+                    product_index, current_time, tau = map(int, var.varName.split("[")[1].split("]")[0].split(","))
+                    # Only looking at the action at time t = 1, since that is the actual action for this period
+                    if current_time == 1:
+                        if product_index not in orders[time]:
+                            orders[time][product_index] = {}
+                        orders[time][product_index][tau] = var.x
+                        if abs(orders[time][product_index][tau]) < threshold:
+                            orders[time][product_index][tau] = 0
+
+   
     print("Total costs at after all periods : ")
     print(total_costs)
+    print("Total shortage costs")
+    print(shortage_costs)
+    print("Holding costs:")
+    print(holding_costs)
+    print("Setup costs")
+    print(setup_costs)
     print(actions)
+    #print("orders")
+    #print(orders)
     runtime = deterministic_model.model.Runtime
     print("The run time is %f" % runtime)
 
