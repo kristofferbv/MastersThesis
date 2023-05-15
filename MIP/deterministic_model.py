@@ -47,15 +47,15 @@ class DeterministicModel:
 
             for tau_period in range(2, len(self.tau_periods)+1):
                 self.service_level[product_index][tau_period] = self.service_level[product_index][tau_period-1] 
-        print("service levelS")
-        
-        print(self.service_level)
+    
       
         
 
     def set_demand_forecast(self, demand_forecast):
         self.demand_forecast = demand_forecast
         self.model.update()
+        #print("demand forecast:")
+        #print(self.demand_forecast)
 
     def set_holding_costs(self, unit_cost):
         # Multiply unit cost by 0.1 to get holding costs
@@ -83,7 +83,9 @@ class DeterministicModel:
                     self.safety_stock[product_index][time_period][tau_period] = norm.ppf(self.service_level[product_index][tau_period]) * np.sqrt(squared_sum) 
                     self.safety_stock[product_index][time_period][tau_period] = self.safety_stock[product_index][time_period][tau_period] / 10
         self.model.update()
-        print(self.safety_stock)
+        #print("safety stock")
+        #print(self.safety_stock)
+        
        
 
 
