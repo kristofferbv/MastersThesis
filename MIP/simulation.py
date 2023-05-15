@@ -39,13 +39,12 @@ def simulate(start_date, n_time_periods, products):
             for product_index, product in enumerate(products):
                 actual_demand = products[product_index].loc[start_date, "sales_quantity"]
                 actual_demands.append(actual_demand)
-                print("inventory levels at the beginning of period ", time)
-                print(inventory_levels)
+                #print("inventory levels at the beginning of period ", time)
+                #print(inventory_levels)
 
                 # added_inventory = max(0,actions[time-1][product_index] - actual_demand)  # skal vi ikke her ta at inventory level skal være max av 0 of invnetory level før + actions - actual demand??
 
                 # add holding costs or shortage costs
-       
                 if inventory_levels[product_index] + actions[time - 1][product_index] - actual_demand > 0:
                     holding_costs += (inventory_levels[product_index] + actions[time - 1][product_index] - actual_demand) * deterministic_model.holding_cost[product_index]
                     period_costs += (inventory_levels[product_index] + actions[time - 1][product_index] - actual_demand) * deterministic_model.holding_cost[product_index]
@@ -74,8 +73,10 @@ def simulate(start_date, n_time_periods, products):
 
                 print("Actions at time period ", time - 1)
                 print(actions[time - 1])
+
                 print("Actual_demand for period ", time - 1)
                 print(actual_demands)
+
                 print("Inventory levels at start of time period ", time)
                 print(inventory_levels)
 
@@ -136,15 +137,7 @@ def simulate(start_date, n_time_periods, products):
                         if abs(orders[time][product_index][tau]) < threshold:
                             orders[time][product_index][tau] = 0
 
-        # Replace small values with zero
-        #threshold = 1e-10
-        #for product_index, product_actions in actions.items():
-         #   for time_step, action in product_actions.items():
-         #       if abs(action) < threshold:
-         #           actions[product_index][time_step] = 0.0
-    
-
-
+   
     print("Total costs at after all periods : ")
     print(total_costs)
     print("Total shortage costs")
@@ -154,8 +147,8 @@ def simulate(start_date, n_time_periods, products):
     print("Setup costs")
     print(setup_costs)
     print(actions)
-    print("orders")
-    print(orders)
+    #print("orders")
+    #print(orders)
     runtime = deterministic_model.model.Runtime
     print("The run time is %f" % runtime)
 
