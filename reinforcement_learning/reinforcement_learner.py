@@ -11,6 +11,12 @@ from critic import *
 from a2c_agent import *
 from ppo import *
 
+# Get the directory of the current script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Change the working directory to the directory of the current script
+os.chdir(current_dir)
+
 # Main function
 if __name__ == "__main__":
     config = config_utils.load_config("config.yml")

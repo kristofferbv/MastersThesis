@@ -71,8 +71,8 @@ environment:
   n_periods_historical_data: 0
   rolling_window_forecast: 5
   # Note: maximum_order_quantity / n_action_classes must be an integer
-  n_action_classes: 10
-  maximum_order_quantity: 100
+  n_action_classes: 15
+  maximum_order_quantity: 105
   order_quantity_per_discrete_class: 5
   should_include_individual_forecast: True
   should_include_total_forecast: False
