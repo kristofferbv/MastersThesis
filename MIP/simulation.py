@@ -15,8 +15,6 @@ def simulate(start_date, n_time_periods, products):
 
     dict_demands = {}
     dict_sds = {}
-    # initialize model
-
     actions = {}  # Store the first actions for each time step
     inventory_levels = [0 for i in range(len(products))]
 
@@ -36,7 +34,7 @@ def simulate(start_date, n_time_periods, products):
         actual_demands = []
         if time != 0:
             for product_index, product in enumerate(products):
-                actual_demand = products[product_index].loc[start_date, "sales_quantity"] / 10
+                actual_demand = products[product_index].loc[start_date, "sales_quantity"]
                 actual_demands.append(actual_demand)
                 # added_inventory = max(0,actions[time-1][product_index] - actual_demand)  # skal vi ikke her ta at inventory level skal være max av 0 of invnetory level før + actions - actual demand??
 
@@ -91,7 +89,6 @@ def simulate(start_date, n_time_periods, products):
                 dict_demands[product_index], dict_sds[product_index] = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
             elif forecasting_method == "sarima":
                 dict_demands[product_index], dict_sds[product_index] = sarima.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
-                dict_demands[product_index] = [x/10 for x in dict_demands[product_index]]
             else:
                 raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
 

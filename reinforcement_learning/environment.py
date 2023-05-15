@@ -19,6 +19,10 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # config = config_utils.load_config(file_path)
         config = config_utils.load_config("config.yml")
         rl_config = config["rl_model"]
+        env_config = config["environment"]
+
+        self.products = products
+        self.scaled_products = self.normalize_demand(products[:])
 
         # Parameters
         self.major_setup_cost = rl_config["joint_setup_cost"]
@@ -29,19 +33,22 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.big_m = rl_config["big_m"]
         self.start_inventory = [0, 0, 0, 0, 0, 0]
         self.n_periods = rl_config["n_time_periods"]
-        self.n_periods_historical_data = config["environment"]["n_periods_historical_data"]
-        self.rolling_window = config["environment"]["rolling_window_forecast"]
 
-        self.products = products
-        self.scaled_products = self.normalize_demand(products[:])
+        self.n_periods_historical_data = env_config["n_periods_historical_data"]
+        self.rolling_window = env_config["rolling_window_forecast"]
+        self.should_include_individual_forecast = env_config["should_include_individual_forecast"]  # Should include forecast for the specific product as part of the state
+        self.should_include_total_forecast = env_config["should_include_total_forecast"]  # Should include total forecast for all products as part of the state
 
         # Define action and observation spaces
-        self.action_space = gym.spaces.Discrete(10)
-        # action_dimensions = [len(product) for product in products]
-        # print(action_dimensions)
-        # self.action_space = spaces.Tuple([spaces.Discrete(dim) for dim in action_dimensions])
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(len(products), self.n_periods_historical_data + 3), dtype=np.float32)
+        self.n_action_classes = env_config["n_action_classes"]
+        self.max_order_quantity = env_config["maximum_order_quantity"]
+        self.action_multiplier = self.max_order_quantity / self.n_action_classes
+        if not self.action_multiplier.is_integer():
+            raise Exception("maximum_order_quantity / n_action_classes must be an integer")
 
+
+        self.action_space = gym.spaces.Discrete(self.n_action_classes)
+        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(len(products), self.n_periods_historical_data + 1 + self.should_include_individual_forecast + self.should_include_total_forecast), dtype=np.float32)
         self.reset()
 
     def reset(self, **kwargs):
@@ -52,7 +59,9 @@ class JointReplenishmentEnv(gym.Env, ABC):
         return self._get_observation()
 
     def step(self, action):
+        # Need to discretize the actions.
         epoch = action.pop()
+        action = [x * self.action_multiplier for x in action]
         # Apply the replenishment action
         major_setup_triggered = False
         for i, product in enumerate(self.products):
@@ -66,12 +75,13 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # Simulate demand and calculate shortage cost and holding cost.
         shortage_cost = 0
         holding_cost = 0
-        if epoch == 100:
+        if (epoch % 100) == 0:
+            print("epoch", epoch)
             print("tidssteg: ", self.current_period - max(self.rolling_window, self.n_periods_historical_data))
             print("inventory level ", self.inventory_levels)
         for i, product in enumerate(self.products):
-            demand = product.iloc[self.current_period] / 10  # dividing by 10 for training purpose only
-            if epoch == 100:
+            demand = product.iloc[self.current_period]  # dividing by 10 for training purpose only
+            if (epoch % 100) == 0:
                 print("demand product " + str(i) + ":", demand)
                 print("shortage", self.inventory_levels[i] - demand)
             shortage_cost += abs(min((self.inventory_levels[i] - demand), 0)) * self.shortage_cost[i]
@@ -84,7 +94,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # Update the current period
         self.current_period += 1
         done = self.current_period == self.n_periods + max(self.rolling_window, self.n_periods_historical_data)
-        if epoch == 100:
+        if (epoch % 100) == 0:
             print("inventory after demand and action", self.inventory_levels)
             print("actions", action)
             print("total costs", total_cost)
@@ -95,28 +105,23 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # Create an observation of the stock levels for the last n_periods_lookahead and the current inventory levels
         observation = []
         total_forecast = 0
+        forecast = 0
         for i, product in enumerate(self.scaled_products):
-            historical_demand = product.iloc[max(self.current_period - self.n_periods_historical_data, 0):self.current_period].values / 10
-            forecast_demand = product.iloc[max(self.current_period - self.rolling_window, 0):self.current_period].values / 10
-            forecast = sum(forecast_demand) / len(forecast_demand)
-            total_forecast += forecast
+            historical_demand = product.iloc[max(self.current_period - self.n_periods_historical_data, 0):self.current_period].values
+            if self.should_include_individual_forecast or self.should_include_total_forecast:
+                forecast_demand = product.iloc[max(self.current_period - self.rolling_window, 0):self.current_period].values
+                forecast = sum(forecast_demand) / len(forecast_demand)
+                total_forecast += forecast
             if len(historical_demand) < self.n_periods_historical_data:
                 historical_demand = np.pad(historical_demand, (self.n_periods_historical_data - len(historical_demand), 0), mode='constant', constant_values=0)
-            inv = [self.inventory_levels[i] / 10, forecast]
-            observation.append(np.concatenate((inv, historical_demand)))
-            # observation.append(np.concatenate(([self.inventory_levels[i]], historical_demand)))
-
-            # Pad with zeros if there are not enough historical periods
-            # if len(historical_demand) < self.n_periods_historical_data:
-            #     historical_demand = np.pad(historical_demand, (self.n_periods_historical_data - len(historical_demand), 0), mode='constant', constant_values=0)
-            # observation.append([self.inventory_levels[i], forecast])
-        # appending total forecast as part of the state in the hope of coordinating the agents better
-
-        # observation = [x + [total_forecast] for x in observation]
-        observation = [np.append(arr, total_forecast) for arr in observation]
-
-        # observation = np.array([np.append(arr, total_forecast) for arr in observation])
-
+            # Divide inventory level by 10 in an attempt to normalize the data. Might not be helpful
+            if self.should_include_individual_forecast:
+                concat = [self.inventory_levels[i] / 10, forecast]
+                observation.append(np.concatenate((concat, historical_demand)))
+            else:
+                observation.append(np.concatenate(([self.inventory_levels[i] / 10], historical_demand)))
+        if self.should_include_total_forecast:
+            observation = [np.append(arr, total_forecast) for arr in observation]
         return np.array(observation)
 
     def normalize_demand(self, products):

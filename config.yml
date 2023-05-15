@@ -64,10 +64,30 @@ critic:
   epsilon_min_value: 0.05
   episodes_epsilon_one: 100
   stochastic: False
-
 a2c:
   discount_rate: 0.99
   n_episodes: 1000
 environment:
   n_periods_historical_data: 0
   rolling_window_forecast: 5
+  # Note: maximum_order_quantity / n_action_classes must be an integer
+  n_action_classes: 10
+  maximum_order_quantity: 100
+  order_quantity_per_discrete_class: 5
+  should_include_individual_forecast: True
+  should_include_total_forecast: False
+rl:
+  method: "ppo"
+  real_data: True
+ppo:
+  steps_per_epoch: 4000
+  epochs: 3000
+  gamma: 0.99
+  clip_ratio: 0.2
+  policy_learning_rate: 3e-4
+  value_function_learning_rate: 1e-3
+  train_policy_iterations: 80
+  train_value_iterations: 80
+  lam: 0.97
+  target_kl: 0.01
+  hidden_sizes: (64, 64)
