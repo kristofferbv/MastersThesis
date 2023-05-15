@@ -24,7 +24,8 @@ class DeterministicModel:
         self.minor_setup_cost = config["deterministic_model"]["minor_setup_cost"]
         self.holding_cost = config["deterministic_model"]["holding_cost"]
         self.safety_stock = defaultdict(lambda: defaultdict(dict))
-        self.big_m = config["deterministic_model"]["big_m"]
+        #self.big_m = config["deterministic_model"]["big_m"]
+        self.big_m = defaultdict(lambda: defaultdict(dict))
         self.model = gp.Model('Inventory Control 1')
         self.start_inventory = [0, 0, 0, 0, 0, 0]
         self.has_been_set_up = False
@@ -82,6 +83,23 @@ class DeterministicModel:
         self.model.update()
         #print(self.safety_stock)
 
+
+    def set_big_m(self):
+        print(self.demand_forecast)
+        for product_index in (self.products): 
+            for time_period in (self.time_periods):
+                self.big_m[product_index][time_period] = {}
+                for tau_period in (self.tau_periods[:self.n_time_periods - time_period]):
+                    self.big_m[product_index][time_period][tau_period] = 0
+                    if time_period == 0:
+                        self.big_m[product_index][time_period][tau_period] = 0
+                    else:
+                        self.big_m[product_index][time_period][tau_period] = sum(self.demand_forecast[self.products[product_index]][self.time_periods[time_period+t]] for t in range(1, tau_period)) + self.safety_stock[product_index][time_period][tau_period]
+
+        self.model.update()
+        print(self.big_m)
+
+
     def reset_model(self):
         self.model.reset(0)
         # self.has_been_set_up = False
@@ -109,7 +127,11 @@ class DeterministicModel:
 
         start_inventory = self.model.addConstrs((inventory_level[product, self.time_periods[0]] == self.start_inventory[product]) for product in self.products)
         inventory_balance = self.model.addConstrs((inventory_level[product, self.time_periods[i - 1]] + replenishment_q[product, self.time_periods[i]] == self.demand_forecast[product][self.time_periods[i]] + inventory_level[product, self.time_periods[i]] for product in self.products for i in range(1, len(self.time_periods))), name="InventoryBalance")
-        minor_setup_incur = self.model.addConstrs((replenishment_q[product, time_period] <= self.big_m[product] * gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) for product in self.products for time_period in self.time_periods), name="MinorSetupIncur")
+        #minor_setup_incur = self.model.addConstrs((replenishment_q[product, time_period] <= self.big_m[product] * gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) for product in self.products for time_period in self.time_periods), name="MinorSetupIncur")
+        
+        #minor_setup_incur = self.model.addConstrs((replenishment_q[product, time_period] <= gp.quicksum((self.big_m[product][time_period][tau_period] * order_product[product, time_period, tau_period]  #blir det -1 her mtp index?
+         #   for tau_period in self.tau_periods[:len(self.tau_periods) - time_period])) for product in self.products for time_period in self.time_periods), name="MinorSetupIncur")
+        
         major_setup_incur = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for product in self.products for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) <= place_order[time_period] * self.n_products for time_period in self.time_periods), name="MajorSetupIncur")
         max_one_order = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) <= 1 for product in self.products for time_period in self.time_periods), name="MaxOneOrder")
         

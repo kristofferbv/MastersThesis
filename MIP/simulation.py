@@ -102,7 +102,8 @@ def simulate(start_date, n_time_periods, products):
         if should_set_holding_cost_dynamically:
             deterministic_model.set_holding_costs(unit_costs)
         deterministic_model.set_safety_stock(dict_sds)
-        deterministic_model.model.setParam("OutputFlag", 0)
+        deterministic_model.set_big_m()
+        #deterministic_model.model.setParam("OutputFlag", 0)
         deterministic_model.set_inventory_levels(inventory_levels)
         deterministic_model.set_up_model()
         deterministic_model.optimize()
