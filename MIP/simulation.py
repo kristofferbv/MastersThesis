@@ -39,6 +39,8 @@ def simulate(start_date, n_time_periods, products):
             for product_index, product in enumerate(products):
                 actual_demand = products[product_index].loc[start_date, "sales_quantity"]
                 actual_demands.append(actual_demand)
+                print("inventory levels at the beginning of period ", time)
+                print(inventory_levels)
 
                 # added_inventory = max(0,actions[time-1][product_index] - actual_demand)  # skal vi ikke her ta at inventory level skal være max av 0 of invnetory level før + actions - actual demand??
 
