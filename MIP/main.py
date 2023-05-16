@@ -5,6 +5,7 @@ from analyse_data import plot_sales_quantity, get_non_stationary_products, decom
 from config_utils import load_config
 import os
 import simulation
+from generate_data import *
 
 # Get the directory of the current script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -18,30 +19,32 @@ if __name__ == '__main__':
     n_products = config["deterministic_model"]["n_products"]
     should_analyse = config["main"]["should_analyse"]
     use_stationary_data = config["main"]["stationary_products"]
+    generate_new_data = config["main"]["generate_new_data"]
 
-    # retrieve_data.categorize_products("data/sales_orders.csv", "m", True)
 
     # Reading the products created by the "read_products" function above
     if use_stationary_data:
         products = retrieve_data.read_products_with_hashes("2016-01-10", "2020-12-30", ["569b6782ce5885fc4abf21cfde38f7d7", "92b1f191dfce9fff64b4effd954ccaab", "8ef91aac79542f11dedec4f79265ae3a", "2fa9c91f40d6780fd5b3c219699eb139", "1fb096daa569c811723ce8796722680e", "f7b3622f9eb50cb4eee149127c817c79"])
+        products = [df["sales_quantity"] for df in products]
+
     else:
         products = retrieve_data.read_products_3("2016-01-01", "2020-12-30")
         products = random.sample(get_non_stationary_products(products), n_products)
-    products = products[:4]
+    if generate_new_data:
+        products = generate_seasonal_data_based_on_products(products, 260)
 
-    start_date = products[0].index[0]
+
+    start_date = products[0].index[208]
 
     if should_analyse:  # analysing plotting, decomposing and testing for stationarity
-        plot_sales_quantity(products[:20])
+        plot_sales_quantity(products)
         get_non_stationary_products(products, should_plot=True, verbose=True)
-        for product in products:
-            decompose_sales_quantity(product)
+        for i, product in enumerate(products):
+            if isinstance(product, pd.DataFrame):
+                decompose_sales_quantity(product, product["product_hash"].iloc[0])
+            else:
+                decompose_sales_quantity(product, str(i))
 
-    # List of non-stationary products based on the analysis above
-    # non_stationary_products = ["0c0f3efa3afddcae74bf01414219044b", "0cf88020722953499b7e6ee70c16f36b", "3c50c0cf057cb8aab8bf3fb28b711b6a", "4151b0029636a1c55afcce9283ac7902" , "6dcb66034aed7493a93ef9b231ecaf14", "af5ed76b466a037cd7b9b1cefef578ba" ,"bfaac30872cb86835b1fd11b4e4129d8" , "edb636f69bf78b885117a47ec1a455d4"]
-    # sarima.forecast(non_stationary_products[0], start_date)
-    # holt_winters_method.forecast(products[0]["sales_quantity"], start_date, shouldShowPlot=True)
-    # recurrent_neural_network.forecast(products[0]["sales_quantity"], start_date)
     simulation.simulate(start_date, n_time_periods, products)
 
     """

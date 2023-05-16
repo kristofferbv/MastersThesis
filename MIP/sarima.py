@@ -63,6 +63,7 @@ def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=
     # Set the frequency of the index to weekly
     df = df.asfreq("W")
     # Getting the product hash
+
     product_hash = df["product_hash"].iloc[0]
     df = df["sales_quantity"]
 

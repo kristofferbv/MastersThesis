@@ -1,5 +1,6 @@
 # import pandas as pd
 import numpy as np
+import pandas as pd
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 import matplotlib.pyplot as plt
 
@@ -7,9 +8,13 @@ import statistics
 
 
 def forecast(df, date, shouldShowPlot=False, n_time_periods=20):
-    # Split the data into training and testing sets
-    train = df.loc[df.index <= date]["sales_quantity"]
-    test = df.loc[df.index > date]["sales_quantity"]
+    if isinstance(df, pd.DataFrame):
+        # Split the data into training and testing sets
+        train = df.loc[df.index <= date]["sales_quantity"]
+        test = df.loc[df.index > date]["sales_quantity"]
+    else:
+        train = df.loc[df.index <= date]
+        test = df.loc[df.index > date]
 
     # train.index.freq = 'W-SUN'
     # train = train.asfreq('W-SUN')

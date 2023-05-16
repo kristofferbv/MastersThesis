@@ -1,3 +1,4 @@
+import pandas as pd
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.stattools import adfuller
@@ -5,6 +6,10 @@ import matplotlib.pyplot as plt
 
 def get_non_stationary_products(products, start_date=None, should_plot=False, verbose=False):
     n = len(products)
+    if isinstance(products[0], pd.DataFrame):
+        is_dataframe = True
+    else:
+        is_dataframe = False
 
     # Loop through the dataframes and axes, plotting each dataframe on a separate axis
     column_name = 'column_name'  # Replace with the name of the column you want to plot
@@ -12,7 +17,13 @@ def get_non_stationary_products(products, start_date=None, should_plot=False, ve
     stationary_products = []
     p_values = []
     for i, df in enumerate(products):
-        ad_fuller_result = adfuller(df['sales_quantity'])
+        if is_dataframe:
+            label_name = df["product_hash"].iloc[0]
+            ad_fuller_result = adfuller(df['sales_quantity'])
+
+        else:
+            label_name = str(i)
+            ad_fuller_result = adfuller(df)
         if ad_fuller_result[1] > alpha:
             stationary_products.append(df)
             p_values.append(ad_fuller_result[1])
@@ -20,14 +31,23 @@ def get_non_stationary_products(products, start_date=None, should_plot=False, ve
                 print("Non-stationarity is discovered!")
                 print(f'ADF Statistic: {ad_fuller_result[0]}')
                 print(f'p-value: {ad_fuller_result[1]}')
-                print("product_hash", df["product_hash"].iloc[0])
+                print("product: ", label_name.iloc[0])
     # Plotting it:
     if should_plot and len(stationary_products) != 0:
         fig, axes = plt.subplots(nrows=len(stationary_products), sharex=True, figsize=(10, len(stationary_products) * 3))
         for i, (ax, df) in enumerate(zip(axes, stationary_products)):
-            if start_date is not None:
-                df = df.loc[df.index >= start_date]["sales_quantity"]
-            df["sales_quantity"].plot(ax=ax, label=df["product_hash"].iloc[0] + " p-value: " + str(round(p_values[i], 3)))
+            if is_dataframe:
+                label_name = df["product_hash"].iloc[0]
+                if start_date is not None:
+                    df = df.loc[df.index >= start_date]["sales_quantity"]
+                df["sales_quantity"].plot(ax=ax, label=label_name + " p-value: " + str(round(p_values[i], 3)))
+
+            else:
+                label_name = str(i)
+                if start_date is not None:
+                    df = df.loc[df.index >= start_date]
+                df.plot(ax=ax, label=label_name + " p-value: " + str(round(p_values[i], 3)))
+
             ax.set_ylabel('sales quantity')
             ax.legend()
             # Customize the plot by adding a title and x-axis label
@@ -43,12 +63,25 @@ def plot_sales_quantity(products, start_date=None):
     fig, axes = plt.subplots(nrows=n, sharex=True, figsize=(10, n * 3))
     print(len(products))
     print(len(axes))
+    if isinstance(products[0], pd.DataFrame):
+        is_dataframe = True
+    else:
+        is_dataframe = False
 
     for i, (df, ax) in enumerate(zip(products, axes)):
-        if start_date != None:
-            df = df.loc[df.index >= start_date]["sales_quantity"]
-        # Plotting it:
-        df["sales_quantity"].plot(ax=ax, label=df["product_hash"].iloc[0])
+        print("df", df)
+        if is_dataframe:
+            label_name = df["product_hash"].iloc[0]
+            if start_date != None:
+                df = df.loc[df.index >= start_date]["sales_quantity"]
+                # Plotting it:
+            df["sales_quantity"].plot(ax=ax, label=label_name)
+        else:
+            if start_date != None:
+                df = df.loc[df.index >= start_date]["sales_quantity"]
+            label_name = str(i)
+            df.plot(ax=ax, label=label_name)
+
         ax.set_ylabel('sales quantity')
         ax.legend()
 
@@ -60,13 +93,20 @@ def plot_sales_quantity(products, start_date=None):
     plt.show()
 
 
-def decompose_sales_quantity(df):
+def decompose_sales_quantity(df, product_name = 0):
     freq = 12
-    decomposition = seasonal_decompose(df["sales_quantity"], model='additive', period=freq)
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 8), sharex=True)
 
-    # Plot the original data
-    df["sales_quantity"].plot(ax=ax1)
+    if isinstance(df, pd.DataFrame):
+        is_dataframe = True
+        decomposition = seasonal_decompose(df["sales_quantity"], model='additive', period=freq)
+        # Plot the original data
+        df["sales_quantity"].plot(ax=ax1)
+    else:
+        is_dataframe = False
+        decomposition = seasonal_decompose(df, model='additive', period=freq)
+        df.plot(ax=ax1)
+
     ax1.set_title('Original Sales Data')
 
     # Plot the trend component
@@ -80,13 +120,21 @@ def decompose_sales_quantity(df):
     # Plot the residuals
     decomposition.resid.plot(ax=ax4)
     ax4.set_title('Residuals')
+    if is_dataframe:
+        # Set title of figure
+        fig.suptitle(df["product_hash"].iloc[0])
 
-    # Set title of figure
-    fig.suptitle(df["product_hash"].iloc[0])
+        plot_acf(df["sales_quantity"], lags=(len(df) - 1) - 1)
+        plt.show()
+        plot_pacf(df["sales_quantity"], lags=(len(df) - 1) / 2 - 1, method="ywm")
+    else:
+        # Set title of figure
+        fig.suptitle(product_name)
 
-    plot_acf(df["sales_quantity"], lags=(len(df) - 1) - 1)
-    plt.show()
-    plot_pacf(df["sales_quantity"], lags=(len(df) - 1) / 2 - 1, method="ywm")
+        plot_acf(df, lags=(len(df) - 1) - 1)
+        plt.show()
+        plot_pacf(df, lags=(len(df) - 1) / 2 - 1, method="ywm")
+
     plt.show()
 
     plt.tight_layout()

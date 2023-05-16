@@ -1,5 +1,5 @@
 deterministic_model:
-  n_products: 4
+  n_products: 6
   n_time_periods: 13
   joint_setup_cost: 500
   minor_setup_cost: [ 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 ]
@@ -30,8 +30,9 @@ rl_model:
 main:
   should_analyse: False
   stationary_products: True
+  generate_new_data: True
 simulation:
-  forecasting_method: "sarima"
+  forecasting_method: "holt_winter"
   verbose: False
   should_set_holding_cost_dynamically: False
 
@@ -68,7 +69,7 @@ a2c:
   discount_rate: 0.99
   n_episodes: 1000
 environment:
-  n_periods_historical_data: 0
+  n_periods_historical_data: 2
   rolling_window_forecast: 5
   # Note: maximum_order_quantity / n_action_classes must be an integer
   n_action_classes: 15

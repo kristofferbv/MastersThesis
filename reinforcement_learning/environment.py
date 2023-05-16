@@ -23,6 +23,8 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
         self.products = products
         self.scaled_products = self.normalize_demand(products[:])
+        # starting to learn from first period then moving on
+        self.time_period = 208
 
         # Parameters
         self.major_setup_cost = rl_config["joint_setup_cost"]
@@ -49,13 +51,18 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
         self.action_space = gym.spaces.Discrete(self.n_action_classes)
         self.observation_space = spaces.Box(low=0, high=np.inf, shape=(len(products), self.n_periods_historical_data + 1 + self.should_include_individual_forecast + self.should_include_total_forecast), dtype=np.float32)
+        self.inventory_levels = [0 for _ in self.products]
         self.reset()
+
+    def increase_time_period(self, increase):
+        self.time_period += increase
+    def reset_time_period(self):
+        self.time_period = 0
 
     def reset(self, **kwargs):
         # Reset the environment to the initial state. Setting start period so that we can ensure we have all historical data required for the first state
-        self.current_period = max(self.rolling_window, self.n_periods_historical_data)
+        self.current_period = max(self.rolling_window, self.n_periods_historical_data) + self.time_period
         self.inventory_levels = [0 for _ in self.products]
-
         return self._get_observation()
 
     def step(self, action):
@@ -80,7 +87,10 @@ class JointReplenishmentEnv(gym.Env, ABC):
             print("tidssteg: ", self.current_period - max(self.rolling_window, self.n_periods_historical_data))
             print("inventory level ", self.inventory_levels)
         for i, product in enumerate(self.products):
-            demand = product.iloc[self.current_period]  # dividing by 10 for training purpose only
+            try:
+                demand = product.iloc[self.current_period]  # dividing by 10 for training purpose only
+            except:
+                print(self.current_period)
             if (epoch % 100) == 0:
                 print("demand product " + str(i) + ":", demand)
                 print("shortage", self.inventory_levels[i] - demand)
@@ -93,7 +103,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
         # Update the current period
         self.current_period += 1
-        done = self.current_period == self.n_periods + max(self.rolling_window, self.n_periods_historical_data)
+        done = self.current_period == self.n_periods + max(self.rolling_window, self.n_periods_historical_data) + self.time_period
         if (epoch % 100) == 0:
             print("inventory after demand and action", self.inventory_levels)
             print("actions", action)

@@ -1,8 +1,13 @@
 from datetime import timedelta
+
+import numpy as np
+import pandas as pd
+
 import deterministic_model as det_mod
 import sarima
 import holt_winters_method
 from config_utils import load_config
+import generate_data
 
 
 def simulate(start_date, n_time_periods, products):
@@ -17,7 +22,9 @@ def simulate(start_date, n_time_periods, products):
     dict_sds = {}
     actions = {}  # Store the first actions for each time step
     orders = {}
+    print("products!!", len(products))
     inventory_levels = [0 for i in range(len(products))]
+    print(inventory_levels)
 
     total_costs = 0
 
@@ -35,20 +42,19 @@ def simulate(start_date, n_time_periods, products):
         actual_demands = []
         if time != 0:
             for product_index, product in enumerate(products):
-                actual_demand = products[product_index].loc[start_date, "sales_quantity"]
-                actual_demands.append(actual_demand)
-                #print("inventory levels at the beginning of period ", time)
-                #print(inventory_levels)
-
-                # added_inventory = max(0,actions[time-1][product_index] - actual_demand)  # skal vi ikke her ta at inventory level skal være max av 0 of invnetory level før + actions - actual demand??
-
-                # add holding costs or shortage costs
-                if inventory_levels[product_index] + actions[time - 1][product_index] - actual_demand > 0:
-                    holding_costs += (inventory_levels[product_index] + actions[time - 1][product_index] - actual_demand) * deterministic_model.holding_cost[product_index]
-                    period_costs += (inventory_levels[product_index] + actions[time - 1][product_index] - actual_demand) * deterministic_model.holding_cost[product_index]
+                if isinstance(product, pd.DataFrame):
+                    demand = products[product_index].loc[start_date, "sales_quantity"]
                 else:
-                    shortage_costs += abs(inventory_levels[product_index] + actions[time - 1][product_index] - actual_demand) * deterministic_model.shortage_cost[product_index]
-                    period_costs += abs(inventory_levels[product_index] + actions[time - 1][product_index] - actual_demand) * deterministic_model.shortage_cost[product_index]
+                    # drawing the demand for next week
+                    demand = generate_data.generate_next_week_demand(product.loc[product.index <= start_date])
+                actual_demands.append(demand)
+                               # add holding costs or shortage costs
+                if inventory_levels[product_index] + actions[time - 1][product_index] - demand > 0:
+                    holding_costs += (inventory_levels[product_index] + actions[time - 1][product_index] - demand) * deterministic_model.holding_cost[product_index]
+                    period_costs += (inventory_levels[product_index] + actions[time - 1][product_index] - demand) * deterministic_model.holding_cost[product_index]
+                else:
+                    shortage_costs += abs(inventory_levels[product_index] + actions[time - 1][product_index] - demand) * deterministic_model.shortage_cost[product_index]
+                    period_costs += abs(inventory_levels[product_index] + actions[time - 1][product_index] - demand) * deterministic_model.shortage_cost[product_index]
 
                 # add setup costs:
                 if actions[time - 1][product_index] > 0:
@@ -62,7 +68,7 @@ def simulate(start_date, n_time_periods, products):
                         major_setup_added = True
 
                 previous_il = inventory_levels[product_index]
-                inventory_levels[product_index] = max(0, previous_il + actions[time - 1][product_index] - actual_demand)
+                inventory_levels[product_index] = max(0, previous_il + actions[time - 1][product_index] - demand)
 
             total_costs += period_costs
             if verbose:
@@ -145,9 +151,12 @@ def simulate(start_date, n_time_periods, products):
     print("Setup costs")
     print(setup_costs)
     print(actions)
-    #print("orders")
-    #print(orders)
+    print("orders")
+    print(orders)
     runtime = deterministic_model.model.Runtime
     print("The run time is %f" % runtime)
 
     return actions
+
+
+

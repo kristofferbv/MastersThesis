@@ -1,3 +1,10 @@
+import os
+import signal
+import sys
+
+import matplotlib.pyplot as plt
+from keras.models import load_model
+
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -7,7 +14,7 @@ import scipy.signal
 import actor as a
 import time
 
-import generate_data_dataframe
+import generate_data
 import retrieve_data
 from reinforcement_learning.environment import JointReplenishmentEnv
 
@@ -25,7 +32,6 @@ target_kl = 0.01
 hidden_sizes = (64, 64)
 
 
-
 def discounted_cumulative_sums(x, discount):
     # Discounted cumulative sums of vectors for computing rewards-to-go and advantage estimates
     return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
@@ -34,7 +40,6 @@ def discounted_cumulative_sums(x, discount):
 class Buffer:
     # Buffer for storing trajectories
     def __init__(self, observation_dimensions, size, gamma=0.99, lam=0.95):
-
         # Buffer initialization
         self.observation_buffer = np.zeros(
             (size, *observation_dimensions), dtype=np.float32
@@ -102,14 +107,13 @@ def mlp(x, sizes, activation=tf.tanh, output_activation=None):
     return keras.layers.Dense(units=sizes[-1], activation=output_activation)(x)
 
 
-
 class PPO:
     def __init__(self, env, products):
         self.env = env
         self.products = products
         # Initialize the environment and get the dimensionality of the observation space and the number of possible actions
         self.observation_dimensions = env.observation_space.shape
-        self.num_actions = env.action_space.n**len(products)
+        self.num_actions = env.action_space.n ** len(products)
 
         # Initialize the buffer
         self.buffer = Buffer(self.observation_dimensions, steps_per_epoch)
@@ -129,8 +133,14 @@ class PPO:
         self.policy_optimizer = keras.optimizers.Adam(learning_rate=policy_learning_rate)
         self.value_optimizer = keras.optimizers.Adam(learning_rate=value_function_learning_rate)
 
-        # Initialize the observation, episode return and episode length
-# observation = observation[0]
+        # Register signal handler
+        signal.signal(signal.SIGINT, self.signal_handler)
+
+        # List to store rewards for each epoch
+        self.rewards_per_epoch = []
+
+    # Initialize the observation, episode return and episode length
+    # observation = observation[0]
 
     def train_ppo(self):
         observation, episode_return, episode_length = self.env.reset(), 0, 0
@@ -147,7 +157,7 @@ class PPO:
                 # Get the logits, action, and take one step in the environment
                 # observation = observation.reshape(1, -1)
                 logits, action = self.sample_action(observation)
-                individual_actions = a.unflatten_action(action[0].numpy(), self.env.action_space.n,len(self.products))
+                individual_actions = a.unflatten_action(action[0].numpy(), self.env.action_space.n, len(self.products))
                 individual_actions.append(epoch)
                 observation_new, reward, done, *_ = self.env.step(individual_actions)
                 episode_return += reward
@@ -195,13 +205,83 @@ class PPO:
             # Update the value function
             for _ in range(train_value_iterations):
                 self.train_value_function(observation_buffer, return_buffer)
+            # Append the mean reward per epoch to the list
 
+            mean_reward = sum_return / num_episodes
+            self.rewards_per_epoch.append(mean_reward)
             # Print mean return and length for each epoch
             print(
-                f" Epoch: {epoch + 1}. Mean Reward: {sum_return / num_episodes}. Mean Length: {sum_length / num_episodes}"
+                f" Epoch: {epoch + 1}. Mean Reward: {sum_return / num_episodes}. Mean Length: {sum_length / num_episodes} Current_time: {self.env.time_period}"
             )
+            # if epoch != 0 and epoch % 145 == 0:
+            #     self.env.reset_time_period()
+            # if epoch != 0 and epoch % 3 == 0:
+            #     self.env.increase_time_period(5)
 
-    def logprobabilities(self,logits, a):
+        self.save_models()
+        self.plot_rewards()
+
+    def test(self, start_time_period):
+        actor_model_dir = 'models/actor_model.h5'
+        # Load the actor network
+        self.actor = load_model(actor_model_dir)
+
+        done = False
+        total_costs = 0
+        self.env.time_period = start_time_period
+        observation, episode_return, episode_length = self.env.reset(), 0, 0
+        for i in range(0,14):
+            print(f"Inventory_level at start of period {self.env.current_period}: {self.env.inventory_levels}")
+            # Get the logits, action, and take one step in the environment
+            # observation = observation.reshape(1, -1)
+            observation = tf.reshape(observation, [1, *observation.shape])
+            logits = self.actor.predict(observation)
+            action = tf.argmax(logits, axis=1)
+            print(action)
+
+            individual_actions = a.unflatten_action(action.numpy()[0], self.env.action_space.n, len(self.products))
+            print(f"Action for time period {self.env.current_period}: {individual_actions}")
+            # Just a consequence of the epoch hack
+            individual_actions.append(1)
+            observation_new, reward, done, *_ = self.env.step(individual_actions)
+            demand = []
+            for product in self.products:
+                current_period = self.env.current_period
+                demand.append(product.iloc[current_period])
+            print(f"Demand for time period {self.env.current_period}: {demand}")
+            print(f"Reward for time period {self.env.current_period}: {reward}")
+
+            total_costs += -reward
+            # Update the observation
+            observation = observation_new
+
+            # Finish trajectory if reached to a terminal state
+            terminal = i == 13
+            if terminal:
+                print("Total_costs: ", total_costs)
+
+    def plot_rewards(self):
+        plt.plot(self.rewards_per_epoch)
+        plt.xlabel('Epoch')
+        plt.ylabel('Reward')
+        plt.title('Costs as a function of epochs')
+        plt.show()
+
+    def save_models(self):
+        save_dir = 'models'
+        os.makedirs(save_dir, exist_ok=True)
+        self.actor.save(os.path.join(save_dir, 'actor_model.h5'))
+        self.critic.save(os.path.join(save_dir, 'critic_model.h5'))
+
+    def signal_handler(self, sig, frame):
+        print('Training interrupted. Saving models...')
+        self.save_models()
+        self.plot_rewards()
+        print('Models saved and rewards plotted. Exiting...')
+        sys.exit(0)
+
+
+    def logprobabilities(self, logits, a):
         # Compute the log-probabilities of taking actions a by using the logits (i.e. the output of the actor)
         logprobabilities_all = tf.nn.log_softmax(logits)
         logprobability = tf.reduce_sum(
@@ -209,13 +289,18 @@ class PPO:
         )
         return logprobability
 
-    # Sample action from actor
+        # Sample action from actor
+
+
     @tf.function
-    def sample_action(self,observation):
+
+
+    def sample_action(self, observation):
         observation = tf.reshape(observation, [1, *observation.shape])
         logits = self.actor(observation)
         action = tf.squeeze(tf.random.categorical(logits, 1), axis=1)
         return logits, action
+
 
     # Train the policy by maxizing the PPO-Clip objective
     @tf.function
@@ -246,6 +331,7 @@ class PPO:
         kl = tf.reduce_sum(kl)
         return kl
 
+
     # Train the value function by regression on mean-squared error
     @tf.function
     def train_value_function(self, observation_buffer, return_buffer):
@@ -253,3 +339,5 @@ class PPO:
             value_loss = tf.reduce_mean((return_buffer - self.critic(observation_buffer)) ** 2)
         value_grads = tape.gradient(value_loss, self.critic.trainable_variables)
         self.value_optimizer.apply_gradients(zip(value_grads, self.critic.trainable_variables))
+
+
