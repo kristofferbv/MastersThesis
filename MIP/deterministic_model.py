@@ -46,7 +46,7 @@ class DeterministicModel:
             self.service_level[product_index][1] = service_levels[product_index] 
 
             for tau_period in range(2, len(self.tau_periods)+1):
-                self.service_level[product_index][tau_period] = self.service_level[product_index][tau_period-1] 
+                self.service_level[product_index][tau_period] =  self.service_level[product_index][1] * (0.8 - tau_period*0.05)
     
 
     def set_demand_forecast(self, demand_forecast):
@@ -68,7 +68,7 @@ class DeterministicModel:
                 for tau_period in range(1, self.n_time_periods-time_period+2):            
                     squared_sum = sum(standard_deviations[product_index][time_period+t]**2 for t in range(0, tau_period))
                     self.safety_stock[product_index][time_period][tau_period] = norm.ppf(self.service_level[product_index][tau_period]) * np.sqrt(squared_sum) 
-                    self.safety_stock[product_index][time_period][tau_period] = self.safety_stock[product_index][time_period][tau_period] / 10
+                    self.safety_stock[product_index][time_period][tau_period] = self.safety_stock[product_index][time_period][tau_period] 
         self.model.update()
         #print("safety stock")
         #print(self.safety_stock)
