@@ -172,7 +172,7 @@ def simulate(start_date, n_time_periods, products):
             tot_demand += actual_demand_product[time_period][product_index]
 
         avg_demand = tot_demand/n_time_periods
-        average_demands.append(avg_demand*52)
+        average_demands.append(avg_demand)
 
     print("Average demands are:")
     print(average_demands)
