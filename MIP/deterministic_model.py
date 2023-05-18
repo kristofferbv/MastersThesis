@@ -46,7 +46,7 @@ class DeterministicModel:
             self.service_level[product_index][1] = service_levels[product_index] 
 
             for tau_period in range(2, len(self.tau_periods)+1):
-                self.service_level[product_index][tau_period] =  self.service_level[product_index][1] * (0.8 - tau_period*0.05)
+                self.service_level[product_index][tau_period] =  self.service_level[product_index][1] * (0.75 - tau_period*0.05)
     
 
     def set_demand_forecast(self, demand_forecast):
