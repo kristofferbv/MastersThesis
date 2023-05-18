@@ -45,6 +45,7 @@ class DeterministicModel:
             self.service_level[product_index][0] = service_levels[product_index]
             self.service_level[product_index][1] = service_levels[product_index] 
 
+            # kan feks prøve flere varianter der det nå er 0.75 og 0.05
             for tau_period in range(2, len(self.tau_periods)+1):
                 self.service_level[product_index][tau_period] =  self.service_level[product_index][1] * (0.75 - tau_period*0.05)
     
