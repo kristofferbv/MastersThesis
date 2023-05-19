@@ -162,6 +162,9 @@ def simulate(start_date, n_time_periods, products):
     runtime = deterministic_model.model.Runtime
     print("The run time is %f" % runtime)
 
+
+    
+    print("")
     print("Average items ordered is:")
     print(avg_items/n_time_periods)
 
@@ -178,25 +181,28 @@ def simulate(start_date, n_time_periods, products):
     print(average_demands)
 
     for product_index in range(len(products)):
-        set_up = deterministic_model.major_setup_cost/avg_items + deterministic_model.minor_setup_cost[product_index]
+        set_up = deterministic_model.major_setup_cost/6 + deterministic_model.minor_setup_cost[product_index]
 
         d1 = (2*set_up)/deterministic_model.holding_cost[product_index]*(1**2)
+        print(d1)
         q1 = np.sqrt((2*set_up*d1)/(deterministic_model.holding_cost[product_index]))
         set_up_per_unit_1 = set_up / q1
 
         print("EOQ cost of ordering product" ,product_index, " every time period:", str(set_up_per_unit_1))
 
         d2 = (2*set_up)/(deterministic_model.holding_cost[product_index]*(2**2))
+        print(d2)
         q2 = np.sqrt((2*set_up*d2)/deterministic_model.holding_cost[product_index])
         set_up_per_unit_2 = set_up / q2
 
         print("EOQ cost of ordering product" ,product_index, "every second time period:", set_up_per_unit_2)
 
-        print("Service level for increasing tau from 1 to 2 is:" )
+        print("Service level for increasing tau fro tau = 1 is:" )
         service_level_1_2 = (set_up_per_unit_2-set_up_per_unit_1)/(set_up_per_unit_2-set_up_per_unit_1+deterministic_model.holding_cost[product_index])
         print(service_level_1_2)
 
         d3 = (2*set_up)/(deterministic_model.holding_cost[product_index]*(3**2))
+        print(d3)
         q3 = np.sqrt((2*set_up*d3)/deterministic_model.holding_cost[product_index])
         set_up_per_unit_3 = set_up / q3
 
@@ -205,8 +211,10 @@ def simulate(start_date, n_time_periods, products):
         print("Service level for increasing tau from 2 to 3 is:" )
         service_level_2_3 = (set_up_per_unit_3-set_up_per_unit_2)/(set_up_per_unit_3-set_up_per_unit_2+deterministic_model.holding_cost[product_index])
         print(service_level_2_3)
+    
+    
 
-        
+
 
         print("")
 
@@ -215,9 +223,9 @@ def simulate(start_date, n_time_periods, products):
 
         #print("EOQ cost of ordering every fourth time period:")
 
+    print(deterministic_model.holding_cost)
 
-
-
+    
 
 
 
