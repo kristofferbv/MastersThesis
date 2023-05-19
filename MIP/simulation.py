@@ -34,11 +34,10 @@ def simulate(real_products):
 
 def perform_warm_up(products, start_date, n_time_periods):
     inventory_levels = [0 for i in range(len(products))]
-    for i in range(simulation_length):
-        _, _, inventory_levels, start_date = run_one_episode(start_date, n_time_periods, products, inventory_levels=inventory_levels)
-    return inventory_levels, start_date
+    _, _, inventory_levels, end_date = run_one_episode(start_date, n_time_periods, products, inventory_levels=inventory_levels, episode_length=warm_up_length)
+    return inventory_levels, end_date
 
-def run_one_episode(start_date, n_time_periods, products, inventory_levels = None):
+def run_one_episode(start_date, n_time_periods, products, episode_length, inventory_levels = None):
     config = load_config("../config.yml")
     forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
     verbose = config["simulation"]["verbose"]  # number of time periods
@@ -59,7 +58,7 @@ def run_one_episode(start_date, n_time_periods, products, inventory_levels = Non
     holding_costs = 0
     setup_costs = 0
 
-    for time_step in range(simulation_length):
+    for time_step in range(episode_length):
         print(f"Time step {time_step}/{simulation_length}")
         start_date = start_date + timedelta(days=7)
 

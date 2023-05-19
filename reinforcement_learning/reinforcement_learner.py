@@ -48,7 +48,7 @@ if __name__ == "__main__":
     critic = Critic(state_shape)
 
     if method == "ppo":
-        ppo_model = PPO(env, products)
+        ppo_model = PPO(env, real_products)
         # ppo_model.test(208)
         ppo_model.train_ppo()
 

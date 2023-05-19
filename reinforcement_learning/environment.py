@@ -97,6 +97,8 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
             except:
                 print(self.current_period)
+                print(len(product))
+                print(demand)
             if (epoch % 100) == 0 and verbose:
                 print("demand product " + str(i) + ":", demand)
                 print("shortage", self.inventory_levels[i] - demand)

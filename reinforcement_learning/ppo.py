@@ -30,7 +30,7 @@ train_policy_iterations = 80
 train_value_iterations = 80
 lam = 0.97
 target_kl = 0.01
-hidden_sizes = (64, 64)
+hidden_sizes = (128, 128)
 
 
 def discounted_cumulative_sums(x, discount):
@@ -183,7 +183,7 @@ class PPO:
                     sum_length += episode_length
                     num_episodes += 1
                     observation, episode_return, episode_length = self.env.reset(), 0, 0
-                    self.env.products = generate_seasonal_data_based_on_products(self.products, 300)
+                    self.env.products = generate_seasonal_data_based_on_products(self.products, 500)
 
             # Get values from the buffer
             (
@@ -223,6 +223,7 @@ class PPO:
         self.plot_rewards()
 
     def test(self, start_time_period):
+        generate_seasonal_data_based_on_products(self.products, 500)
         actor_model_dir = 'models/actor_model.h5'
         # Load the actor network
         self.actor = load_model(actor_model_dir)
@@ -231,7 +232,7 @@ class PPO:
         total_costs = 0
         self.env.time_period = start_time_period
         observation, episode_return, episode_length = self.env.reset(), 0, 0
-        for i in range(0,14):
+        for i in range(0,53):
             print(f"Inventory_level at start of period {self.env.current_period}: {self.env.inventory_levels}")
             # Get the logits, action, and take one step in the environment
             # observation = observation.reshape(1, -1)
@@ -257,7 +258,7 @@ class PPO:
             observation = observation_new
 
             # Finish trajectory if reached to a terminal state
-            terminal = i == 13
+            terminal = i == 52
             if terminal:
                 print("Total_costs: ", total_costs)
 
