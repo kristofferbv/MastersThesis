@@ -61,8 +61,6 @@ def get_non_stationary_products(products, start_date=None, should_plot=False, ve
 def plot_sales_quantity(products, start_date=None):
     n = len(products)
     fig, axes = plt.subplots(nrows=n, sharex=True, figsize=(10, n * 3))
-    print(len(products))
-    print(len(axes))
     if isinstance(products[0], pd.DataFrame):
         is_dataframe = True
     else:

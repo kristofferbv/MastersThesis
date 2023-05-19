@@ -8,9 +8,37 @@ import sarima
 import holt_winters_method
 from config_utils import load_config
 import generate_data
+from generate_data import generate_seasonal_data_based_on_products
 
+config = load_config("../config.yml")
+n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
+n_episodes = config["simulation"]["n_episodes"] # This is the number of times we run a full simulation
+simulation_length = config["simulation"]["simulation_length"] # This is the number of time periods we want to calculate the costs for
+warm_up_length = config["simulation"]["warm_up_length"] # This is the number of time periods we are using to warm up
+should_perform_warm_up = config["simulation"]["should_perform_warm_up"]
 
-def simulate(start_date, n_time_periods, products):
+def simulate(real_products):
+    total_costs = []
+    inventory_levels = None
+    for episode in range(n_episodes):
+        generated_products = generate_seasonal_data_based_on_products(real_products, simulation_length + warm_up_length + 208)
+        start_date = generated_products[0].index[208]
+        if should_perform_warm_up:
+            inventory_levels, start_date = perform_warm_up(generated_products, start_date, n_time_periods)
+            costs, _, _ , _ = run_one_episode(start_date, n_time_periods, generated_products, inventory_levels=inventory_levels)
+        else:
+            costs, _, _ , _ = run_one_episode(start_date, n_time_periods, generated_products)
+        total_costs.append(costs)
+        print(f"costs for episode {episode} is: {costs}")
+    print(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}")
+
+def perform_warm_up(products, start_date, n_time_periods):
+    inventory_levels = [0 for i in range(len(products))]
+    for i in range(simulation_length):
+        _, _, inventory_levels, start_date = run_one_episode(start_date, n_time_periods, products, inventory_levels=inventory_levels)
+    return inventory_levels, start_date
+
+def run_one_episode(start_date, n_time_periods, products, inventory_levels = None):
     config = load_config("../config.yml")
     forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
     verbose = config["simulation"]["verbose"]  # number of time periods
@@ -22,9 +50,8 @@ def simulate(start_date, n_time_periods, products):
     dict_sds = {}
     actions = {}  # Store the first actions for each time step
     orders = {}
-    print("products!!", len(products))
-    inventory_levels = [0 for i in range(len(products))]
-    print(inventory_levels)
+    if inventory_levels is None:
+        inventory_levels = [0 for i in range(len(products))]
 
     total_costs = 0
 
@@ -32,7 +59,8 @@ def simulate(start_date, n_time_periods, products):
     holding_costs = 0
     setup_costs = 0
 
-    for time in range(n_time_periods):
+    for time_step in range(simulation_length):
+        print(f"Time step {time_step}/{simulation_length}")
         start_date = start_date + timedelta(days=7)
 
         period_costs = 0
@@ -40,24 +68,24 @@ def simulate(start_date, n_time_periods, products):
 
         # Update inventory levels based on previous actions and actual demand
         actual_demands = []
-        if time != 0:
+        if time_step != 0:
             for product_index, product in enumerate(products):
                 if isinstance(product, pd.DataFrame):
                     demand = products[product_index].loc[start_date, "sales_quantity"]
                 else:
-                    # drawing the demand for next week
-                    demand = generate_data.generate_next_week_demand(product.loc[product.index <= start_date])
+                    demand = products[product_index].loc[start_date]
+
                 actual_demands.append(demand)
                                # add holding costs or shortage costs
-                if inventory_levels[product_index] + actions[time - 1][product_index] - demand > 0:
-                    holding_costs += (inventory_levels[product_index] + actions[time - 1][product_index] - demand) * deterministic_model.holding_cost[product_index]
-                    period_costs += (inventory_levels[product_index] + actions[time - 1][product_index] - demand) * deterministic_model.holding_cost[product_index]
+                if inventory_levels[product_index] + actions[time_step - 1][product_index] - demand > 0:
+                    holding_costs += (inventory_levels[product_index] + actions[time_step - 1][product_index] - demand) * deterministic_model.holding_cost[product_index]
+                    period_costs += (inventory_levels[product_index] + actions[time_step - 1][product_index] - demand) * deterministic_model.holding_cost[product_index]
                 else:
-                    shortage_costs += abs(inventory_levels[product_index] + actions[time - 1][product_index] - demand) * deterministic_model.shortage_cost[product_index]
-                    period_costs += abs(inventory_levels[product_index] + actions[time - 1][product_index] - demand) * deterministic_model.shortage_cost[product_index]
+                    shortage_costs += abs(inventory_levels[product_index] + actions[time_step - 1][product_index] - demand) * deterministic_model.shortage_cost[product_index]
+                    period_costs += abs(inventory_levels[product_index] + actions[time_step - 1][product_index] - demand) * deterministic_model.shortage_cost[product_index]
 
                 # add setup costs:
-                if actions[time - 1][product_index] > 0:
+                if actions[time_step - 1][product_index] > 0:
                     setup_costs += deterministic_model.minor_setup_cost[product_index]
                     period_costs += deterministic_model.minor_setup_cost[product_index]
 
@@ -68,23 +96,23 @@ def simulate(start_date, n_time_periods, products):
                         major_setup_added = True
 
                 previous_il = inventory_levels[product_index]
-                inventory_levels[product_index] = max(0, previous_il + actions[time - 1][product_index] - demand)
+                inventory_levels[product_index] = max(0, previous_il + actions[time_step - 1][product_index] - demand)
 
             total_costs += period_costs
             if verbose:
                 print("Period costs: ")
                 print(period_costs)
 
-                print("Actions at time period ", time - 1)
-                print(actions[time - 1])
+                print("Actions at time period ", time_step - 1)
+                print(actions[time_step - 1])
 
-                print("Actual_demand for period ", time - 1)
+                print("Actual_demand for period ", time_step - 1)
                 print(actual_demands)
 
-                print("Inventory levels at start of time period ", time)
+                print("Inventory levels at start of time period ", time_step)
                 print(inventory_levels)
 
-                print("Total costs at time period : ", time)
+                print("Total costs at time period : ", time_step)
                 print(total_costs)
 
                 print("Total holding costs:")
@@ -116,47 +144,47 @@ def simulate(start_date, n_time_periods, products):
         deterministic_model.optimize()
 
         # Extract and store the first action for each product in the current time step
-        actions[time] = {}
+        actions[time_step] = {}
         threshold = 1e-10
 
-        orders[time] = {}
+        orders[time_step] = {}
 
         for var in deterministic_model.model.getVars():
             if var.varName.startswith("ReplenishmentQ"):
                 product_index, current_time = map(int, var.varName.split("[")[1].split("]")[0].split(","))
                 # Only looking at the action at time t = 1, since that is the actual action for this period
                 if current_time == 1:
-                    actions[time][product_index] = var.x
-                    if abs(actions[time][product_index]) < threshold:
-                        actions[time][product_index] = 0
+                    actions[time_step][product_index] = var.x
+                    if abs(actions[time_step][product_index]) < threshold:
+                        actions[time_step][product_index] = 0
 
             if var.varName.startswith("OrderProduct"):
                 for tau in deterministic_model.tau_periods:
                     product_index, current_time, tau = map(int, var.varName.split("[")[1].split("]")[0].split(","))
                     # Only looking at the action at time t = 1, since that is the actual action for this period
                     if current_time == 1:
-                        if product_index not in orders[time]:
-                            orders[time][product_index] = {}
-                        orders[time][product_index][tau] = var.x
-                        if abs(orders[time][product_index][tau]) < threshold:
-                            orders[time][product_index][tau] = 0
+                        if product_index not in orders[time_step]:
+                            orders[time_step][product_index] = {}
+                        orders[time_step][product_index][tau] = var.x
+                        if abs(orders[time_step][product_index][tau]) < threshold:
+                            orders[time_step][product_index][tau] = 0
 
    
-    print("Total costs at after all periods : ")
-    print(total_costs)
-    print("Total shortage costs")
-    print(shortage_costs)
-    print("Holding costs:")
-    print(holding_costs)
-    print("Setup costs")
-    print(setup_costs)
-    print(actions)
-    print("orders")
-    print(orders)
-    runtime = deterministic_model.model.Runtime
-    print("The run time is %f" % runtime)
+    # print("Total costs at after all periods : ")
+    # print(total_costs)
+    # print("Total shortage costs")
+    # print(shortage_costs)
+    # print("Holding costs:")
+    # print(holding_costs)
+    # print("Setup costs")
+    # print(setup_costs)
+    # print(actions)
+    # print("orders")
+    # print(orders)
+    # runtime = deterministic_model.model.Runtime
+    # print("The run time is %f" % runtime)
 
-    return actions
+    return total_costs, actions, inventory_levels, start_date
 
 
 

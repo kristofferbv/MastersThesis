@@ -44,7 +44,6 @@ def plot_data(df):
 def generate_seasonal_data_based_on_products(products, num_periods):
     products_list = []
     for product_series in products:
-        print(products)
         # First, we decompose the series to get the seasonal component
         res = sm.tsa.seasonal_decompose(product_series, model='additive', period=52)
         # Then, we repeat the seasonal component for the desired number of periods
@@ -54,7 +53,10 @@ def generate_seasonal_data_based_on_products(products, num_periods):
         # We add a trend and some noise to make it more realistic
         trend = np.linspace(product_series.mean(), product_series.mean(), num_periods)
         data += trend
-        noise = np.random.normal(0, product_series.std(), num_periods)
+        # Modify the standard deviation calculation to also depend on seasonality
+        noise_std_dev = 0.1 * (trend + seasonal_data)
+        noise = np.random.normal(0, noise_std_dev)
+        # noise = np.random.normal(loc=res.resid.mean(), scale=res.resid.std(), size = num_periods)
         data += noise
         products_list.append(pd.Series(data, index=pd.date_range(product_series.index[0], periods=num_periods, freq='W')))
 
@@ -80,8 +82,13 @@ def generate_next_week_demand(product_series):
     # Predict next week's seasonal component
     seasonal_prediction = res.seasonal[next_week - 1]  # subtract 1 because Python uses 0-based indexing
 
+
+    # Modify the standard deviation calculation to also depend on seasonality
+    noise_std_dev = 0.1 * (trend_prediction + seasonal_prediction)
+
+    noise = np.random.normal(0, noise_std_dev)
     # Generate next week's noise component
-    noise = np.random.normal(loc=res.resid.mean(), scale=res.resid.std(), size=1)
+    # noise = np.random.normal(loc=res.resid.mean(), scale=res.resid.std(), size=1)
 
     # Add all components together to get the synthetic data for next week
     demand = trend_prediction + seasonal_prediction + noise

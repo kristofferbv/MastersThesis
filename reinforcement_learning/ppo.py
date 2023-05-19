@@ -13,6 +13,7 @@ import gym
 import scipy.signal
 import actor as a
 import time
+from generate_data import generate_seasonal_data_based_on_products
 
 import generate_data
 import retrieve_data
@@ -182,7 +183,7 @@ class PPO:
                     sum_length += episode_length
                     num_episodes += 1
                     observation, episode_return, episode_length = self.env.reset(), 0, 0
-                    # observation = observation[0]
+                    self.env.products = generate_seasonal_data_based_on_products(self.products, 300)
 
             # Get values from the buffer
             (
@@ -245,11 +246,11 @@ class PPO:
             individual_actions.append(1)
             observation_new, reward, done, *_ = self.env.step(individual_actions)
             demand = []
-            for product in self.products:
-                current_period = self.env.current_period
-                demand.append(product.iloc[current_period])
-            print(f"Demand for time period {self.env.current_period}: {demand}")
-            print(f"Reward for time period {self.env.current_period}: {reward}")
+            # for product in self.products:
+            #     current_period = self.env.current_period
+            #     demand.append(product.iloc[current_period])
+            # print(f"Demand for time period {self.env.current_period}: {demand}")
+            # print(f"Reward for time period {self.env.current_period}: {reward}")
 
             total_costs += -reward
             # Update the observation

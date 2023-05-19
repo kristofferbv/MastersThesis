@@ -30,8 +30,6 @@ if __name__ == '__main__':
     else:
         products = retrieve_data.read_products_3("2016-01-01", "2020-12-30")
         products = random.sample(get_non_stationary_products(products), n_products)
-    if generate_new_data:
-        products = generate_seasonal_data_based_on_products(products, 260)
 
 
     start_date = products[0].index[208]
@@ -44,17 +42,7 @@ if __name__ == '__main__':
                 decompose_sales_quantity(product, product["product_hash"].iloc[0])
             else:
                 decompose_sales_quantity(product, str(i))
-
-    simulation.simulate(start_date, n_time_periods, products)
-
-    """
-    Algorithm for simulation optimization: 
-        1) Find n products and use historical data to forecast the next k periods at time t = t0
-        2) Find current inventory level for each product
-        2) Once the forecast and start inventory level is decided, run the optimization algorithm to find the best option
-            at time t = t0. 
-        3) Store this option! 
-        
-        4) Now at time t = t0 + 1, use the new available data to create a forecast of the next k periods at time t = t0 + 1
-        5) repeat point 2-4 until t = t0 + k
-    """
+    if generate_new_data:
+        simulation.simulate(products)
+    else:
+        simulation.run_one_episode(start_date, n_time_periods, products)

@@ -7,6 +7,7 @@ import pandas as pd
 from gym import spaces
 from sklearn.preprocessing import StandardScaler
 import config_utils
+from generate_data import generate_next_week_demand
 
 
 class JointReplenishmentEnv(gym.Env, ABC):
@@ -82,16 +83,21 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # Simulate demand and calculate shortage cost and holding cost.
         shortage_cost = 0
         holding_cost = 0
-        if (epoch % 100) == 0:
+        verbose = False
+        if (epoch % 100) == 0 and verbose:
             print("epoch", epoch)
             print("tidssteg: ", self.current_period - max(self.rolling_window, self.n_periods_historical_data))
             print("inventory level ", self.inventory_levels)
         for i, product in enumerate(self.products):
             try:
-                demand = product.iloc[self.current_period]  # dividing by 10 for training purpose only
+                # demand = product.iloc[self.current_period]
+                demand = generate_next_week_demand(product.iloc[:self.current_period])
+                if (demand<0):
+                    print("negative", demand)
+
             except:
                 print(self.current_period)
-            if (epoch % 100) == 0:
+            if (epoch % 100) == 0 and verbose:
                 print("demand product " + str(i) + ":", demand)
                 print("shortage", self.inventory_levels[i] - demand)
             shortage_cost += abs(min((self.inventory_levels[i] - demand), 0)) * self.shortage_cost[i]
@@ -104,7 +110,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # Update the current period
         self.current_period += 1
         done = self.current_period == self.n_periods + max(self.rolling_window, self.n_periods_historical_data) + self.time_period
-        if (epoch % 100) == 0:
+        if (epoch % 100) == 0 and verbose:
             print("inventory after demand and action", self.inventory_levels)
             print("actions", action)
             print("total costs", total_cost)
