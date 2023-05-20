@@ -1,6 +1,7 @@
 import os
 import signal
 import sys
+import random
 
 import matplotlib.pyplot as plt
 from keras.models import load_model
@@ -24,8 +25,8 @@ steps_per_epoch = 4000
 epochs = 3000
 gamma = 0.99
 clip_ratio = 0.2
-policy_learning_rate = 3e-4
-value_function_learning_rate = 1e-3
+policy_learning_rate = 3e-3
+value_function_learning_rate = 1e-2
 train_policy_iterations = 80
 train_value_iterations = 80
 lam = 0.97
@@ -157,7 +158,7 @@ class PPO:
             for t in range(steps_per_epoch):
                 # Get the logits, action, and take one step in the environment
                 # observation = observation.reshape(1, -1)
-                logits, action = self.sample_action(observation)
+                logits, action, hei = self.sample_action(observation)
                 individual_actions = a.unflatten_action(action[0].numpy(), self.env.action_space.n, len(self.products))
                 individual_actions.append(epoch)
                 observation_new, reward, done, *_ = self.env.step(individual_actions)
@@ -295,13 +296,17 @@ class PPO:
 
 
     @tf.function
-
-
     def sample_action(self, observation):
         observation = tf.reshape(observation, [1, *observation.shape])
         logits = self.actor(observation)
-        action = tf.squeeze(tf.random.categorical(logits, 1), axis=1)
-        return logits, action
+        random_number = tf.random.uniform(shape=())  # Generate a random number using TensorFlow
+        hei = False
+        if random_number < 0.1:
+            action = tf.random.categorical(tf.math.log([[1 / logits.shape[-1]] * logits.shape[-1]]), 1)[0]
+            hei = True
+        else:
+            action = tf.squeeze(tf.random.categorical(logits, 1), axis=1)
+        return logits, action, hei
 
 
     # Train the policy by maxizing the PPO-Clip objective
