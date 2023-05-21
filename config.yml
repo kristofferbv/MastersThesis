@@ -1,6 +1,6 @@
 deterministic_model:
   n_products: 6
-  n_time_periods: 26
+  n_time_periods: 13
   joint_setup_cost: 500
   minor_setup_cost: [ 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 ]
   holding_cost: [ 7.15,7.15,7.15,7.15, 7.15, 7.15 ]
@@ -14,7 +14,7 @@ deterministic_model:
   should_include_safety_stock: True
 rl_model:
   n_products: 6
-  n_time_periods: 52
+  n_time_periods: 13
   joint_setup_cost: 500
   minor_setup_cost: [ 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 ]
   holding_cost: [ 7.15,7.15,7.15,7.15, 7.15, 7.15 ]
@@ -36,8 +36,8 @@ simulation:
   verbose: False
   should_set_holding_cost_dynamically: False
   n_episodes: 10
-  simulation_length: 260
-  warm_up_length: 104
+  simulation_length: 13
+  warm_up_length: 0
   should_perform_warm_up: False
 
 actor:
@@ -73,14 +73,13 @@ a2c:
   discount_rate: 0.99
   n_episodes: 1000
 environment:
-  n_periods_historical_data: 2
+  n_periods_historical_data: 0
   rolling_window_forecast: 5
   # Note: maximum_order_quantity / n_action_classes must be an integer
-  n_action_classes: 15
-  maximum_order_quantity: 105
-  order_quantity_per_discrete_class: 5
-  should_include_individual_forecast: True
-  should_include_total_forecast: False
+  n_action_classes: 20
+  maximum_order_quantity: 100
+  should_include_individual_forecast: False
+  should_include_total_forecast: True
 rl:
   method: "ppo"
   generate_data: True

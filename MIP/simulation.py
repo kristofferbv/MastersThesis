@@ -21,13 +21,13 @@ def simulate(real_products):
     total_costs = []
     inventory_levels = None
     for episode in range(n_episodes):
-        generated_products = generate_seasonal_data_based_on_products(real_products, simulation_length + warm_up_length + 208)
-        start_date = generated_products[0].index[208]
+        generated_products = generate_seasonal_data_based_on_products(real_products, simulation_length + warm_up_length + 208 + 30)
+        start_date = generated_products[0].index[213]
         if should_perform_warm_up:
             inventory_levels, start_date = perform_warm_up(generated_products, start_date, n_time_periods)
             costs, _, _ , _ = run_one_episode(start_date, n_time_periods, generated_products, inventory_levels=inventory_levels)
         else:
-            costs, _, _ , _ = run_one_episode(start_date, n_time_periods, generated_products)
+            costs, _, _ , _ = run_one_episode(start_date, n_time_periods, generated_products,simulation_length)
         total_costs.append(costs)
         print(f"costs for episode {episode} is: {costs}")
     print(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}")

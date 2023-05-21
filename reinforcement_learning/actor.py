@@ -114,7 +114,7 @@ class Actor:
         loss_function = eval("keras.losses." + loss_function)
 
         model = Sequential()
-
+        print("INPUS SHA", self.input_shape)
         model.add(Input(shape=self.input_shape))
         model.add(Flatten())
 

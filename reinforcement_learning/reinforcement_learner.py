@@ -37,11 +37,13 @@ if __name__ == "__main__":
     # Set up the environment
     env = JointReplenishmentEnv(products)
     # state_shape is the input shape for critic and actor
-    state_shape = env.observation_space.shape
+    state_shape = env.observation_space.shape[1]
     # Since agent space only consist of the state of a singe product
-    state_shape_agent = state_shape[1]
+    state_shape_agent = state_shape
     # action shape is the output shape of the actor
     action_shape = env.action_space.n
+    print(state_shape)
+    print(action_shape)
 
     # set up the networks
     actor = Actor(state_shape_agent, action_shape)
@@ -49,8 +51,8 @@ if __name__ == "__main__":
 
     if method == "ppo":
         ppo_model = PPO(env, real_products)
-        # ppo_model.test(208)
         ppo_model.train_ppo()
+        ppo_model.test(208)
 
     else:
         # Train the A2C model

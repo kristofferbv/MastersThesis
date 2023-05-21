@@ -21,7 +21,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         config = config_utils.load_config("config.yml")
         rl_config = config["rl_model"]
         env_config = config["environment"]
-
+        self.verbose = False
         self.products = products
         self.scaled_products = self.normalize_demand(products[:])
         # starting to learn from first period then moving on
@@ -49,9 +49,9 @@ class JointReplenishmentEnv(gym.Env, ABC):
         if not self.action_multiplier.is_integer():
             raise Exception("maximum_order_quantity / n_action_classes must be an integer")
 
+        self.action_space = gym.spaces.Discrete(self.n_action_classes)  # 10 discrete actions from 0 to 9 inclusive
+        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(len(products), self.n_periods_historical_data + 2), dtype=np.float32)
 
-        self.action_space = gym.spaces.Discrete(self.n_action_classes)
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(len(products), self.n_periods_historical_data + 1 + self.should_include_individual_forecast + self.should_include_total_forecast), dtype=np.float32)
         self.inventory_levels = [0 for _ in self.products]
         self.reset()
 
@@ -72,52 +72,62 @@ class JointReplenishmentEnv(gym.Env, ABC):
         action = [x * self.action_multiplier for x in action]
         # Apply the replenishment action
         major_setup_triggered = False
+        individual_rewards = []
+        count_major_setup_sharing = len([i for i in action if i > 0])
+
+        demands = []
+        minor_costs = []
+        major_costs = []
+        holding_costs = []
+        shortage_costs = []
+        rewards = []
+
+
         for i, product in enumerate(self.products):
             if action[i] > 0:
                 self.inventory_levels[i] += action[i]
-                major_setup_triggered = True
-        # Calculate the minor and major setup costs
-        minor_cost = np.sum((a >= 1) * b for a, b in zip(action, self.minor_setup_cost))
-        major_cost = self.major_setup_cost if major_setup_triggered else 0
+                # Apply only fractional part of major setup costs corresponding to number of products ordering
+                # if count_major_setup_sharing == 1:
+                #     major_cost = self.major_setup_cost / count_major_setup_sharing * 2
+                # else:
+                major_cost = self.major_setup_cost / count_major_setup_sharing
 
-        # Simulate demand and calculate shortage cost and holding cost.
-        shortage_cost = 0
-        holding_cost = 0
-        verbose = False
-        if (epoch % 100) == 0 and verbose:
-            print("epoch", epoch)
-            print("tidssteg: ", self.current_period - max(self.rolling_window, self.n_periods_historical_data))
-            print("inventory level ", self.inventory_levels)
-        for i, product in enumerate(self.products):
-            try:
-                # demand = product.iloc[self.current_period]
-                demand = generate_next_week_demand(product.iloc[:self.current_period])
-                if (demand<0):
-                    print("negative", demand)
+                minor_cost = self.minor_setup_cost[i]
+            else:
+                major_cost = 0
+                minor_cost = 0
 
-            except:
-                print(self.current_period)
-                print(len(product))
-                print(demand)
-            if (epoch % 100) == 0 and verbose:
-                print("demand product " + str(i) + ":", demand)
-                print("shortage", self.inventory_levels[i] - demand)
-            shortage_cost += abs(min((self.inventory_levels[i] - demand), 0)) * self.shortage_cost[i]
+            # Simulate demand and calculate shortage cost and holding cost.
+            demand = product.iloc[self.current_period]  # dividing by 10 for training purpose only
+            shortage_cost = abs(min((self.inventory_levels[i] - demand), 0)) * self.shortage_cost[i]
             self.inventory_levels[i] = max(self.inventory_levels[i] - demand, 0)
-            holding_cost += self.inventory_levels[i] * self.holding_cost[i]
-
+            holding_cost = self.inventory_levels[i] * self.holding_cost[i]
             # Calculate the total cost
-        total_cost = minor_cost + major_cost + shortage_cost + holding_cost
+            total_cost = minor_cost + major_cost + shortage_cost + holding_cost
+            if self.verbose:
+                shortage_costs.append(shortage_cost)
+                minor_costs.append(minor_cost)
+                major_costs.append(major_cost)
+                holding_costs.append(holding_cost)
+                demands.append(demand)
+                rewards.append(total_cost)
+
+            # Calculate individual reward for this product
+            individual_rewards.append(-total_cost)
+        if self.verbose:
+            print(f"Demand {self.current_period} {demands}")
+            print(f"shortage {shortage_costs}")
+            print(f" minor: {minor_costs}")
+            print(f"major: {major_costs}")
+            print(f"holding{holding_costs}")
+            print(f"costs: {rewards}")
+            print(f"TOTAL: {sum(individual_rewards)}")
 
         # Update the current period
         self.current_period += 1
         done = self.current_period == self.n_periods + max(self.rolling_window, self.n_periods_historical_data) + self.time_period
-        if (epoch % 100) == 0 and verbose:
-            print("inventory after demand and action", self.inventory_levels)
-            print("actions", action)
-            print("total costs", total_cost)
 
-        return self._get_observation(), -total_cost, done, {}
+        return self._get_observation(), sum(individual_rewards), done, {}
 
     def _get_observation(self):
         # Create an observation of the stock levels for the last n_periods_lookahead and the current inventory levels
@@ -140,6 +150,14 @@ class JointReplenishmentEnv(gym.Env, ABC):
                 observation.append(np.concatenate(([self.inventory_levels[i] / 10], historical_demand)))
         if self.should_include_total_forecast:
             observation = [np.append(arr, total_forecast) for arr in observation]
+
+        # new_obs_list = []
+        # for obs in observation:
+        #     # First create a list of the new elements to be added.
+        #     new_elements = [inventory[0] for inventory in observation if not np.array_equal(inventory, obs)]
+        #     # Now concatenate obs and the new elements.
+        #     new_obs = np.concatenate((obs, new_elements))
+        #     new_obs_list.append(new_obs)
         return np.array(observation)
 
     def normalize_demand(self, products):

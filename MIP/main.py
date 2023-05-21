@@ -32,7 +32,7 @@ if __name__ == '__main__':
         products = random.sample(get_non_stationary_products(products), n_products)
 
 
-    start_date = products[0].index[208]
+    start_date = products[0].index[213]
 
     if should_analyse:  # analysing plotting, decomposing and testing for stationarity
         plot_sales_quantity(products)
