@@ -44,7 +44,7 @@ class DeterministicModel:
             self.service_level[product_index][1] = service_levels[product_index] 
 
             for tau_period in range(2, len(self.tau_periods)+1):
-                self.service_level[product_index][tau_period] = 0.5 #self.service_level[product_index][tau_period-1]  
+                self.service_level[product_index][tau_period] = self.service_level[product_index][tau_period-1]  * 0.7
     
 
         # change shortage cost based on formula
