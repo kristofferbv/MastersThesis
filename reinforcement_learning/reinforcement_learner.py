@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
     if method == "ppo":
         ppo_model = PPO(env, real_products)
-        ppo_model.train_ppo()
+        # ppo_model.train_ppo()
         ppo_model.test(208)
 
     else:

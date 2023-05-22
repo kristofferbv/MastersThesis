@@ -31,7 +31,7 @@ train_policy_iterations = 80
 train_value_iterations = 80
 lam = 0.97
 target_kl = 0.01
-hidden_sizes = (64,64)
+hidden_sizes = (32, 64, 32)
 exploration_rate = 0.1
 
 
@@ -160,7 +160,7 @@ class PPO:
             sum_return = 0
             sum_length = 0
             num_episodes = 0
-            should_decay = True
+            should_decay = False
 
 
             # Iterate over the steps of each epoch

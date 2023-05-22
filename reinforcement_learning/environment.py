@@ -50,7 +50,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
             raise Exception("maximum_order_quantity / n_action_classes must be an integer")
 
         self.action_space = gym.spaces.Discrete(self.n_action_classes)  # 10 discrete actions from 0 to 9 inclusive
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(len(products), self.n_periods_historical_data + 2), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(len(products), self.n_periods_historical_data + 1 + self.should_include_individual_forecast + self.should_include_total_forecast), dtype=np.float32)
 
         self.inventory_levels = [0 for _ in self.products]
         self.reset()
@@ -88,7 +88,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
                 self.inventory_levels[i] += action[i]
                 # Apply only fractional part of major setup costs corresponding to number of products ordering
                 # if count_major_setup_sharing == 1:
-                #     major_cost = self.major_setup_cost / count_major_setup_sharing * 2
+                #     major_cost = self.major_setup_cost / count_major_setup_sharing * 4
                 # else:
                 major_cost = self.major_setup_cost / count_major_setup_sharing
 
