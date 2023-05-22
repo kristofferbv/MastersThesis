@@ -2,6 +2,8 @@ from datetime import timedelta
 
 import numpy as np
 import pandas as pd
+import os
+import sys
 
 import deterministic_model as det_mod
 import sarima
@@ -10,7 +12,16 @@ from config_utils import load_config
 import generate_data
 from generate_data import generate_seasonal_data_based_on_products
 
-config = load_config("../config.yml")
+# Get the path of the current script
+current_path = os.path.dirname(os.path.abspath(__file__))
+
+# Append the parent directory of the current path to the system path
+parent_path = os.path.dirname(current_path)
+sys.path.append(parent_path)
+config_path = os.path.join(parent_path, "config.yml")
+
+
+config = load_config(config_path)
 n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
 n_episodes = config["simulation"]["n_episodes"] # This is the number of times we run a full simulation
 simulation_length = config["simulation"]["simulation_length"] # This is the number of time periods we want to calculate the costs for

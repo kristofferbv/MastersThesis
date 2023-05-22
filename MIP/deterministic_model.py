@@ -44,15 +44,15 @@ class DeterministicModel:
             self.service_level[product_index][1] = service_levels[product_index] 
 
             for tau_period in range(2, len(self.tau_periods)+1):
-                self.service_level[product_index][tau_period] = self.service_level[product_index][tau_period-1] 
+                self.service_level[product_index][tau_period] = 0.5 #self.service_level[product_index][tau_period-1]  
     
 
         # change shortage cost based on formula
-        for product_index in range(self.n_products):
-            self.shortage_cost[product_index] = self.holding_cost[product_index]/(1/self.service_level[product_index] - 1)
+        #for product_index in range(self.n_products):
+         #   self.shortage_cost[product_index] = self.holding_cost[product_index]/(1/self.service_level[product_index] - 1)
 
-        print("shortage costs")
-        print(self.shortage_cost)
+        #print("shortage costs")
+        #print(self.shortage_cost)
 
     def set_demand_forecast(self, demand_forecast):
         self.demand_forecast = demand_forecast

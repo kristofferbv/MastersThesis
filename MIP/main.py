@@ -1,9 +1,19 @@
 import random
 
+import os
+import sys
+
+# Get the path of the current script
+current_path = os.path.dirname(os.path.abspath(__file__))
+
+# Append the parent directory of the current path to the system path
+parent_path = os.path.dirname(current_path)
+sys.path.append(parent_path)
+
+
 import retrieve_data
 from analyse_data import plot_sales_quantity, get_non_stationary_products, decompose_sales_quantity
 from config_utils import load_config
-import os
 import simulation
 from generate_data import *
 
@@ -13,8 +23,10 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 # Change the working directory to the directory of the current script
 os.chdir(current_dir)
 
+
+
 if __name__ == '__main__':
-    config = load_config("../config.yml")
+    config = load_config("config.yml")
     n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
     n_products = config["deterministic_model"]["n_products"]
     should_analyse = config["main"]["should_analyse"]
