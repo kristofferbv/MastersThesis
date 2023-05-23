@@ -68,8 +68,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
     def step(self, action):
         # Need to discretize the actions.
-        epoch = action.pop()
-        action = [x * self.action_multiplier for x in action]
+        # action = [x * self.action_multiplier for x in action]
         # Apply the replenishment action
         major_setup_triggered = False
         individual_rewards = []
@@ -98,7 +97,10 @@ class JointReplenishmentEnv(gym.Env, ABC):
                 minor_cost = 0
 
             # Simulate demand and calculate shortage cost and holding cost.
-            demand = product.iloc[self.current_period]  # dividing by 10 for training purpose only
+            try:
+                demand = product.iloc[self.current_period]  # dividing by 10 for training purpose only
+            except:
+                print(self.current_period)
             shortage_cost = abs(min((self.inventory_levels[i] - demand), 0)) * self.shortage_cost[i]
             self.inventory_levels[i] = max(self.inventory_levels[i] - demand, 0)
             holding_cost = self.inventory_levels[i] * self.holding_cost[i]
@@ -127,7 +129,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.current_period += 1
         done = self.current_period == self.n_periods + max(self.rolling_window, self.n_periods_historical_data) + self.time_period
 
-        return self._get_observation(), sum(individual_rewards), done, {}
+        return self._get_observation(), individual_rewards, done, {}
 
     def _get_observation(self):
         # Create an observation of the stock levels for the last n_periods_lookahead and the current inventory levels

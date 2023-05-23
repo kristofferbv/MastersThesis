@@ -11,6 +11,7 @@ from critic import *
 from a2c_agent import *
 from ppo import *
 from generate_data import generate_seasonal_data_based_on_products
+from maddpg import *
 
 # Get the directory of the current script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -46,15 +47,23 @@ if __name__ == "__main__":
     print(action_shape)
 
     # set up the networks
-    actor = Actor(state_shape_agent, action_shape)
-    critic = Critic(state_shape)
-
+    # actor = Actor(state_shape_agent, action_shape)
+    # critic = Critic(state_shape)
+    method = ""
     if method == "ppo":
         ppo_model = PPO(env, real_products)
-        # ppo_model.train_ppo()
+        ppo_model.train_ppo()
         ppo_model.test(208)
-
     else:
-        # Train the A2C model
-        a2c_model = A2CAgent(actor, critic, env)
-        a2c_model.train_a2c()
+        agents = []
+        print("state", state_shape)
+        print("action", action_shape)
+        for product in products:
+            agents.append(Agent((state_shape,len(products)), action_shape, 50, env, discount=0.99, tau=0.005))
+        ma = MultiAgent(agents, env, real_products)
+        ma.train()
+
+    # else:
+    #     # Train the A2C model
+    #     a2c_model = A2CAgent(actor, critic, env)
+    #     a2c_model.train_a2c()
