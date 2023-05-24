@@ -34,17 +34,21 @@ class DeterministicModel:
 
         # change shortage cost based on formula 
         # could make an if sentence if this could be set by the user
-        # for product_index in range(self.n_products):
-         #   self.shortage_cost[product_index] = self.holding_cost[product_index]/(1/self.service_level[product_index] - 1)
+       
 
         service_levels = config["deterministic_model"]["service_level"]
+
+
+        for product_index in range(self.n_products):
+           self.shortage_cost[product_index] = self.holding_cost[product_index]/(1/service_levels[product_index] - 1)
+      
 
         for product_index in range(self.n_products):
             self.service_level[product_index][0] = service_levels[product_index]
             self.service_level[product_index][1] = service_levels[product_index] 
 
             for tau_period in range(2, len(self.tau_periods)+1):
-                self.service_level[product_index][tau_period] = self.service_level[product_index][tau_period-1]  * 0.7
+                self.service_level[product_index][tau_period] = 0.1 #self.service_level[product_index][tau_period-1]  * 0.65
     
 
         # change shortage cost based on formula

@@ -1,9 +1,9 @@
 deterministic_model:
   n_products: 6
   n_time_periods: 26
-  joint_setup_cost: 500
-  minor_setup_cost: [ 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 ]
-  holding_cost: [ 7.15,7.15,7.15,7.15, 7.15, 7.15 ]
+  joint_setup_cost: 5000
+  minor_setup_cost: [ 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0 ]
+  holding_cost: [ 56.746590597921845, 27.808012422471087, 55.161044780561035, 57.072195025923534, 60.601173777486366, 17.492847296869314 ]
   shortage_cost: [ 140,  140,  140,  140,  140,  140 ]
   base_unit_cost: [ 71.5, 109.0, 8.49, 3.19, 65.55, 65.55 ]
   big_m: [ 100, 100, 100, 100, 100, 100 ]
@@ -15,9 +15,9 @@ deterministic_model:
 rl_model:
   n_products: 6
   n_time_periods: 52
-  joint_setup_cost: 500
-  minor_setup_cost: [ 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 ]
-  holding_cost: [ 7.15,7.15,7.15,7.15, 7.15, 7.15 ]
+  joint_setup_cost: 5000
+  minor_setup_cost: [ 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0 ]
+  holding_cost: [ 56.746590597921845, 27.808012422471087, 55.161044780561035, 57.072195025923534, 60.601173777486366, 17.492847296869314]
   shortage_cost: [ 140,  140,  140,  140,  140,  140 ]
   base_unit_cost: [ 71.5, 109.0, 8.49, 3.19, 65.55, 65.55 ]
   big_m: [ 100, 100, 100, 100, 100, 100 ]
@@ -36,7 +36,7 @@ simulation:
   verbose: False
   should_set_holding_cost_dynamically: False
   n_episodes: 10
-  simulation_length: 208
+  simulation_length: 52
   warm_up_length: 104
   should_perform_warm_up: False
 
