@@ -7,12 +7,12 @@ from keras import layers, models
 from generate_data import generate_seasonal_data_based_on_products
 
 # Define hyperparameters
-gamma = 0.99  # discount factor
-tau = 0.1  # target network update rate
+gamma = 0.98  # discount factor
+tau = 0.005  # target network update rate
 actor_lr = 0.00003  # learning rate of actor network
 critic_lr = 0.001  # learning rate of critic network
-buffer_capacity = 10000  # replay buffer capacity
-batch_size = 1000  # minibatch size
+buffer_capacity = 20000 # replay buffer capacity
+batch_size = 64  # minibatch size
 num_episodes = 1000
 num_agents = 4  # number of agents
 warm_up_steps = 1000
@@ -36,8 +36,8 @@ class Actor(models.Model):
 class Critic(models.Model):
     def __init__(self):
         super(Critic, self).__init__()
-        self.l1 = layers.Dense(128, activation='tanh')
-        self.l2 = layers.Dense(128, activation='tanh')
+        self.l1 = layers.Dense(32, activation='tanh')
+        self.l2 = layers.Dense(32, activation='tanh')
         self.l3 = layers.Dense(1)
         self.flatten = layers.Flatten()
 
@@ -64,10 +64,10 @@ class Agent:
         self.discount = discount
         self.tau = tau
 
-        self.update_network_parameters(tau=1)  # hard update for initialization
+        # self.update_network_parameters(tau=1)  # hard update for initialization
 
-    def learn(self, replay_buffer, agents, agent_num):
-        state, action, next_state, reward, not_done = replay_buffer.sample()
+    def learn(self, replay_buffer, agents, agent_num, batch_size):
+        state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
         state = np.array(state, dtype=np.float32)
         # Selecting the next action for all agents according to their Target Actors
         next_actions = [agents[i].actor_target(next_state[:, i, :]) for i in range(len(agents))]
@@ -84,7 +84,7 @@ class Agent:
         not_done = tf.reshape(not_done, (batch_size, 1))
         reward = reward.astype(np.float32)
         target_Q = tf.reshape(target_Q, [batch_size, 1])
-        target_Q = reward[:, agent_num] + (not_done * self.discount * target_Q)
+        target_Q = reward[:, agent_num] + (self.discount * target_Q)
 
         # Compute critic loss
         with tf.GradientTape() as tape:
@@ -92,7 +92,7 @@ class Agent:
             current_Q = self.critic(inputs)
             critic_loss = tf.reduce_mean(tf.square(current_Q - target_Q))
         gradients = tape.gradient(critic_loss, self.critic.trainable_variables)
-        gradients, _ = tf.clip_by_global_norm(gradients, 0.5)  # Apply gradient clipping
+        # gradients, _ = tf.clip_by_global_norm(gradients, 0.8)  # Apply gradient clipping
         self.critic_optimizer.apply_gradients(zip(gradients, self.critic.trainable_variables))
 
         # Compute actor loss
@@ -111,7 +111,7 @@ class Agent:
 
         # Optimize the actor
         actor_grads = tape.gradient(actor_loss, self.actor.trainable_variables)
-        actor_grads, _ = tf.clip_by_global_norm(actor_grads, 0.2)  # Apply gradient clipping
+        # actor_grads, _ = tf.clip_by_global_norm(actor_grads, 5)  # Apply gradient clipping
         self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
 
         # Update the frozen target models
@@ -175,11 +175,13 @@ class ReplayBuffer:
             self.storage.append(data)
 
     def sample(self, batch_size=batch_size):
-        ind = np.random.randint(0, len(self.storage), size=batch_size)
+        priorities = np.arange(len(self.storage))  # Use indices as priorities (age-based prioritization)
+        probabilities = priorities / np.sum(priorities)  # Compute probabilities proportional to priorities
+        indices = np.random.choice(len(self.storage), size=batch_size, p=probabilities)  # Sample indices with probabilities
         states, actions, next_states, rewards, dones = [], [], [], [], []
 
-        for i in ind:
-            state, action, next_state, reward, done = self.storage[i]
+        for index in indices:
+            state, action, next_state, reward, done = self.storage[index]
             states.append(np.array(state, copy=False))
             actions.append(np.array(action, copy=False))
             next_states.append(np.array(next_state, copy=False))
@@ -219,23 +221,32 @@ class MultiAgent:
             done = False
             total_reward = 0
             state = self.env.reset()
-            factor = 3
+            factor = 0.4
+            samples = []
             while not done:
                 if episode > 100:
-                    factor *= 0.9
-                    if factor < 3:
-                        factor = 3
+                    factor *= 0.95
+                    if factor < 0.2:
+                        factor = 0.2
                 # Select action according to policy
-                random_number = random.uniform(-1, 1)
+                if random.random() < factor:
+                    actions = tf.random.uniform(shape=[4],minval=0,maxval=70)
+                else:
+                    # random_number = random.uniform(-1, 1)
                 # actions = [agent.select_action(state[i])[0] + random_number * faktor for i, agent in enumerate(self.agents)]
-                actions = [np.clip(agent.select_action(state[i])[0] + random_number * factor, 0, 70) for i, agent in enumerate(self.agents)]
+                    actions = [np.clip(agent.select_action(state[i])[0], 0, 100) for i, agent in enumerate(self.agents)]
                 # print("actions", actions)
                 # Perform action and get reward
+
                 next_state, reward, done, *_ = self.env.step(actions)
                 total_reward += sum(reward)
-                running_avg_reward = 0.99 * running_avg_reward + 0.01 * sum(reward)
-                running_std_reward = np.sqrt(0.99 * running_std_reward ** 2 + 0.01 * (sum(reward) - running_avg_reward) ** 2)
-                reward = [-abs((reward - running_avg_reward) / running_std_reward)for reward in reward]
+                #
+                # if (sum(reward)>-1150):
+                #     print("yeaaah", reward)
+                #     reward = [x + 1000 for x in reward]
+                # running_avg_reward = 0.99 * running_avg_reward + 0.01 * sum(reward)
+                # running_std_reward = np.sqrt(0.99 * running_std_reward ** 2 + 0.01 * (sum(reward) - running_avg_reward) ** 2)
+                # reward = [-abs((reward - running_avg_reward) / running_std_reward)for reward in reward]
 
                 # Store experience in replay buffer
                 self.replay_buffer.add((state, actions, next_state, reward, done))
@@ -243,10 +254,14 @@ class MultiAgent:
                 # Move to next state
                 state = next_state
 
-                # Train agent
+                 # Train agent
                 if episode > 100:
-                    for agent_num in range(len(self.agents)):
-                        self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num)
+                    if episode % 300 == 0:
+                        for agent_num in range(len(self.agents)):
+                            self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size = len(self.replay_buffer.storage))
+                    else:
+                        for agent_num in range(len(self.agents)):
+                            self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size = batch_size)
             if episode > 100 or episode % 10 == 0:
                 print(actions)
                 print(f"Episode {episode + 1}: Total Reward = {total_reward}")

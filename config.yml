@@ -73,13 +73,13 @@ a2c:
   discount_rate: 0.99
   n_episodes: 1000
 environment:
-  n_periods_historical_data: 0
+  n_periods_historical_data: 5
   rolling_window_forecast: 5
   # Note: maximum_order_quantity / n_action_classes must be an integer
-  n_action_classes: 15
+  n_action_classes: 5
   maximum_order_quantity: 105
-  should_include_individual_forecast: True
-  should_include_total_forecast: True
+  should_include_individual_forecast: False
+  should_include_total_forecast: False
 rl:
   method: "ppo"
   generate_data: True
