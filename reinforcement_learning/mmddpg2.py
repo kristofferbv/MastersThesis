@@ -6,366 +6,286 @@ from keras import layers, models
 import keras
 from keras.layers import Dense
 
+import random
+
+import numpy as np
+import tensorflow as tf
+from keras import layers, models
+
+from generate_data import generate_seasonal_data_based_on_products
+
+# Define hyperparameters
+gamma = 0.98  # discount factor
+tau = 0.005  # target network update rate
+actor_lr = 0.00003  # learning rate of actor network
+critic_lr = 0.001  # learning rate of critic network
+buffer_capacity = 20000 # replay buffer capacity
+batch_size = 64  # minibatch size
+num_episodes = 1000
+num_agents = 4  # number of agents
+warm_up_steps = 1000
 
 
-class ReplayBuffer():
-    def __init__(self, env, buffer_capacity=200000, batch_size=64, min_size_buffer=100):
-        self.buffer_capacity = buffer_capacity
-        self.batch_size = batch_size
-        self.min_size_buffer = min_size_buffer
-        self.buffer_counter = 0
-        self.n_games = 0
-        self.n_agents = env.n
-        self.list_actors_dimension = [env.observation_space[index].shape[0] for index in range(self.n_agents)]
-        self.critic_dimension = sum(self.list_actors_dimension)
-        self.list_actor_n_actions = [env.action_space[index].n for index in range(self.n_agents)]
-
-        self.states = np.zeros((self.buffer_capacity, self.critic_dimension))
-        self.rewards = np.zeros((self.buffer_capacity, self.n_agents))
-        self.next_states = np.zeros((self.buffer_capacity, self.critic_dimension))
-        self.dones = np.zeros((self.buffer_capacity, self.n_agents), dtype=bool)
-
-        self.list_actors_states = []
-        self.list_actors_next_states = []
-        self.list_actors_actions = []
-
-        for n in range(self.n_agents):
-            self.list_actors_states.append(np.zeros((self.buffer_capacity, self.list_actors_dimension[n])))
-            self.list_actors_next_states.append(np.zeros((self.buffer_capacity, self.list_actors_dimension[n])))
-            self.list_actors_actions.append(np.zeros((self.buffer_capacity, self.list_actor_n_actions[n])))
-
-    def __len__(self):
-        return self.buffer_counter
-
-    def check_buffer_size(self):
-        return self.buffer_counter >= self.batch_size and self.buffer_counter >= self.min_size_buffer
-
-    def update_n_games(self):
-        self.n_games += 1
-
-    def add_record(self, actor_states, actor_next_states, actions, state, next_state, reward, done):
-
-        index = self.buffer_counter % self.buffer_capacity
-
-        for agent_index in range(self.n_agents):
-            self.list_actors_states[agent_index][index] = actor_states[agent_index]
-            self.list_actors_next_states[agent_index][index] = actor_next_states[agent_index]
-            self.list_actors_actions[agent_index][index] = actions[agent_index]
-
-        self.states[index] = state
-        self.next_states[index] = next_state
-        self.rewards[index] = reward
-        self.dones[index] = done
-
-        self.buffer_counter += 1
-
-    def get_minibatch(self):
-        # If the counter is less than the capacity we don't want to take zeros records,
-        # if the cunter is higher we don't access the record using the counter
-        # because older records are deleted to make space for new one
-        buffer_range = min(self.buffer_counter, self.buffer_capacity)
-
-        batch_index = np.random.choice(buffer_range, self.batch_size, replace=False)
-
-        # Take indices
-        state = self.states[batch_index]
-        reward = self.rewards[batch_index]
-        next_state = self.next_states[batch_index]
-        done = self.dones[batch_index]
-
-        actors_state = [self.list_actors_states[index][batch_index] for index in range(self.n_agents)]
-        actors_next_state = [self.list_actors_next_states[index][batch_index] for index in range(self.n_agents)]
-        actors_action = [self.list_actors_actions[index][batch_index] for index in range(self.n_agents)]
-
-        return state, reward, next_state, done, actors_state, actors_next_state, actors_action
-
-    def save(self, folder_path):
-        """
-        Save the replay buffer
-        """
-        if not os.path.isdir(folder_path):
-            os.mkdir(folder_path)
-
-        np.save(folder_path + '/states.npy', self.states)
-        np.save(folder_path + '/rewards.npy', self.rewards)
-        np.save(folder_path + '/next_states.npy', self.next_states)
-        np.save(folder_path + '/dones.npy', self.dones)
-
-        for index in range(self.n_agents):
-            np.save(folder_path + '/states_actor_{}.npy'.format(index), self.list_actors_states[index])
-            np.save(folder_path + '/next_states_actor_{}.npy'.format(index), self.list_actors_next_states[index])
-            np.save(folder_path + '/actions_actor_{}.npy'.format(index), self.list_actors_actions[index])
-
-        dict_info = {"buffer_counter": self.buffer_counter, "n_games": self.n_games}
-
-        with open(folder_path + '/dict_info.json', 'w') as f:
-            json.dump(dict_info, f)
-
-    def load(self, folder_path):
-        self.states = np.load(folder_path + '/states.npy')
-        self.rewards = np.load(folder_path + '/rewards.npy')
-        self.next_states = np.load(folder_path + '/next_states.npy')
-        self.dones = np.load(folder_path + '/dones.npy')
-
-        self.list_actors_states = [np.load(folder_path + '/states_actor_{}.npy'.format(index)) for index in range(self.n_agents)]
-        self.list_actors_next_states = [np.load(folder_path + '/next_states_actor_{}.npy'.format(index)) for index in range(self.n_agents)]
-        self.list_actors_actions = [np.load(folder_path + '/actions_actor_{}.npy'.format(index)) for index in range(self.n_agents)]
-
-        with open(folder_path + '/dict_info.json', 'r') as f:
-            dict_info = json.load(f)
-        self.buffer_counter = dict_info["buffer_counter"]
-        self.n_games = dict_info["n_games"]
-
-class Critic(keras.Model):
-    def __init__(self, name, hidden_0=64, hidden_1=64):
-        super(Critic, self).__init__()
-
-        self.hidden_0 = hidden_0
-        self.hidden_1 = hidden_1
-
-        self.net_name = name
-
-        self.dense_0 = Dense(self.hidden_0, activation='relu')
-        self.dense_1 = Dense(self.hidden_1, activation='relu')
-        self.q_value = Dense(1, activation=None)
-
-    def call(self, state, actors_actions):
-        state_action_value = self.dense_0(tf.concat([state, actors_actions], axis=1))  # multiple actions
-        state_action_value = self.dense_1(state_action_value)
-
-        q_value = self.q_value(state_action_value)
-
-        return q_value
-
-class Actor(keras.Model):
-    def __init__(self, name, actions_dim, hidden_0=64, hidden_1=64):
+class Actor(models.Model):
+    def __init__(self, action_dim, max_action):
         super(Actor, self).__init__()
-        self.hidden_0 = hidden_0
-        self.hidden_1 = hidden_1
-        self.actions_dim = actions_dim
+        self.l1 = layers.LSTM(64, return_sequences=True, activation='tanh')
+        self.l2 = layers.LSTM(64, return_sequences=True, activation='tanh')
+        self.l3 = layers.TimeDistributed(layers.Dense(1, activation='sigmoid'))
+        self.max_action = max_action
 
-        self.net_name = name
+    def call(self, inputs):
+        x = self.l1(inputs)
+        x = self.l2(x)
+        x = self.l3(x)
+        return self.max_action * abs(x)
 
-        self.dense_0 = Dense(self.hidden_0, activation='relu')
-        self.dense_1 = Dense(self.hidden_1, activation='relu')
-        self.policy = Dense(self.actions_dim, activation='sigmoid')  # we want something beetween zero and one
+class Critic(models.Model):
+    def __init__(self):
+        super(Critic, self).__init__()
+        self.l1 = layers.LSTM(32, return_sequences=True, activation='tanh')
+        self.l2 = layers.LSTM(32, return_sequences=True, activation='tanh')
+        self.l3 = layers.TimeDistributed(layers.Dense(1))
+        self.flatten = layers.Flatten()
 
-    def call(self, state):
-        x = self.dense_0(state)
-        policy = self.dense_1(x)
-        policy = self.policy(policy)
-        return policy
+    def call(self, inputs):
+        x = self.l1(inputs)
+        x = self.l2(x)
+        x = self.l3(x)
+        return tf.reduce_mean(x, axis=1)
+
 
 class Agent:
-    def __init__(self, env, n_agent, actor_lr=1e-4, critic_lr=1e-3, gamma=0.99, tau=0.05):
+    def __init__(self, state_dim, action_dim, max_action, env, discount=0.99, tau=tau):
+        self.env = env
+        self.num_episodes = num_episodes
+        self.actor = Actor(action_dim, max_action)
+        self.actor_target = Actor(action_dim, max_action)
+        self.actor_optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=actor_lr)
 
-        self.gamma = gamma
+        self.critic = Critic()
+        self.critic_target = Critic()
+        self.critic_optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=critic_lr)
+
+        self.max_action = max_action
+        self.discount = discount
         self.tau = tau
-        self.actor_lr = actor_lr
-        self.critic_lr = critic_lr
 
-        self.actor_dims = env.observation_space[n_agent].shape[0]
-        self.n_actions = env.action_space[n_agent].n
+        # self.update_network_parameters(tau=1)  # hard update for initialization
 
-        self.agent_name = "agent_number_{}".format(n_agent)
+    def learn(self, replay_buffer, agents, agent_num, batch_size):
+        state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
+        state = np.array(state, dtype=np.float32)
+        # Selecting the next action for all agents according to their Target Actors
+        next_actions = [agents[i].actor_target(next_state[:, i, :]) for i in range(len(agents))]
+        next_actions = [tf.reshape(a, (-1,)) for a in next_actions]
+        next_actions = tf.stack(next_actions, axis=1)
 
-        self.actor = Actor("actor_" + self.agent_name, self.n_actions)
-        self.critic = Critic("critic_" + self.agent_name)
-        self.target_actor = Actor("target_actor_" + self.agent_name, self.n_actions)
-        self.target_critic = Critic("critic_" + self.agent_name)
+        # Compute the target Q value
+        next_actions = tf.expand_dims(next_actions, axis=-1)
+        action = tf.expand_dims(action, axis=-1)
+        inputs = tf.concat([next_state, next_actions], axis=2)
+        target_Q = self.critic_target(inputs)
 
-        self.actor.compile(optimizer=opt.Adam(learning_rate=actor_lr))
-        self.critic.compile(optimizer=opt.Adam(learning_rate=critic_lr))
-        self.target_actor.compile(optimizer=opt.Adam(learning_rate=actor_lr))
-        self.target_critic.compile(optimizer=opt.Adam(learning_rate=critic_lr))
+        not_done = tf.cast(not_done, tf.float32)
+        not_done = tf.reshape(not_done, (batch_size, 1))
+        reward = reward.astype(np.float32)
+        target_Q = tf.reshape(target_Q, [batch_size, 1])
+        target_Q = reward[:, agent_num] + (not_done * self.discount * target_Q)
 
-        actor_weights = self.actor.get_weights()
-        critic_weights = self.critic.get_weights()
+        # Compute critic loss
+        with tf.GradientTape() as tape:
+            inputs = tf.concat([state, action], axis=2)
+            current_Q = self.critic(inputs)
+            critic_loss = tf.reduce_mean(tf.square(current_Q - target_Q))
+        gradients = tape.gradient(critic_loss, self.critic.trainable_variables)
+        # gradients, _ = tf.clip_by_global_norm(gradients, 0.8)  # Apply gradient clipping
+        self.critic_optimizer.apply_gradients(zip(gradients, self.critic.trainable_variables))
 
-        self.target_actor.set_weights(actor_weights)
-        self.target_critic.set_weights(critic_weights)
+        # Compute actor loss
+        # Compute actor loss
+        with tf.GradientTape() as tape:
+            current_actions = [agents[i].actor(state[:, i, :]) for i in range(len(agents))]
+            current_actions = [tf.reshape(a, (-1,)) for a in current_actions]
+            current_actions = tf.stack(current_actions, axis=1)
+            current_actions = tf.expand_dims(current_actions, axis=-1)
+            inputs = tf.concat([state, current_actions], axis=2)
+            actor_loss = -self.critic(inputs)
+            actor_loss = tf.reduce_mean(actor_loss)
 
-    def update_target_networks(self, tau):
+            # Explicitly state that we want to watch the actor's variables
+            tape.watch(self.actor.trainable_variables)
+
+        # Optimize the actor
+        actor_grads = tape.gradient(actor_loss, self.actor.trainable_variables)
+        # actor_grads, _ = tf.clip_by_global_norm(actor_grads, 5)  # Apply gradient clipping
+        self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
+
+        # Update the frozen target models
+        self.update_target_networks()
+
+    @tf.function
+    def train_value_function(self, a, b, n_agents):
+        with tf.GradientTape() as tape:  # Record operations for automatic differentiation.
+            critic_losses = [tf.keras.losses.MSE(a[index], b[index]) for index in range(n_agents)]
+        value_grads = tape.gradient(critic_losses, self.critic.trainable_variables)
+        self.critic_optimizer.apply_gradients(zip(value_grads, self.critic.trainable_variables))
+
+    def update_network_parameters(self, tau=None):
+        if tau is None:
+            tau = self.tau
+
+        weights = []
+        for a, b in zip(self.actor_target.trainable_variables, self.actor.trainable_variables):
+            weights.append(tau * b + (1 - tau) * a)
+        self.actor_target.set_weights(weights)
+
+        weights = []
+        for a, b in zip(self.critic_target.trainable_variables, self.critic.trainable_variables):
+            weights.append(tau * b + (1 - tau) * a)
+        self.critic_target.set_weights(weights)
+
+    def update_target_networks(self, tau= None):
+        if tau is None:
+            tau = self.tau
         actor_weights = self.actor.weights
-        target_actor_weights = self.target_actor.weights
+        target_actor_weights = self.actor_target.weights
         for index in range(len(actor_weights)):
             target_actor_weights[index] = tau * actor_weights[index] + (1 - tau) * target_actor_weights[index]
 
-        self.target_actor.set_weights(target_actor_weights)
+        self.actor_target.set_weights(target_actor_weights)
 
         critic_weights = self.critic.weights
-        target_critic_weights = self.target_critic.weights
+        target_critic_weights = self.critic_target.weights
 
         for index in range(len(critic_weights)):
             target_critic_weights[index] = tau * critic_weights[index] + (1 - tau) * target_critic_weights[index]
 
-        self.target_critic.set_weights(target_critic_weights)
+        self.critic_target.set_weights(target_critic_weights)
 
-    def get_actions(self, actor_states):
-        noise = tf.random.uniform(shape=[self.n_actions])
-        actions = self.actor(actor_states)
-        actions = actions + noise
+    def select_action(self, state):
+        state = tf.convert_to_tensor([state])
+        print("UAJAJJAJAJAJ",self.actor(state))
+        return self.actor(state)[0].numpy()
 
-        return actions.numpy()[0]
 
-    def save(self, path_save):
-        self.actor.save_weights(f"{path_save}/{self.actor.net_name}.h5")
-        self.target_actor.save_weights(f"{path_save}/{self.target_actor.net_name}.h5")
-        self.critic.save_weights(f"{path_save}/{self.critic.net_name}.h5")
-        self.target_critic.save_weights(f"{path_save}/{self.target_critic.net_name}.h5")
+class ReplayBuffer:
+    def __init__(self, max_size=1e6):
+        self.storage = []
+        self.max_size = max_size
+        self.ptr = 0
 
-    def load(self, path_load):
-        self.actor.load_weights(f"{path_load}/{self.actor.net_name}.h5")
-        self.target_actor.load_weights(f"{path_load}/{self.target_actor.net_name}.h5")
-        self.critic.load_weights(f"{path_load}/{self.critic.net_name}.h5")
-        self.target_critic.load_weights(f"{path_load}/{self.target_critic.net_name}.h5")
+    def add(self, data):
+        if len(self.storage) == self.max_size:
+            self.storage[int(self.ptr)] = data
+            self.ptr = (self.ptr + 1) % self.max_size
+        else:
+            self.storage.append(data)
 
-class SuperAgent:
-    def __init__(self, env, path_save=PATH_SAVE_MODEL, path_load=PATH_LOAD_FOLDER):
-        self.path_save = path_save
-        self.path_load = path_load
-        self.replay_buffer = ReplayBuffer(env)
-        self.n_agents = len(env.agents)
-        self.agents = [Agent(env, agent) for agent in range(self.n_agents)]
+    def sample(self, batch_size=batch_size):
+        priorities = np.arange(len(self.storage))  # Use indices as priorities (age-based prioritization)
+        probabilities = priorities / np.sum(priorities)  # Compute probabilities proportional to priorities
+        indices = np.random.choice(len(self.storage), size=batch_size, p=probabilities)  # Sample indices with probabilities
+        states, actions, next_states, rewards, dones = [], [], [], [], []
 
-    def get_actions(self, agents_states):
-        list_actions = [self.agents[index].get_actions(agents_states[index]) for index in range(self.n_agents)]
-        return list_actions
+        for index in indices:
+            state, action, next_state, reward, done = self.storage[index]
+            states.append(np.array(state, copy=False))
+            actions.append(np.array(action, copy=False))
+            next_states.append(np.array(next_state, copy=False))
+            rewards.append(np.array(reward, copy=False))
+            dones.append(np.array(done, copy=False))
 
-    def save(self):
-        date_now = time.strftime("%Y%m%d%H%M")
-        full_path = f"{self.path_save}/save_agent_{date_now}"
-        if not os.path.isdir(full_path):
-            os.makedirs(full_path)
+        return np.array(states), np.array(actions), np.array(next_states), np.array(rewards), np.array(dones)
 
-        for agent in self.agents:
-            agent.save(full_path)
 
-        self.replay_buffer.save(full_path)
 
-    def load(self):
-        full_path = self.path_load
-        for agent in self.agents:
-            agent.load(full_path)
 
-        self.replay_buffer.load(full_path)
+class MultiAgent:
+    def __init__(self, agents, env, real_products):
+        self.products = real_products
+        self.env = env
+        self.num_episodes = num_episodes
+        self.agents = agents
+        self.replay_buffer = ReplayBuffer(20000)
 
     def train(self):
-        if self.replay_buffer.check_buffer_size() == False:
-            return
+        # Main training loop
+        # Warm-up phase
+        state = self.env.reset()
+        # for _ in range(warm_up_steps):
+        #     action = env.action_space.sample()  # Take random action
+        #     next_state, reward, done, *_ = env.step(action)
+        #     replay_buffer.add((state, action, reward, next_state, done))
+        #     state = next_state
+        #     if done:
+        #         state = env.reset()
 
-        state, reward, next_state, done, actors_state, actors_next_state, actors_action = self.replay_buffer.get_minibatch()
+        # Main training loop
+        running_avg_reward = 0
+        running_std_reward = 1  # Initialize to 1 to avoid division by zero issues
+        for episode in range(num_episodes):
+            generate_seasonal_data_based_on_products(self.products, 500)
+            done = False
+            total_reward = 0
+            state = self.env.reset()
+            print("STAAATE", state)
+            factor = 0.4
+            samples = []
+            while not done:
+                if episode > 100:
+                    factor *= 0.95
+                    if factor < 0.2:
+                        factor = 0.2
+                # Select action according to policy
+                if random.random() < factor:
+                    actions = tf.random.uniform(shape=[4],minval=0,maxval=70)
+                else:
+                    # random_number = random.uniform(-1, 1)
+                # actions = [agent.select_action(state[i])[0] + random_number * faktor for i, agent in enumerate(self.agents)]
+                    actions = [np.clip(agent.select_action(state[i]), 0, 100) for i, agent in enumerate(self.agents)]
+                    print("ACTIons", actions)
+                # print("actions", actions)
+                # Perform action and get reward
 
-        states = tf.convert_to_tensor(state, dtype=tf.float32)
-        rewards = tf.convert_to_tensor(reward, dtype=tf.float32)
-        next_states = tf.convert_to_tensor(next_state, dtype=tf.float32)
+                next_state, reward, done, *_ = self.env.step(actions)
+                print("STATE", next_state)
+                total_reward += sum(reward)
+                #
+                # if (sum(reward)>-1150):
+                #     print("yeaaah", reward)
+                #     reward = [x + 1000 for x in reward]
+                # running_avg_reward = 0.99 * running_avg_reward + 0.01 * sum(reward)
+                # running_std_reward = np.sqrt(0.99 * running_std_reward ** 2 + 0.01 * (sum(reward) - running_avg_reward) ** 2)
+                # reward = [-abs((reward - running_avg_reward) / running_std_reward)for reward in reward]
 
-        actors_states = [tf.convert_to_tensor(s, dtype=tf.float32) for s in actors_state]
-        actors_next_states = [tf.convert_to_tensor(s, dtype=tf.float32) for s in actors_next_state]
-        actors_actions = [tf.convert_to_tensor(s, dtype=tf.float32) for s in actors_action]
+                # Store experience in replay buffer
+                self.replay_buffer.add((state, actions, next_state, reward, done))
 
-        with tf.GradientTape(persistent=True) as tape:
-            target_actions = [self.agents[index].target_actor(actors_next_states[index]) for index in range(self.n_agents)]
-            policy_actions = [self.agents[index].actor(actors_states[index]) for index in range(self.n_agents)]
+                # Move to next state
+                state = next_state
 
-            concat_target_actions = tf.concat(target_actions, axis=1)
-            concat_policy_actions = tf.concat(policy_actions, axis=1)
-            concat_actors_action = tf.concat(actors_actions, axis=1)
+                 # Train agent
+                if episode > 100:
+                    if episode % 300 == 0:
+                        for agent_num in range(len(self.agents)):
+                            self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size = len(self.replay_buffer.storage))
+                    else:
+                        for agent_num in range(len(self.agents)):
+                            self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size = batch_size)
+            if episode > 100 or episode % 10 == 0:
+                print(actions)
+                print(f"Episode {episode + 1}: Total Reward = {total_reward}")
 
-            target_critic_values = [tf.squeeze(self.agents[index].target_critic(next_states, concat_target_actions), 1) for index in range(self.n_agents)]
-            critic_values = [tf.squeeze(self.agents[index].critic(states, concat_actors_action), 1) for index in range(self.n_agents)]
-            targets = [rewards[:, index] + self.agents[index].gamma * target_critic_values[index] * (1 - done[:, index]) for index in range(self.n_agents)]
-            critic_losses = [tf.keras.losses.MSE(targets[index], critic_values[index]) for index in range(self.n_agents)]
+    def save_models(self):
+        print('... saving models ...')
+        self.actor.save_weights('actor.h5')
+        self.actor_target.save_weights('target_actor.h5')
+        self.critic.save_weights('critic.h5')
+        self.critic_target.save_weights('target_critic.h5')
 
-            actor_losses = [-self.agents[index].critic(states, concat_policy_actions) for index in range(self.n_agents)]
-            actor_losses = [tf.math.reduce_mean(actor_losses[index]) for index in range(self.n_agents)]
-
-        critic_gradients = [tape.gradient(critic_losses[index], self.agents[index].critic.trainable_variables) for index in range(self.n_agents)]
-        actor_gradients = [tape.gradient(actor_losses[index], self.agents[index].actor.trainable_variables) for index in range(self.n_agents)]
-
-        for index in range(self.n_agents):
-            self.agents[index].critic.optimizer.apply_gradients(zip(critic_gradients[index], self.agents[index].critic.trainable_variables))
-            self.agents[index].actor.optimizer.apply_gradients(zip(actor_gradients[index], self.agents[index].actor.trainable_variables))
-            self.agents[index].update_target_networks(self.agents[index].tau)
-
-env = make_env(ENV_NAME)
-super_agent = SuperAgent(env)
-
-scores = []
-
-if PATH_LOAD_FOLDER is not None:
-    print("loading weights")
-    actors_state = env.reset()
-    actors_action = super_agent.get_actions([actors_state[index][None, :] for index in range(super_agent.n_agents)])
-    [super_agent.agents[index].target_actor(actors_state[index][None, :]) for index in range(super_agent.n_agents)]
-    state = np.concatenate(actors_state)
-    actors_action = np.concatenate(actors_action)
-    [super_agent.agents[index].critic(state[None, :], actors_action[None, :]) for index in range(super_agent.n_agents)]
-    [super_agent.agents[index].target_critic(state[None, :], actors_action[None, :]) for index in range(super_agent.n_agents)]
-    super_agent.load()
-
-    print(super_agent.replay_buffer.buffer_counter)
-    print(super_agent.replay_buffer.n_games)
-
-
-
-for n_game in tqdm(range(MAX_GAMES)):
-    start_time = time.time()
-    actors_state = env.reset()
-    done = [False for index in range(super_agent.n_agents)]
-    score = 0
-    step = 0
-
-    if (super_agent.replay_buffer.n_games + 1) > 5000:
-        MAX_STEPS = int((super_agent.replay_buffer.n_games + 1) / 200)
-
-    while not any(done):
-        actors_action = super_agent.get_actions([actors_state[index][None, :] for index in range(super_agent.n_agents)])
-        actors_next_state, reward, done, info = env.step(actors_action)
-
-        state = np.concatenate(actors_state)
-        next_state = np.concatenate(actors_next_state)
-
-        super_agent.replay_buffer.add_record(actors_state, actors_next_state, actors_action, state, next_state, reward, done)
-
-        actors_state = actors_next_state
-
-        score += sum(reward)
-        step += 1
-        if step >= MAX_STEPS:
-            break
-
-    if super_agent.replay_buffer.check_buffer_size():
-        super_agent.train()
-
-    super_agent.replay_buffer.update_n_games()
-
-    scores.append(score)
-
-    wandb.log({'Game number': super_agent.replay_buffer.n_games, '# Episodes': super_agent.replay_buffer.buffer_counter,
-               "Average reward": round(np.mean(scores[-10:]), 2), \
-               "Time taken": round(time.time() - start_time, 2), 'Max steps': MAX_STEPS})
-
-    if (n_game + 1) % EVALUATION_FREQUENCY == 0 and super_agent.replay_buffer.check_buffer_size():
-        actors_state = env.reset()
-        done = [False for index in range(super_agent.n_agents)]
-        score = 0
-        step = 0
-        while not any(done):
-            actors_action = super_agent.get_actions([actors_state[index][None, :] for index in range(super_agent.n_agents)])
-            actors_next_state, reward, done, info = env.step(actors_action)
-            state = np.concatenate(actors_state)
-            next_state = np.concatenate(actors_next_state)
-            actors_state = actors_next_state
-            score += sum(reward)
-            step += 1
-            if step >= MAX_STEPS:
-                break
-        wandb.log({'Game number': super_agent.replay_buffer.n_games,
-                   '# Episodes': super_agent.replay_buffer.buffer_counter,
-                   'Evaluation score': score, 'Max steps': MAX_STEPS})
-
-    if (n_game + 1) % SAVE_FREQUENCY == 0 and super_agent.replay_buffer.check_buffer_size():
-        print("saving weights and replay buffer...")
-        super_agent.save()
-        print("saved")
+    def load_models(self):
+        print('... loading models ...')
+        self.actor.load_weights('actor.h5')
+        self.actor_target.load_weights('target_actor.h5')
+        self.critic.load_weights('critic.h5')
