@@ -41,7 +41,9 @@ def plot_data(df):
     plt.legend()
     plt.show()
 
-def generate_seasonal_data_based_on_products(products, num_periods):
+def generate_seasonal_data_based_on_products(products, num_periods, seed=0):
+    # Set the seed for the random number generator
+    np.random.seed(seed)
     products_list = []
     for product_series in products:
         # First, we decompose the series to get the seasonal component
