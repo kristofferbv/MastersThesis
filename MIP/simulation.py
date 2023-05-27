@@ -51,8 +51,8 @@ def simulate(real_products):
 
 def perform_warm_up(products, start_date, n_time_periods):
     inventory_levels = [0 for i in range(len(products))]
-    for i in range(simulation_length):
-        _, inventory_levels, start_date, _ = run_one_episode(start_date, n_time_periods, products, inventory_levels=inventory_levels)
+    #for i in range(simulation_length):
+    _, inventory_levels, start_date, _ = run_one_episode(start_date, n_time_periods, products, warm_up_length, inventory_levels=inventory_levels)
     return inventory_levels, start_date
 
 def run_one_episode(start_date, n_time_periods, products, episode_length,  inventory_levels = None):

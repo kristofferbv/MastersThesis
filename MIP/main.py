@@ -57,4 +57,5 @@ if __name__ == '__main__':
     if generate_new_data:
         simulation.simulate(products)
     else:
-        simulation.run_one_episode(start_date, n_time_periods, products)
+        simulation_length = config["simulation"]["simulation_length"]
+        simulation.run_one_episode(start_date, n_time_periods, simulation_length, products)

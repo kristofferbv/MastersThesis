@@ -47,13 +47,16 @@ def generate_seasonal_data_based_on_products(products, num_periods, seed=0):
     products_list = []
     for product_series in products:
         # First, we decompose the series to get the seasonal component
-        res = sm.tsa.seasonal_decompose(product_series['sales_quantity'], model='additive', period=52)
+        res = sm.tsa.seasonal_decompose(product_series, model='additive', period=52)
         # Then, we repeat the seasonal component for the desired number of periods
         seasonal_data = np.tile(res.seasonal, num_periods // len(product_series) + 1)[:num_periods]
         data = seasonal_data
 
         # We add a trend and some noise to make it more realistic
-        trend = np.linspace(product_series['sales_quantity'].mean(), product_series['sales_quantity'].mean(), num_periods)
+
+        trend = np.linspace(product_series.mean(), product_series.mean(), num_periods)
+
+        #trend = np.linspace(product_series['sales_quantity'].mean(), product_series['sales_quantity'].mean(), num_periods)
 
 
 
