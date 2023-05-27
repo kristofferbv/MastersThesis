@@ -35,11 +35,11 @@ simulation:
   forecasting_method: "holt_winter"
   verbose: False
   should_set_holding_cost_dynamically: False
-  n_episodes: 10
-  simulation_length: 52
+  n_episodes: 2
+  simulation_length: 104
   warm_up_length: 104
   should_perform_warm_up: False
-  reset_length: 13
+  reset_length: 20
 
 
 actor:
