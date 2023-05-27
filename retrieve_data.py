@@ -238,7 +238,7 @@ def read_products_3(start_date, end_date):
     february_2016 = pd.to_datetime("2016-02-01")
     december_2020 = pd.to_datetime("2020-12-01")
     january_2021 = pd.to_datetime("2021-01-01")
-    print(df)
+    #print(df)
 
     # Filter the DataFrame based on the time periods
     january_2016_data = df[(df['requested_delivery_date'] >= january_2016) &
@@ -252,7 +252,7 @@ def read_products_3(start_date, end_date):
 
     # Filter the original DataFrame to include only these product hashes
     df = df[df['product_hash'].isin(product_hashes_in_both_periods)]
-    print(df)
+    #print(df)
     unique_product_hashes = df['product_hash'].unique()
 
 

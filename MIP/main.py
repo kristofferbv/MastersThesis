@@ -41,9 +41,6 @@ if __name__ == '__main__':
 
     else:
         products = retrieve_data.read_products_3("2016-01-01", "2020-12-30")
-        print("non-stationary products")
-        non_stationary_products = get_non_stationary_products(products)
-
         products = random.sample(get_non_stationary_products(products), n_products)
 
 
