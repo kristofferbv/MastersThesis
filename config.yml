@@ -34,7 +34,7 @@ main:
 simulation:
   forecasting_method: "holt_winter"
   verbose: False
-  should_set_holding_cost_dynamically: False
+  should_set_holding_cost_dynamically: True
   n_episodes: 2
   simulation_length: 52
   warm_up_length: 104

@@ -33,6 +33,7 @@ start_index = 104
 def simulate(real_products):
     total_costs = []
     inventory_levels = None
+    
     generated_products = generate_seasonal_data_based_on_products(real_products, (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods)
     start_date = generated_products[0].index[start_index]
     if should_perform_warm_up:
@@ -62,6 +63,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
     should_set_holding_cost_dynamically = config["simulation"]["should_set_holding_cost_dynamically"]
     if should_set_holding_cost_dynamically:
         unit_costs = [df.iloc[0]['average_unit_cost'] for df in products]
+        print(unit_costs)
 
     dict_demands = {}
     dict_sds = {}

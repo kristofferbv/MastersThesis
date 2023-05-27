@@ -37,7 +37,7 @@ if __name__ == '__main__':
     # Reading the products created by the "read_products" function above
     if use_stationary_data:
         products = retrieve_data.read_products_with_hashes("2016-01-10", "2020-12-30", ["569b6782ce5885fc4abf21cfde38f7d7", "92b1f191dfce9fff64b4effd954ccaab", "8ef91aac79542f11dedec4f79265ae3a", "2fa9c91f40d6780fd5b3c219699eb139", "1fb096daa569c811723ce8796722680e", "f7b3622f9eb50cb4eee149127c817c79"])
-        products = [df["sales_quantity"] for df in products]
+        #products = [df["sales_quantity"] for df in products]
 
     else:
         products = retrieve_data.read_products_3("2016-01-01", "2020-12-30")
