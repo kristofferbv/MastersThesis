@@ -43,6 +43,6 @@ if __name__ == '__main__':
             else:
                 decompose_sales_quantity(product, str(i))
     if generate_new_data:
-        simulation.simulate(products)
+        simulation.simulate(products[:4])
     else:
         simulation.run_one_episode(start_date, n_time_periods, products)

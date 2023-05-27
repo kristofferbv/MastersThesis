@@ -1,5 +1,11 @@
+import os
+
 import gurobipy as gp
+import pandas as pd
 from gurobipy import GRB
+from keras.saving.saving_api import load_model
+from sklearn.preprocessing import StandardScaler
+
 from config_utils import load_config
 from scipy.stats import norm
 import numpy as np
@@ -7,8 +13,11 @@ import numpy as np
 import math
 from collections import defaultdict
 
+from generate_data import generate_seasonal_data_based_on_products
+
+
 class DeterministicModel:
-    def __init__(self):
+    def __init__(self, real_products):
 
         config = load_config("../config.yml")
         self.n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
@@ -31,6 +40,14 @@ class DeterministicModel:
         #self.service_level = config["deterministic_model"]["service_level"]
         self.shortage_cost = config["deterministic_model"]["shortage_cost"]
         self.should_include_safety_stock = config["deterministic_model"]["should_include_safety_stock"]
+        self.actors = []
+        generated_products = generate_seasonal_data_based_on_products(real_products, 500)
+
+        self.scaled_products = self.normalize_demand(generated_products)
+
+        for i in self.n_products:
+            loaded_model = load_model(os.path.join('models', f'actor_model_{i}'))
+            self.actors.append(loaded_model)
 
         # change shortage cost based on formula 
         # could make an if sentence if this could be set by the user
@@ -45,7 +62,24 @@ class DeterministicModel:
 
             for tau_period in range(2, len(self.tau_periods)+1):
                 self.service_level[product_index][tau_period] = self.service_level[product_index][tau_period-1] 
-    
+
+    def normalize_demand(self, products):
+        products_reshaped = []
+        for product in products:
+            # Initialize the scaler
+            scaler = StandardScaler()
+
+            # Fit the scaler on your data
+            scaler.fit(product.values.reshape(-1, 1))
+
+            # Now you can use this scaler to transform your data
+            normalized_sales_quantity = scaler.transform(product.values.reshape(-1, 1))
+
+            # Convert the normalized numpy array back to Series
+            normalized_series = pd.Series(normalized_sales_quantity.flatten(), index=product.index)
+            # Add the normalized series to the list
+            products_reshaped.append(normalized_series)
+        return products_reshaped
 
     def set_demand_forecast(self, demand_forecast):
         self.demand_forecast = demand_forecast

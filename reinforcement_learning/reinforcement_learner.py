@@ -61,8 +61,8 @@ if __name__ == "__main__":
         for product in products:
             agents.append(Agent((state_shape,len(products)), action_shape, 100, env, discount=0.99, tau=0.005))
         ma = MultiAgent(agents, env, real_products)
-        # ma.train()
-        ma.test()
+        ma.train()
+        # ma.test()
 
     # else:
     #     # Train the A2C model

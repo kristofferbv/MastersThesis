@@ -25,9 +25,9 @@ def simulate(real_products):
         start_date = generated_products[0].index[213]
         if should_perform_warm_up:
             inventory_levels, start_date = perform_warm_up(generated_products, start_date, n_time_periods)
-            costs, _, _ , _ = run_one_episode(start_date, n_time_periods, generated_products, inventory_levels=inventory_levels)
+            costs, _, _ , _ = run_one_episode(start_date, n_time_periods, generated_products, real_products, inventory_levels=inventory_levels)
         else:
-            costs, _, _ , _ = run_one_episode(start_date, n_time_periods, generated_products,simulation_length)
+            costs, _, _ , _ = run_one_episode(start_date, n_time_periods, generated_products,real_products, simulation_length)
         total_costs.append(costs)
         print(f"costs for episode {episode} is: {costs}")
     print(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}")
@@ -37,7 +37,7 @@ def perform_warm_up(products, start_date, n_time_periods):
     _, _, inventory_levels, end_date = run_one_episode(start_date, n_time_periods, products, inventory_levels=inventory_levels, episode_length=warm_up_length)
     return inventory_levels, end_date
 
-def run_one_episode(start_date, n_time_periods, products, episode_length, inventory_levels = None):
+def run_one_episode(start_date, n_time_periods, products, episode_length, real_products, inventory_levels = None):
     config = load_config("../config.yml")
     forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
     verbose = config["simulation"]["verbose"]  # number of time periods
@@ -131,7 +131,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, invent
             else:
                 raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
 
-        deterministic_model = det_mod.DeterministicModel()
+        deterministic_model = det_mod.DeterministicModel(real_products)
         deterministic_model.set_demand_forecast(dict_demands)
         if should_set_holding_cost_dynamically:
             deterministic_model.set_holding_costs(unit_costs)
