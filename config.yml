@@ -1,5 +1,5 @@
 deterministic_model:
-  n_products: 6
+  n_products: 2
   n_time_periods: 26
   joint_setup_cost: 5000
   minor_setup_cost: [ 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0 ]
@@ -29,7 +29,7 @@ rl_model:
 
 main:
   should_analyse: False
-  stationary_products: True
+  stationary_products: False
   generate_new_data: True
 simulation:
   forecasting_method: "holt_winter"

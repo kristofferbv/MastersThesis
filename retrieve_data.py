@@ -260,8 +260,12 @@ def read_products_3(start_date, end_date):
     products = []
     for product_hash in unique_product_hashes:
         product_df = df[df['product_hash'] == product_hash].set_index('requested_delivery_date')
+        # Resample with weekly frequency and fill missing weeks with 0
+        product_df = product_df.resample("W").asfreq(fill_value=0)
         products.append(product_df)
 
+
+    
     return products
 
 def read_products_2(start_date, end_date):
