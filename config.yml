@@ -39,6 +39,8 @@ simulation:
   simulation_length: 52
   warm_up_length: 104
   should_perform_warm_up: False
+  reset_length: 13
+
 
 actor:
   layers: [128,128]                        # Example: [30,30]

@@ -27,29 +27,35 @@ n_episodes = config["simulation"]["n_episodes"] # This is the number of times we
 simulation_length = config["simulation"]["simulation_length"] # This is the number of time periods we want to calculate the costs for
 warm_up_length = config["simulation"]["warm_up_length"] # This is the number of time periods we are using to warm up
 should_perform_warm_up = config["simulation"]["should_perform_warm_up"]
+reset_length =  config["simulation"]["reset_length"]
+start_index = 104
 
 def simulate(real_products):
     total_costs = []
     inventory_levels = None
+    generated_products = generate_seasonal_data_based_on_products(real_products, (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods)
+    start_date = generated_products[0].index[start_index]
+    if should_perform_warm_up:
+        print("warming up")
+        inventory_levels, start_date = perform_warm_up(generated_products, start_date, n_time_periods)
     for episode in range(n_episodes):
-        generated_products = generate_seasonal_data_based_on_products(real_products, simulation_length + warm_up_length + 208)
-        start_date = generated_products[0].index[208]
-        if should_perform_warm_up:
-            inventory_levels, start_date = perform_warm_up(generated_products, start_date, n_time_periods)
-            costs, _, _ , _ = run_one_episode(start_date, n_time_periods, generated_products, inventory_levels=inventory_levels)
-        else:
-            costs, _, _ , _ = run_one_episode(start_date, n_time_periods, generated_products)
-        total_costs.append(costs)
-        print(f"costs for episode {episode} is: {costs}")
+            # simulate and sample costs
+            costs, inventory_levels, _ , _ = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, inventory_levels=inventory_levels)
+            total_costs.append(costs)
+            print("running simulation...")
+            print(f"costs for episode {episode} is: {costs}")
+            print("resetting...")
+            # resetting
+            costs, inventory_levels, _ , _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, inventory_levels=inventory_levels)
     print(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}")
 
 def perform_warm_up(products, start_date, n_time_periods):
     inventory_levels = [0 for i in range(len(products))]
     for i in range(simulation_length):
-        _, _, inventory_levels, start_date = run_one_episode(start_date, n_time_periods, products, inventory_levels=inventory_levels)
+        _, inventory_levels, start_date, _ = run_one_episode(start_date, n_time_periods, products, inventory_levels=inventory_levels)
     return inventory_levels, start_date
 
-def run_one_episode(start_date, n_time_periods, products, inventory_levels = None):
+def run_one_episode(start_date, n_time_periods, products, episode_length,  inventory_levels = None):
     config = load_config("../config.yml")
     forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
     verbose = config["simulation"]["verbose"]  # number of time periods
@@ -70,7 +76,7 @@ def run_one_episode(start_date, n_time_periods, products, inventory_levels = Non
     holding_costs = 0
     setup_costs = 0
 
-    for time_step in range(simulation_length):
+    for time_step in range(episode_length):
         print(f"Time step {time_step}/{simulation_length}")
         start_date = start_date + timedelta(days=7)
 
@@ -195,7 +201,7 @@ def run_one_episode(start_date, n_time_periods, products, inventory_levels = Non
     # runtime = deterministic_model.model.Runtime
     # print("The run time is %f" % runtime)
 
-    return total_costs, actions, inventory_levels, start_date
+    return total_costs, inventory_levels, start_date, actions
 
 
 
