@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import os
 import sys
+import time
 
 import deterministic_model as det_mod
 import sarima
@@ -57,6 +58,9 @@ def perform_warm_up(products, start_date, n_time_periods):
     return inventory_levels, start_date
 
 def run_one_episode(start_date, n_time_periods, products, episode_length,  inventory_levels = None):
+
+    start_time = time.time()
+
     config = load_config("../config.yml")
     forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
     verbose = config["simulation"]["verbose"]  # number of time periods
@@ -78,6 +82,10 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
     holding_costs = 0
     setup_costs = 0
 
+    sum_actual_demand = {product_index: 0 for product_index in range(len(products))}
+    sum_fulfilled_demand = {product_index: 0 for product_index in range(len(products))}
+
+
     for time_step in range(episode_length):
         print(f"Time step {time_step}/{episode_length}")
         start_date = start_date + timedelta(days=7)
@@ -95,7 +103,12 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
                     demand = products[product_index].loc[start_date]
 
                 actual_demands.append(demand)
-                               # add holding costs or shortage costs
+
+                # used to calculate the service level
+                sum_actual_demand[product_index] += demand
+                sum_fulfilled_demand[product_index] += min(inventory_levels[product_index] + actions[time_step - 1][product_index], demand)
+
+                # add holding costs or shortage costs
                 if inventory_levels[product_index] + actions[time_step - 1][product_index] - demand > 0:
                     holding_costs += (inventory_levels[product_index] + actions[time_step - 1][product_index] - demand) * deterministic_model.holding_cost[product_index]
                     period_costs += (inventory_levels[product_index] + actions[time_step - 1][product_index] - demand) * deterministic_model.holding_cost[product_index]
@@ -202,6 +215,17 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
     # print(orders)
     # runtime = deterministic_model.model.Runtime
     # print("The run time is %f" % runtime)
+
+    end_time = time.time()  # Stop measuring the time
+    runtime = end_time - start_time
+    print(f"Solution time for this episode is: {runtime} seconds")
+
+    for product_index in range(len(products)):
+        service_level = sum_fulfilled_demand[product_index] / sum_actual_demand[product_index]
+        print(f"Achieved service level for Product {product_index}: {service_level}")
+
+    
+    print(actions)
 
     return total_costs, inventory_levels, start_date, actions
 
