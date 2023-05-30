@@ -106,7 +106,7 @@ def mlp(x, sizes, activation=tf.tanh, output_activation=None):
 
     # Build a feedforward neural network
     for size in sizes[:-1]:
-        x = keras.layers.Dense(units=size, activation=activation)(x)
+        x= keras.layers.Dense(units=size, activation=activation)(x)
 
     return keras.layers.Dense(units=sizes[-1], activation=output_activation)(x)
 

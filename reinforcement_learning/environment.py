@@ -72,9 +72,9 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # Apply the replenishment action
         major_setup_triggered = False
         return_action= action
-        action = action * 100
+        # action = action * 100
         individual_rewards = []
-        count_major_setup_sharing = len([i for i in action if i > 0])
+        count_major_setup_sharing = len([i for i in action if i > 1])
 
         demands = []
         minor_costs = []
@@ -85,7 +85,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
 
         for i, product in enumerate(self.products):
-            if action[i] > 0:
+            if action[i] > 1:
                 self.inventory_levels[i] += action[i]
                 # Apply only fractional part of major setup costs corresponding to number of products ordering
                 # if count_major_setup_sharing == 1:
@@ -136,6 +136,8 @@ class JointReplenishmentEnv(gym.Env, ABC):
     def _get_observation(self):
         # Create an observation of the stock levels for the last n_periods_lookahead and the current inventory levels
         observation = []
+        inventory = []
+        demand = []
         total_forecast = 0
         forecast = 0
         for i, product in enumerate(self.scaled_products):
@@ -151,6 +153,8 @@ class JointReplenishmentEnv(gym.Env, ABC):
                 concat = [self.inventory_levels[i] / 10, forecast]
                 observation.append(np.concatenate((concat, historical_demand)))
             else:
+                inventory.append(self.inventory_levels[i] / 10)
+                demand.append(historical_demand)
                 observation.append(np.concatenate(([self.inventory_levels[i] / 10], historical_demand)))
         if self.should_include_total_forecast:
             observation = [np.append(arr, total_forecast) for arr in observation]
@@ -162,7 +166,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         #     # Now concatenate obs and the new elements.
         #     new_obs = np.concatenate((obs, new_elements))
         #     new_obs_list.append(new_obs)
-        return np.array(observation)
+        return np.array(observation) # (inventory, demand)
 
     def normalize_demand(self, products):
         products_reshaped = []

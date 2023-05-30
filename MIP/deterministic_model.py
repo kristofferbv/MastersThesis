@@ -41,13 +41,13 @@ class DeterministicModel:
         self.shortage_cost = config["deterministic_model"]["shortage_cost"]
         self.should_include_safety_stock = config["deterministic_model"]["should_include_safety_stock"]
         self.actors = []
-        generated_products = generate_seasonal_data_based_on_products(real_products, 500)
+        generated_products = generate_seasonal_data_based_on_products(real_products, 500, 15)
 
         self.scaled_products = self.normalize_demand(generated_products)
 
-        for i in self.n_products:
-            loaded_model = load_model(os.path.join('models', f'actor_model_{i}'))
-            self.actors.append(loaded_model)
+        # for i in self.n_products:
+        #     loaded_model = load_model(os.path.join('models', f'actor_model_{i}'))
+        #     self.actors.append(loaded_model)
 
         # change shortage cost based on formula 
         # could make an if sentence if this could be set by the user

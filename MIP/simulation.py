@@ -37,7 +37,7 @@ def perform_warm_up(products, start_date, n_time_periods):
     _, _, inventory_levels, end_date = run_one_episode(start_date, n_time_periods, products, inventory_levels=inventory_levels, episode_length=warm_up_length)
     return inventory_levels, end_date
 
-def run_one_episode(start_date, n_time_periods, products, episode_length, real_products, inventory_levels = None):
+def run_one_episode(start_date, n_time_periods, products, real_products, episode_length, inventory_levels = None):
     config = load_config("../config.yml")
     forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
     verbose = config["simulation"]["verbose"]  # number of time periods
@@ -176,9 +176,9 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, real_p
     # print("Holding costs:")
     # print(holding_costs)
     # print("Setup costs")
-    # print(setup_costs)
-    # print(actions)
+    print(actions)
     # print("orders")
+    # print(setup_costs)
     # print(orders)
     # runtime = deterministic_model.model.Runtime
     # print("The run time is %f" % runtime)

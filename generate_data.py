@@ -41,8 +41,10 @@ def plot_data(df):
     plt.legend()
     plt.show()
 
-def generate_seasonal_data_based_on_products(products, num_periods):
+def generate_seasonal_data_based_on_products(products, num_periods, seed = None):
     products_list = []
+    if seed is not None:
+        np.random.seed(seed)
     for product_series in products:
         # First, we decompose the series to get the seasonal component
         res = sm.tsa.seasonal_decompose(product_series, model='additive', period=52)
