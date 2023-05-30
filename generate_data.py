@@ -43,7 +43,8 @@ def plot_data(df):
 
 def generate_seasonal_data_based_on_products(products, num_periods, seed=0):
     # Set the seed for the random number generator
-    np.random.seed(seed)
+    #print(products)
+    #np.random.seed(seed)
     products_list = []
     for product_series in products:
         # First, we decompose the series to get the seasonal component
@@ -71,6 +72,7 @@ def generate_seasonal_data_based_on_products(products, num_periods, seed=0):
         product_data = pd.DataFrame(data, index=pd.date_range(product_series.index[0], periods=num_periods, freq='W'), columns=["sales_quantity"])
         product_data.index.name = "date"
         product_data["average_unit_cost"] = product_series["average_unit_cost"]
+        product_data["product_hash"] = product_series["product_hash"]
         products_list.append(product_data)
 
 

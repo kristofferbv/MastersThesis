@@ -32,6 +32,10 @@ reset_length =  config["simulation"]["reset_length"]
 start_index = 104
 
 def simulate(real_products):
+    
+
+
+
     total_costs = []
     inventory_levels = None
     
@@ -67,7 +71,6 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
     should_set_holding_cost_dynamically = config["simulation"]["should_set_holding_cost_dynamically"]
     if should_set_holding_cost_dynamically:
         unit_costs = [df.iloc[0]['average_unit_cost'] for df in products]
-        print(unit_costs)
 
     dict_demands = {}
     dict_sds = {}
@@ -177,7 +180,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
 
         # Extract and store the first action for each product in the current time step
         actions[time_step] = {}
-        threshold = 1e-10
+        threshold = 1e-5
 
         orders[time_step] = {}
 
