@@ -33,7 +33,7 @@ if __name__ == '__main__':
     use_stationary_data = config["main"]["stationary_products"]
     generate_new_data = config["main"]["generate_new_data"]
 
-    # calculate average unit costs 
+    # calculate average unit costs to compute setup costs
     all_products = retrieve_data.read_products_3("2016-01-01", "2020-12-30")
 
     unit_costs_all = [df.iloc[0]['average_unit_cost'] for df in all_products]

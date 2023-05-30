@@ -10,7 +10,7 @@ wanted_format:
   service level: [0.95, 0.95, 0.95, 0.95] 
 deterministic_model:
   n_products: 6
-  n_time_periods: 26
+  n_time_periods: 13
   joint_setup_cost: 5949
   minor_setup_ratio: 1.2
   holding_cost: [ 56.746590597921845, 27.808012422471087, 55.161044780561035, 57.072195025923534, 60.601173777486366, 17.492847296869314 ]
