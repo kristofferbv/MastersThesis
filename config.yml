@@ -7,7 +7,7 @@ wanted_format:
 deterministic_model:
   product_categories: { "erratic": 1, "smooth": 3 , "intermittent": 4, "lumpy": 3 }
   n_time_periods: 13
-  joint_setup_cost: 5949
+  joint_setup_cost: 1577
   minor_setup_ratio: 1.2
   service_level: 0.95
   should_include_safety_stock: True
