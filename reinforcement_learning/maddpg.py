@@ -314,16 +314,18 @@ class MultiAgent:
 
                 # print("actions", actions)
                 # Perform action and get reward
-                next_state, reward, done, *_ = self.env.step(actions)
+                scaled_action = actions * 100
+
+                next_state, reward, done, *_ = self.env.step(scaled_action)
                 total_reward += sum(reward)
                 #
                 # if (sum(reward)>-1150):
                 #     print("yeaaah", reward)
                 #     reward = [x + 1000 for x in reward]
                 reward = [total_reward + x for x in reward]
-                running_avg_reward = 0.99 * running_avg_reward + 0.01 * sum(reward)*2
-                running_std_reward = np.sqrt(0.99 * running_std_reward ** 2 + 0.01 * (sum(reward)*2 - running_avg_reward) ** 2)
-                reward = [-abs((reward - running_avg_reward) / running_std_reward)for reward in reward]
+                # running_avg_reward = 0.99 * running_avg_reward + 0.01 * sum(reward)*2
+                # running_std_reward = np.sqrt(0.99 * running_std_reward ** 2 + 0.01 * (sum(reward)*2 - running_avg_reward) ** 2)
+                # reward = [-abs((reward - running_avg_reward) / running_std_reward)for reward in reward]
 
                 if(episode>100):
                     # Store experience in replay buffer

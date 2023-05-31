@@ -59,33 +59,33 @@ def optimize_SARIMA(df, start_date):
 
 
 
-def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=(1, 0, 1, 52), shouldShowPlot=False, verbose = False):
+def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=(1, 0, 1, 52), shouldShowPlot=True, verbose = True):
     # Set the frequency of the index to weekly
     df = df.asfreq("W")
     # Getting the product hash
 
-    product_hash = df["product_hash"].iloc[0]
-    df = df["sales_quantity"]
+    # product_hash = df["product_hash"].iloc[0]
+    # df = df["sales_quantity"]
 
     train = df.loc[df.index <= start_date]
     test = df.loc[df.index > start_date]
 
     # Check if a model file already exists for the given product_hash
-    model_filename = f"sarima_models/model_{product_hash}.pkl"
-    if verbose:
-        print("product_hash", model_filename)
-    if os.path.exists(model_filename):
-        # Load the existing model
-        model = pd.read_pickle(model_filename)
-        if verbose:
-            print("Using existing model for product hash: ", product_hash)
-    else:
-        # Fit a new SARIMA model
-        model = SARIMAX(train, order=order, seasonal_order=seasonal_order)
-        model = model.fit(maxiter=100)
+    # model_filename = f"sarima_models/model_12.pkl"
+    # if verbose:
+    #     print("product_hash", model_filename)
+    # if os.path.exists(model_filename):
+    #     # Load the existing model
+    #     model = pd.read_pickle(model_filename)
+    #     if verbose:
+    #         print("Using existing model for product hash: ", 1)
+    # else:
+    # Fit a new SARIMA model
+    model = SARIMAX(train, order=order, seasonal_order=seasonal_order)
+    model = model.fit(maxiter=100)
 
-        # Save the model
-        model.save(model_filename)
+    # Save the model
+    # model.save(model_filename)
 
     # Forecast the next 20 periods
     end_date = start_date + pd.DateOffset(weeks=n_time_periods)

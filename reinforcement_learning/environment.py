@@ -72,7 +72,6 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # Apply the replenishment action
         major_setup_triggered = False
         return_action= action
-        # action = action * 100
         individual_rewards = []
         count_major_setup_sharing = len([i for i in action if i > 1])
 

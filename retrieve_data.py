@@ -3,9 +3,8 @@ import random
 import pandas as pd
 import matplotlib
 
+
 # from mgarch_dcc_r import arch_test
-
-
 
 
 def categorize_products(file_name, time_interval, should_write_to_file):
@@ -93,74 +92,7 @@ def categorize_products(file_name, time_interval, should_write_to_file):
     return intermittent_demand, lumpy_demand, smooth_demand, erratic_demand
 
 
-def read_products(start_date, end_date, freq = "w"):
-    start_date = pd.to_datetime(start_date)
-    end_date = pd.to_datetime(end_date)
 
-    # Get number of weeks between start and end dates
-    num_weeks = len(pd.date_range(start=start_date, end=end_date, freq=freq))
-    if (freq == "w"):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        # construct the path to the file
-        file_path = os.path.join(current_dir, "data/erratic_weeks.csv")
-        df = pd.read_csv(file_path, index_col=0)
-    else:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        # construct the path to the file
-        file_path = os.path.join(current_dir, "data/erratic_months.csv")
-        df = pd.read_csv(file_path, index_col=0)
-    df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])
-    df = df.groupby(["product_hash", pd.Grouper(key="requested_delivery_date", freq="w")]).agg({"sales_quantity": "sum", "unit_cost": "mean"})
-    # Calculate the average unit_cost for each product_hash
-    df['average_unit_cost'] = df.groupby('product_hash')['unit_cost'].transform('mean')
-
-    # If you want to keep only the new average_unit_cost column and drop the original unit_cost column
-    df = df.drop(columns=['unit_cost'])
-
-    df = df.reset_index()
-    # filter out the weeks outside the specified date range
-    mask = (df["requested_delivery_date"] >= start_date) & (df["requested_delivery_date"] <= end_date)
-
-    # mask = df['requested_delivery_date'].dt.isocalendar().week.between(1, 52, inclusive='both') & df['requested_delivery_date'].dt.year.between(2015, 2018, inclusive='both')
-    df = df[mask]
-    print(df)
-    # df.to_csv("testing.csv")
-    df = df.groupby("product_hash").filter(lambda x: len(x) >= num_weeks-5)
-    value_counts = df['product_hash'].value_counts()
-    print(value_counts)
-    smallest_counts = value_counts.nsmallest(n=1).iloc[-1]
-    # Getting product hash of the products with fewest weeks:
-    smallest_indexes = value_counts[value_counts == smallest_counts].index
-    # Filter the DataFrame to only include rows for 'product_hash' = product_hash_fewest_weeks
-    filtered_df = df[df["product_hash"].isin(smallest_indexes)]
-    # Find the first and last date for the first product in the filtered DataFrame
-    first_date = filtered_df.loc[filtered_df['product_hash'] == smallest_indexes[0]]["requested_delivery_date"].min()
-    last_date = filtered_df.loc[filtered_df['product_hash'] == smallest_indexes[0]]["requested_delivery_date"].max()
-    if (len(smallest_indexes)>1):
-        # Need to find the product that has the last first date, and the first last date
-        for index in smallest_indexes:
-            first_date = max(first_date, filtered_df[filtered_df['product_hash'] == index]["requested_delivery_date"].min())
-            last_date =  min(last_date, filtered_df[filtered_df['product_hash'] == index]["requested_delivery_date"].max())
-    # Filter so that all product hashes have the same start and end date
-    mask = (df["requested_delivery_date"] >= first_date) & (df["requested_delivery_date"] <= last_date)
-    df = df[mask]
-    # # Choosing 6 random product_hashes and filter by them
-    random_product_hashes = random.sample(df.product_hash.unique().tolist(), 6)
-    # random_product_hashes = df.product_hash.unique().tolist()
-
-
-    df = df[df["product_hash"].isin(random_product_hashes)]
-    products = []
-    # Creating a dataframe for each product and Grouping by week and aggregating by sum, and then adding to list.
-    for product_hash in random_product_hashes:
-        product_df = df.loc[df['product_hash'] == product_hash]
-        product_df = product_df.set_index("requested_delivery_date")
-        product_df = product_df.resample("W").asfreq(fill_value=0)
-
-        products.append(product_df)
-    df = pd.concat(products)
-    # df.to_csv("jada.csv")
-    return products
 
 def read_products_with_hashes(start_date, end_date, product_hashes):
     start_date = pd.to_datetime(start_date)
@@ -199,7 +131,7 @@ def read_products_with_hashes(start_date, end_date, product_hashes):
     return products
 
 
-def read_products_3(start_date, end_date):
+def read_products(start_date, end_date, category="erratic", frequency="weeks"):
     """
     This function is an updated version of read_products, where also products that has some weeks without any data is included.
     Args:
@@ -213,9 +145,13 @@ def read_products_3(start_date, end_date):
     end_date = pd.to_datetime(end_date)
     current_dir = os.path.dirname(os.path.abspath(__file__))
     # construct the path to the file
-    file_path = os.path.join(current_dir, "data/erratic_weeks.csv")
-    # Read the CSV file into a DataFrame
-    df = pd.read_csv(file_path)
+    try:
+        file_path = os.path.join(current_dir, f"data/{category}_{frequency}.csv")
+        # Read the CSV file into a DataFrame
+        df = pd.read_csv(file_path)
+    except:
+        print(f"not able to read file with file-directory: data/{category}_{frequency}.csv")
+        return
 
     # Convert the 'requested_delivery_date' column to a datetime object
     df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])
@@ -238,7 +174,6 @@ def read_products_3(start_date, end_date):
     february_2016 = pd.to_datetime("2016-02-01")
     december_2020 = pd.to_datetime("2020-12-01")
     january_2021 = pd.to_datetime("2021-01-01")
-    print(df)
 
     # Filter the DataFrame based on the time periods
     january_2016_data = df[(df['requested_delivery_date'] >= january_2016) &
@@ -252,60 +187,15 @@ def read_products_3(start_date, end_date):
 
     # Filter the original DataFrame to include only these product hashes
     df = df[df['product_hash'].isin(product_hashes_in_both_periods)]
-    print(df)
     unique_product_hashes = df['product_hash'].unique()
-
-
 
     products = []
     for product_hash in unique_product_hashes:
         product_df = df[df['product_hash'] == product_hash].set_index('requested_delivery_date')
+        product_df = product_df.resample("W").asfreq(fill_value=0)
         products.append(product_df)
 
     return products
-
-def read_products_2(start_date, end_date):
-    # Convert start_date and end_date to datetime objects
-    start_date = pd.to_datetime(start_date)
-    end_date = pd.to_datetime(end_date)
-
-    # Read the CSV file into a DataFrame
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    # construct the path to the file
-    file_path = os.path.join(current_dir, "data/erratic_weeks.csv")
-    df = pd.read_csv(file_path)
-
-    # Convert the 'requested_delivery_date' column to a datetime object
-    df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])
-
-    # Filter out the rows that fall outside the date range
-    df = df[(df['requested_delivery_date'] >= start_date) & (df['requested_delivery_date'] <= end_date)]
-
-    # Group by product_hash and requested_delivery_date (week) and sum the sales_quantity
-    df = df.groupby(['product_hash', pd.Grouper(key='requested_delivery_date', freq='W-SUN')])['sales_quantity'].sum().reset_index()
-
-    # Get the number of weeks between start_date and end_date
-    num_weeks = len(pd.date_range(start=start_date, end=end_date, freq='W-SUN'))
-
-    # Get a list of product hashes that have data for every week in the date range
-    valid_products = df.groupby('product_hash').apply(lambda x: len(x) == num_weeks).loc[lambda x: x].index.tolist()
-
-    # Choose 6 random product hashes from the list of valid products
-    random_product_hashes = random.sample(valid_products, k=len(valid_products))
-
-    # Filter the DataFrame to only include rows for the chosen product hashes
-    df = df[df['product_hash'].isin(random_product_hashes)]
-
-    # Create a list of DataFrames, one for each product
-    products = []
-    for product_hash in random_product_hashes:
-        product_df = df[df['product_hash'] == product_hash].set_index('requested_delivery_date')
-        products.append(product_df)
-
-    return products
-
-
-
 
 def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))

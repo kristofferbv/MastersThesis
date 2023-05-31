@@ -12,6 +12,7 @@ from a2c_agent import *
 from ppo import *
 from generate_data import generate_seasonal_data_based_on_products
 from maddpg import *
+from ddpg2 import *
 
 # Get the directory of the current script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -38,23 +39,19 @@ if __name__ == "__main__":
     # Set up the environment
     env = JointReplenishmentEnv(products)
     # state_shape is the input shape for critic and actor
-    state_shape = env.observation_space.shape[1]
+    state_shape = env.observation_space.shape
     # Since agent space only consist of the state of a singe product
     state_shape_agent = state_shape
     # action shape is the output shape of the actor
     action_shape = env.action_space.n
-    print(state_shape)
-    print(action_shape)
 
-    # set up the networks
-    # actor = Actor(state_shape_agent, action_shape)
-    # critic = Critic(state_shape)
-    method = ""
+    method = "ddpg"
     if method == "ppo":
         ppo_model = PPO(env, real_products)
         ppo_model.train_ppo()
         ppo_model.test(208)
-    else:
+
+    elif method == "maddpg":
         agents = []
         print("state", state_shape)
         print("action", action_shape)
@@ -63,8 +60,7 @@ if __name__ == "__main__":
         ma = MultiAgent(agents, env, real_products)
         ma.train()
         # ma.test()
-
-    # else:
-    #     # Train the A2C model
-    #     a2c_model = A2CAgent(actor, critic, env)
-    #     a2c_model.train_a2c()
+    elif method == "ddpg":
+        ddpg = DDPG(products, state_shape)
+        ddpg.train()
+        ddpg.test()
