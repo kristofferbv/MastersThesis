@@ -106,12 +106,12 @@ def read_products_with_hashes(start_date, end_date, product_hashes):
     # Filter the DataFrame using the provided product_hashes
     df = df[df["product_hash"].isin(product_hashes)]
 
-    df = df.groupby(["product_hash", pd.Grouper(key="requested_delivery_date", freq="w")]).agg({"sales_quantity": "sum", "unit_cost": "mean"})
-    # Calculate the average unit_cost for each product_hash
-    df['average_unit_cost'] = df.groupby('product_hash')['unit_cost'].transform('mean')
+    df = df.groupby(["product_hash", pd.Grouper(key="requested_delivery_date", freq="w")]).agg({"sales_quantity": "sum", "unit_price": "mean"})
+    # Calculate the average unit_price for each product_hash
+    df['average_unit_price'] = df.groupby('product_hash')['unit_price'].transform('mean')
 
-    # If you want to keep only the new average_unit_cost column and drop the original unit_cost column
-    df = df.drop(columns=['unit_cost'])
+    # If you want to keep only the new average_unit_price column and drop the original unit_price column
+    df = df.drop(columns=['unit_price'])
 
     df = df.reset_index()
 
@@ -160,12 +160,12 @@ def read_products(start_date, end_date, category="erratic", frequency="weeks"):
     df = df[(df['requested_delivery_date'] >= start_date) & (df['requested_delivery_date'] <= end_date)]
 
     # Group by product_hash and requested_delivery_date (week) and sum the sales_quantity
-    df = df.groupby(["product_hash", pd.Grouper(key="requested_delivery_date", freq="w")]).agg({"sales_quantity": "sum", "unit_cost": "mean"})
-    # Calculate the average unit_cost for each product_hash
-    df['average_unit_cost'] = df.groupby('product_hash')['unit_cost'].transform('mean')
+    df = df.groupby(["product_hash", pd.Grouper(key="requested_delivery_date", freq="w")]).agg({"sales_quantity": "sum", "unit_price": "mean"})
+    # Calculate the average unit_price for each product_hash
+    df['average_unit_price'] = df.groupby('product_hash')['unit_price'].transform('mean')
 
-    # If you want to keep only the new average_unit_cost column and drop the original unit_cost column
-    df = df.drop(columns=['unit_cost'])
+    # If you want to keep only the new average_unit_price column and drop the original unit_price column
+    df = df.drop(columns=['unit_price'])
 
     df = df.reset_index()
 

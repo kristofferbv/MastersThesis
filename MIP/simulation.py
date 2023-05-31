@@ -67,7 +67,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
     verbose = config["simulation"]["verbose"]  # number of time periods
     should_set_holding_cost_dynamically = config["simulation"]["should_set_holding_cost_dynamically"]
     if should_set_holding_cost_dynamically:
-        unit_costs = [df.iloc[0]['average_unit_cost'] for df in products]
+        unit_price = [df.iloc[0]['average_unit_price'] for df in products]
 
     dict_demands = {}
     dict_sds = {}
@@ -167,7 +167,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
         deterministic_model = det_mod.DeterministicModel(len(products))
         deterministic_model.set_demand_forecast(dict_demands)
         if should_set_holding_cost_dynamically:
-            deterministic_model.set_holding_costs(unit_costs)
+            deterministic_model.set_holding_costs(unit_price)
         deterministic_model.set_safety_stock(dict_sds)
         deterministic_model.set_big_m()
         deterministic_model.model.setParam("OutputFlag", 0)

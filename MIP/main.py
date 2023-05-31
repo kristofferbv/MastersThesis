@@ -38,11 +38,11 @@ if __name__ == '__main__':
     # calculate average unit costs to compute setup costs
     all_products = retrieve_data.read_products("2016-01-01", "2020-12-30")
 
-    unit_costs_all = [df.iloc[0]['average_unit_cost'] for df in all_products]
+    unit_price_all = [df.iloc[0]['average_unit_price'] for df in all_products]
 
-    average_unit_cost = sum(unit_costs_all) / len(unit_costs_all)
+    average_unit_price = sum(unit_price_all) / len(unit_price_all)
 
-    #print("The average unit cost is: ", average_unit_cost)
+    #print("The average unit cost is: ", average_unit_price)
 
 
 
