@@ -67,6 +67,7 @@ def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=
     # product_hash = df["product_hash"].iloc[0]
     # df = df["sales_quantity"]
 
+
     train = df.loc[df.index <= start_date]
     test = df.loc[df.index > start_date]
 

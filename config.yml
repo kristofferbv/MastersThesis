@@ -1,23 +1,29 @@
+wanted_format:
+  n_products_lumpy: 1
+  n_products_erratic: 1
+  n_products_smooth: 1
+  n_products_intermittent: 1
+  n_time_periods: 26
+  joint_setup_cost: 5949
+  minor_setup_ratio: 1.2
+  should_include_safety_stock: True
+  service level: [0.95, 0.95, 0.95, 0.95] 
 deterministic_model:
-  n_products: 4
+  n_products: 6
   n_time_periods: 13
-  joint_setup_cost: 500
-  minor_setup_cost: [ 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 ]
-  holding_cost: [ 7.15,7.15,7.15,7.15, 7.15, 7.15 ]
+  joint_setup_cost: 5949
+  minor_setup_ratio: 1.2
+  holding_cost: [ 56.746590597921845, 27.808012422471087, 55.161044780561035, 57.072195025923534, 60.601173777486366, 17.492847296869314 ]
   shortage_cost: [ 140,  140,  140,  140,  140,  140 ]
   base_unit_cost: [ 71.5, 109.0, 8.49, 3.19, 65.55, 65.55 ]
-  big_m: [ 100, 100, 100, 100, 100, 100 ]
   service_level: [ 0.95, 0.95, 0.95, 0.95 , 0.95 ,0.95]
-  epsilon: [ 0.00001 ]
-  shipping_cost: [ 500 ]
-  lower_bound_free_shipping: [ 4500 ]
   should_include_safety_stock: True
 rl_model:
   n_products: 6
-  n_time_periods: 13
-  joint_setup_cost: 500
-  minor_setup_cost: [ 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 ]
-  holding_cost: [ 7.15,7.15,7.15,7.15, 7.15, 7.15 ]
+  n_time_periods: 52
+  joint_setup_cost: 5000
+  minor_setup_cost: [ 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0 ]
+  holding_cost: [ 56.746590597921845, 27.808012422471087, 55.161044780561035, 57.072195025923534, 60.601173777486366, 17.492847296869314]
   shortage_cost: [ 140,  140,  140,  140,  140,  140 ]
   base_unit_cost: [ 71.5, 109.0, 8.49, 3.19, 65.55, 65.55 ]
   big_m: [ 100, 100, 100, 100, 100, 100 ]
@@ -31,17 +37,16 @@ main:
   should_analyse: False
   stationary_products: True
   generate_new_data: True
-  product_categories: {"smooth": 0, "erratic": 0, "intermittent": 0, "lumpy": 6}
-  seed: 5 # If this is set to None then the products chosen will be totally random. Set it to a specific integer to get the same seed each time
-
 simulation:
   forecasting_method: "holt_winter"
   verbose: False
-  should_set_holding_cost_dynamically: False
-  n_episodes: 10
-  simulation_length: 13
-  warm_up_length: 0
-  should_perform_warm_up: False
+  should_set_holding_cost_dynamically: True
+  n_episodes: 2
+  simulation_length: 52
+  warm_up_length: 104
+  should_perform_warm_up: True
+  reset_length: 20
+
 
 actor:
   layers: [128,128]                        # Example: [30,30]
@@ -76,12 +81,13 @@ a2c:
   discount_rate: 0.99
   n_episodes: 1000
 environment:
-  n_periods_historical_data: 3
+  n_periods_historical_data: 2
   rolling_window_forecast: 5
   # Note: maximum_order_quantity / n_action_classes must be an integer
-  n_action_classes: 5
+  n_action_classes: 15
   maximum_order_quantity: 105
-  should_include_individual_forecast: False
+  order_quantity_per_discrete_class: 5
+  should_include_individual_forecast: True
   should_include_total_forecast: False
 rl:
   method: "ppo"

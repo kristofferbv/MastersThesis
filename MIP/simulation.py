@@ -2,6 +2,9 @@ from datetime import timedelta
 
 import numpy as np
 import pandas as pd
+import os
+import sys
+import time
 
 import deterministic_model as det_mod
 import sarima
@@ -10,34 +13,58 @@ from config_utils import load_config
 import generate_data
 from generate_data import generate_seasonal_data_based_on_products
 
-config = load_config("../config.yml")
+# Get the path of the current script
+current_path = os.path.dirname(os.path.abspath(__file__))
+
+# Append the parent directory of the current path to the system path
+parent_path = os.path.dirname(current_path)
+sys.path.append(parent_path)
+config_path = os.path.join(parent_path, "config.yml")
+
+
+config = load_config(config_path)
 n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
 n_episodes = config["simulation"]["n_episodes"] # This is the number of times we run a full simulation
 simulation_length = config["simulation"]["simulation_length"] # This is the number of time periods we want to calculate the costs for
 warm_up_length = config["simulation"]["warm_up_length"] # This is the number of time periods we are using to warm up
 should_perform_warm_up = config["simulation"]["should_perform_warm_up"]
+reset_length =  config["simulation"]["reset_length"]
+start_index = 104
 
 def simulate(real_products):
+    
+
+
+
     total_costs = []
     inventory_levels = None
+    
+    generated_products = generate_seasonal_data_based_on_products(real_products, (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods)
+    start_date = generated_products[0].index[start_index]
+    if should_perform_warm_up:
+        print("Warming up")
+        inventory_levels, start_date = perform_warm_up(generated_products, start_date, n_time_periods)
     for episode in range(n_episodes):
-        generated_products = generate_seasonal_data_based_on_products(real_products, simulation_length + warm_up_length + 208 + 30)
-        start_date = generated_products[0].index[213]
-        if should_perform_warm_up:
-            inventory_levels, start_date = perform_warm_up(generated_products, start_date, n_time_periods)
-            costs, _, _ , _ = run_one_episode(start_date, n_time_periods, generated_products, real_products, inventory_levels=inventory_levels)
-        else:
-            costs, _, _ , _ = run_one_episode(start_date, n_time_periods, generated_products,real_products, simulation_length)
-        total_costs.append(costs)
-        print(f"costs for episode {episode} is: {costs}")
+            # simulate and sample costs
+            print("Running simulation...")
+            costs, inventory_levels, _ , _ = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, inventory_levels=inventory_levels)
+            total_costs.append(costs)
+            print(f"Costs for episode {episode} is: {costs}")
+            print("Resetting...")
+            # resetting
+            costs, inventory_levels, _ , _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, inventory_levels=inventory_levels)
     print(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}")
 
 def perform_warm_up(products, start_date, n_time_periods):
     inventory_levels = [0 for i in range(len(products))]
-    _, _, inventory_levels, end_date = run_one_episode(start_date, n_time_periods, products, inventory_levels=inventory_levels, episode_length=warm_up_length)
-    return inventory_levels, end_date
+    #for i in range(simulation_length):
+    _, inventory_levels, start_date, _ = run_one_episode(start_date, n_time_periods, products, warm_up_length, inventory_levels=inventory_levels)
+    return inventory_levels, start_date
 
-def run_one_episode(start_date, n_time_periods, products, real_products, episode_length, inventory_levels = None):
+def run_one_episode(start_date, n_time_periods, products, episode_length,  inventory_levels = None):
+
+    start_time = time.time()
+
     config = load_config("../config.yml")
     forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
     verbose = config["simulation"]["verbose"]  # number of time periods
@@ -58,8 +85,12 @@ def run_one_episode(start_date, n_time_periods, products, real_products, episode
     holding_costs = 0
     setup_costs = 0
 
+    sum_actual_demand = {product_index: 0 for product_index in range(len(products))}
+    sum_fulfilled_demand = {product_index: 0 for product_index in range(len(products))}
+
+
     for time_step in range(episode_length):
-        print(f"Time step {time_step}/{simulation_length}")
+        print(f"Time step {time_step}/{episode_length}")
         start_date = start_date + timedelta(days=7)
 
         period_costs = 0
@@ -75,7 +106,12 @@ def run_one_episode(start_date, n_time_periods, products, real_products, episode
                     demand = products[product_index].loc[start_date]
 
                 actual_demands.append(demand)
-                               # add holding costs or shortage costs
+
+                # used to calculate the service level
+                sum_actual_demand[product_index] += demand
+                sum_fulfilled_demand[product_index] += min(inventory_levels[product_index] + actions[time_step - 1][product_index], demand)
+
+                # add holding costs or shortage costs
                 if inventory_levels[product_index] + actions[time_step - 1][product_index] - demand > 0:
                     holding_costs += (inventory_levels[product_index] + actions[time_step - 1][product_index] - demand) * deterministic_model.holding_cost[product_index]
                     period_costs += (inventory_levels[product_index] + actions[time_step - 1][product_index] - demand) * deterministic_model.holding_cost[product_index]
@@ -131,7 +167,7 @@ def run_one_episode(start_date, n_time_periods, products, real_products, episode
             else:
                 raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
 
-        deterministic_model = det_mod.DeterministicModel(real_products)
+        deterministic_model = det_mod.DeterministicModel()
         deterministic_model.set_demand_forecast(dict_demands)
         if should_set_holding_cost_dynamically:
             deterministic_model.set_holding_costs(unit_costs)
@@ -144,7 +180,7 @@ def run_one_episode(start_date, n_time_periods, products, real_products, episode
 
         # Extract and store the first action for each product in the current time step
         actions[time_step] = {}
-        threshold = 1e-10
+        threshold = 1e-5
 
         orders[time_step] = {}
 
@@ -176,14 +212,25 @@ def run_one_episode(start_date, n_time_periods, products, real_products, episode
     # print("Holding costs:")
     # print(holding_costs)
     # print("Setup costs")
-    print(actions)
-    # print("orders")
     # print(setup_costs)
+    # print(actions)
+    # print("orders")
     # print(orders)
     # runtime = deterministic_model.model.Runtime
     # print("The run time is %f" % runtime)
 
-    return total_costs, actions, inventory_levels, start_date
+    end_time = time.time()  # Stop measuring the time
+    runtime = end_time - start_time
+    print(f"Solution time for this episode is: {runtime} seconds")
+
+    for product_index in range(len(products)):
+        service_level = sum_fulfilled_demand[product_index] / sum_actual_demand[product_index]
+        print(f"Achieved service level for Product {product_index}: {service_level}")
+
+    
+    print(actions)
+
+    return total_costs, inventory_levels, start_date, actions
 
 
 
