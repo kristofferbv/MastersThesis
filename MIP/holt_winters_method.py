@@ -46,7 +46,11 @@ def forecast(df, date, shouldShowPlot=False, n_time_periods=20):
         mse = np.mean((test.values[:n_time_periods] - forecast) ** 2)
         print(f'MSE: {mse:.2f}')
 
-    standard_deviation = statistics.stdev((test.values[:n_time_periods] - forecast))
+    try:
+        standard_deviation = statistics.stdev((test.values[:n_time_periods] - forecast))
+    except:
+        print("df", df)
+        print("date", date)
 
     return np.insert(forecast.values, 0, 0), [standard_deviation / 5] * (len(forecast) + 1)     # Dividing by 5 because safety stock is too high
 

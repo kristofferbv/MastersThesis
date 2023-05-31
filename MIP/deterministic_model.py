@@ -10,11 +10,11 @@ from collections import defaultdict
 
 
 class DeterministicModel:
-    def __init__(self):
+    def __init__(self, n_products):
 
         config = load_config("../config.yml")
         self.n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
-        self.n_products = config["deterministic_model"]["n_products"]  # number of product types
+        self.n_products = n_products  # number of product types
         self.products = [i for i in range(0, self.n_products)]
         self.time_periods = [i for i in range(0, self.n_time_periods + 1)]
         self.tau_periods = [i for i in range(1, self.n_time_periods + 1)]
@@ -22,39 +22,30 @@ class DeterministicModel:
         # Parameters
         self.major_setup_cost = config["deterministic_model"]["joint_setup_cost"]
         self.minor_setup_ratio = config["deterministic_model"]["minor_setup_ratio"]
-        self.minor_setup_cost = [self.minor_setup_ratio*self.major_setup_cost/self.n_products for i in range(0, self.n_products)]
-
-        self.holding_cost = config["deterministic_model"]["holding_cost"] # remove?
-
+        self.minor_setup_cost = [self.minor_setup_ratio * self.major_setup_cost / self.n_products for i in range(0, self.n_products)]
         self.safety_stock = defaultdict(lambda: defaultdict(dict))
         self.big_m = defaultdict(lambda: defaultdict(dict))
         self.model = gp.Model('Inventory Control 1')
 
-        self.start_inventory = [0, 0, 0, 0, 0, 0]  #remove?
+        self.start_inventory = [0, 0, 0, 0, 0, 0]  # remove?
         self.has_been_set_up = False
         self.service_level = defaultdict(dict)
-        # self.service_level = config["deterministic_model"]["service_level"]
-        self.shortage_cost = config["deterministic_model"]["shortage_cost"]
         self.should_include_safety_stock = config["deterministic_model"]["should_include_safety_stock"]
 
         # change shortage cost based on formula 
         # could make an if sentence if this could be set by the user
 
-        service_levels = config["deterministic_model"]["service_level"]  
+        service_level = config["deterministic_model"]["service_level"]
 
         for product_index in range(self.n_products):
-            self.shortage_cost[product_index] = self.holding_cost[product_index] / (1 / service_levels[product_index] - 1)
-
-        for product_index in range(self.n_products):
-            self.service_level[product_index][0] = service_levels[product_index]
-            self.service_level[product_index][1] = service_levels[product_index]
+            self.service_level[product_index][0] = service_level
+            self.service_level[product_index][1] = service_level
 
             for tau_period in range(2, len(self.tau_periods) + 1):
-                self.service_level[product_index][tau_period] = self.service_level[product_index][tau_period-1] 
+                self.service_level[product_index][tau_period] = self.service_level[product_index][tau_period - 1]
 
-        # change shortage cost based on formula
-        # for product_index in range(self.n_products):
-        #   self.shortage_cost[product_index] = self.holding_cost[product_index]/(1/self.service_level[product_index] - 1)
+                # change shortage cost based on formula
+        self.shortage_cost = []
 
         # print("shortage costs")
         # print(self.shortage_cost)
@@ -62,7 +53,6 @@ class DeterministicModel:
     def set_demand_forecast(self, demand_forecast):
         self.demand_forecast = demand_forecast
         self.model.update()
-       
 
     def set_holding_costs(self, unit_cost):
         # Multiply unit cost by 0.1 to get holding costs
@@ -70,7 +60,7 @@ class DeterministicModel:
 
         # Calculate shortage costs
         for product_index in range(self.n_products):
-            self.shortage_cost[product_index] = self.holding_cost[product_index] / (1 / self.service_level[product_index][self.tau_periods[0]] - 1)
+            self.shortage_cost.append(self.holding_cost[product_index] / (1 / self.service_level[product_index][self.tau_periods[0]] - 1))
 
     # Set the safety stocks
     def set_safety_stock(self, standard_deviations):
@@ -80,7 +70,7 @@ class DeterministicModel:
                 for tau_period in range(1, self.n_time_periods - time_period + 2):
                     squared_sum = sum(standard_deviations[product_index][time_period + t] ** 2 for t in range(0, tau_period))
                     self.safety_stock[product_index][time_period][tau_period] = norm.ppf(self.service_level[product_index][tau_period]) * np.sqrt(squared_sum)
-                    self.safety_stock[product_index][time_period][tau_period] = self.safety_stock[product_index][time_period][tau_period] 
+                    self.safety_stock[product_index][time_period][tau_period] = self.safety_stock[product_index][time_period][tau_period]
         self.model.update()
         # print("safety stock")
         # print(self.safety_stock)
@@ -115,7 +105,7 @@ class DeterministicModel:
 
         if self.has_been_set_up:
             return
-        
+
         # Create variables
         replenishment_q = self.model.addVars(self.products, self.time_periods, lb=0, name="ReplenishmentQ")
         order_product = self.model.addVars(self.products, self.time_periods, self.tau_periods, vtype=GRB.BINARY, name="OrderProduct")

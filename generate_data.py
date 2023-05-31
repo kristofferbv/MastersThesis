@@ -45,22 +45,27 @@ def generate_seasonal_data_based_on_products(products, num_periods, seed = None)
     products_list = []
     if seed is not None:
         np.random.seed(seed)
-    for product_series in products:
+    for product in products:
         # First, we decompose the series to get the seasonal component
-        res = sm.tsa.seasonal_decompose(product_series, model='additive', period=52)
+        res = sm.tsa.seasonal_decompose(product["sales_quantity"], model='additive', period=52)
         # Then, we repeat the seasonal component for the desired number of periods
-        seasonal_data = np.tile(res.seasonal, num_periods // len(product_series) + 1)[:num_periods]
+        num_repetitions = int(np.ceil(num_periods / len(product["sales_quantity"])))
+
+        seasonal_data = np.tile(res.seasonal, num_repetitions)[:num_periods]
         data = seasonal_data
 
         # We add a trend and some noise to make it more realistic
-        trend = np.linspace(product_series.mean(), product_series.mean(), num_periods)
+        trend = np.linspace(product["sales_quantity"].mean(), product["sales_quantity"].mean(), num_periods)
         data += trend
         # Modify the standard deviation calculation to also depend on seasonality
         noise_std_dev = 0.1 * (trend + seasonal_data)
         noise = np.random.normal(0, noise_std_dev)
         # noise = np.random.normal(loc=res.resid.mean(), scale=res.resid.std(), size = num_periods)
         data += noise
-        products_list.append(pd.Series(data, index=pd.date_range(product_series.index[0], periods=num_periods, freq='W')))
+        new_index = pd.date_range(product["sales_quantity"].index[0], periods=num_periods, freq='W')
+        product = product.reindex(new_index)  # reindex the dataframe
+        product["sales_quantity"] = pd.Series(data, index=new_index)
+        products_list.append(product)
 
     return products_list
 

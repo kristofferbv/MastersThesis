@@ -29,17 +29,14 @@ simulation_length = config["simulation"]["simulation_length"] # This is the numb
 warm_up_length = config["simulation"]["warm_up_length"] # This is the number of time periods we are using to warm up
 should_perform_warm_up = config["simulation"]["should_perform_warm_up"]
 reset_length =  config["simulation"]["reset_length"]
-start_index = 104
+start_index = 105
 
 def simulate(real_products):
-    
-
-
-
     total_costs = []
     inventory_levels = None
-    
+    print("GEE", (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods)
     generated_products = generate_seasonal_data_based_on_products(real_products, (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods)
+    print(len(generated_products[0]))
     start_date = generated_products[0].index[start_index]
     if should_perform_warm_up:
         print("Warming up")
@@ -167,7 +164,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
             else:
                 raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
 
-        deterministic_model = det_mod.DeterministicModel()
+        deterministic_model = det_mod.DeterministicModel(len(products))
         deterministic_model.set_demand_forecast(dict_demands)
         if should_set_holding_cost_dynamically:
             deterministic_model.set_holding_costs(unit_costs)
