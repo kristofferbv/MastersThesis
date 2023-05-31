@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     average_unit_price = sum(unit_price_all) / len(unit_price_all)
 
-    #print("The average unit cost is: ", average_unit_price)
+    print("The average unit cost is: ", average_unit_price)
 
 
 

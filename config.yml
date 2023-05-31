@@ -1,6 +1,6 @@
 wanted_format:
   n_time_periods: 26
-  joint_setup_cost: 5949
+  joint_setup_cost: 1577
   minor_setup_ratio: 1.2
   should_include_safety_stock: True
   service level: [0.95, 0.95, 0.95, 0.95] 
