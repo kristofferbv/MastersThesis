@@ -29,14 +29,20 @@ simulation_length = config["simulation"]["simulation_length"] # This is the numb
 warm_up_length = config["simulation"]["warm_up_length"] # This is the number of time periods we are using to warm up
 should_perform_warm_up = config["simulation"]["should_perform_warm_up"]
 reset_length =  config["simulation"]["reset_length"]
-start_index = 105
+start_index = 208
 
 product_categories = config["deterministic_model"]["product_categories"]
 seed = config["main"]["seed"]
 n_products = sum(product_categories.values())
 
+n_erratic = product_categories["erratic"]
+n_smooth = product_categories["smooth"]
+n_intermittent = product_categories["intermittent"]
+n_lumpy = product_categories["lumpy"]
+
 major_setup_cost = config["deterministic_model"]["joint_setup_cost"]
 minor_setup_ratio = config["deterministic_model"]["minor_setup_ratio"]
+beta = config["deterministic_model"]["beta"]
 
 
 
@@ -46,7 +52,7 @@ def simulate(real_products):
 
     output_folder = "results"
 
-    output_file = f"simulation_output_p{n_products}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_seed{seed}.txt"
+    output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
     file_path = os.path.join(output_folder, output_file)
     if os.path.exists(file_path):
         os.remove(file_path)
@@ -63,13 +69,14 @@ def simulate(real_products):
         generated_products = generate_seasonal_data_based_on_products(real_products, (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
         print(len(generated_products[0]))
         start_date = generated_products[0].index[start_index]
+
+       
         if should_perform_warm_up:
             print("Warming up")
             inventory_levels, start_date = perform_warm_up(generated_products, start_date, n_time_periods)
         for episode in range(n_episodes):
                 # simulate and sample costs
                 print("Running simulation...")
-                f.write(f"Running episode: {episode}")
                 costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, inventory_levels=inventory_levels)
                 total_costs.append(costs)
                 print(f"Costs for episode {episode} is: {costs}")
@@ -80,8 +87,11 @@ def simulate(real_products):
                 costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, inventory_levels=inventory_levels)
         print(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}")
         f.write(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}" + "\n")
+        import statistics
+        standard_deviation_costs = statistics.stdev(total_costs)
+        f.write(f"Standard deviations of costs: {standard_deviation_costs}" + "\n")
         f.close()
-
+  
 
 def perform_warm_up(products, start_date, n_time_periods):
     inventory_levels = [0 for i in range(len(products))]
@@ -191,7 +201,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
             if forecasting_method == "holt_winter":
                 dict_demands[product_index], dict_sds[product_index] = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
             elif forecasting_method == "sarima":
-                dict_demands[product_index], dict_sds[product_index] = sarima.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
+                dict_demands[product_index], dict_sds[product_index] = sarima.forecast(products[product_index], start_date, n_time_periods=n_time_periods, shouldShowPlot=False)
             else:
                 raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
 
@@ -252,7 +262,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
 
     output_folder = "results"
 
-    output_file = f"simulation_output_p{n_products}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_seed{seed}.txt"
+    output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
     file_path = os.path.join(output_folder, output_file)
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)

@@ -31,6 +31,7 @@ class DeterministicModel:
         self.has_been_set_up = False
         self.service_level = defaultdict(dict)
         self.should_include_safety_stock = config["deterministic_model"]["should_include_safety_stock"]
+        self.beta = config["deterministic_model"]["beta"]
 
         # change shortage cost based on formula 
         # could make an if sentence if this could be set by the user
@@ -42,8 +43,7 @@ class DeterministicModel:
             self.service_level[product_index][1] = service_level
 
             for tau_period in range(2, len(self.tau_periods) + 1):
-                self.service_level[product_index][tau_period] = self.service_level[product_index][tau_period - 1]
-
+                self.service_level[product_index][tau_period] = self.service_level[product_index][tau_period - 1] * self.beta
                 # change shortage cost based on formula
         self.shortage_cost = []
 
