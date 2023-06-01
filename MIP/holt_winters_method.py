@@ -52,5 +52,5 @@ def forecast(df, date, shouldShowPlot=False, n_time_periods=20):
         print("df", df)
         print("date", date)
 
-    return np.insert(forecast.values, 0, 0), [standard_deviation / 5] * (len(forecast) + 1)     # Dividing by 5 because safety stock is too high
+    return np.insert(forecast.values, 0, 0), [standard_deviation] * (len(forecast) + 1)     # Dividing by 5 because safety stock is too high
 

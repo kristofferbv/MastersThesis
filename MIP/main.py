@@ -34,6 +34,7 @@ if __name__ == '__main__':
     product_categories = config["deterministic_model"]["product_categories"]
     seed = config["main"]["seed"]
     n_products = sum(product_categories.values())
+    
 
     # calculate average unit costs to compute setup costs
     all_products = retrieve_data.read_products("2016-01-01", "2020-12-30")
