@@ -270,6 +270,7 @@ class MultiAgent:
         # Main training loop
         # Warm-up phase
         state = self.env.reset()
+        self.env.set_costs(self.products)
         # for _ in range(warm_up_steps):
         #     action = env.action_space.sample()  # Take random action
         #     next_state, reward, done, *_ = env.step(action)
@@ -278,9 +279,8 @@ class MultiAgent:
         #     if done:
         #         state = env.reset()
 
+        # self.env.set_costs(self.products)
         # Main training loop
-        running_avg_reward = 0
-        running_std_reward = 1  # Initialize to 1 to avoid division by zero issues
         start_std_dev = 0.1
         noise_reduction = start_std_dev / num_episodes
 
@@ -289,6 +289,7 @@ class MultiAgent:
         for episode in range(num_episodes + 100):
             noise_std_dev = start_std_dev - episode * noise_reduction
             products = generate_seasonal_data_based_on_products(self.products, 500)
+            self.env.scale_demand(products)
             self.env.products = products
             done = False
             total_reward = 0
@@ -327,21 +328,21 @@ class MultiAgent:
                 # running_std_reward = np.sqrt(0.99 * running_std_reward ** 2 + 0.01 * (sum(reward)*2 - running_avg_reward) ** 2)
                 # reward = [-abs((reward - running_avg_reward) / running_std_reward)for reward in reward]
 
-                if(episode>100):
-                    # Store experience in replay buffer
-                    self.replay_buffer.add((state, actions, next_state, reward, done))
+                self.replay_buffer.add((state, actions, next_state, reward, done))
+                for agent_num in range(len(self.agents)):
+                    self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size=batch_size)
 
                 # Move to next state
                 state = next_state
 
                  # Train agent
-                if episode > 200:
-                    if episode % 300 == 0:
-                        for agent_num in range(len(self.agents)):
-                            self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size = len(self.replay_buffer.storage))
-                    else:
-                        for agent_num in range(len(self.agents)):
-                            self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size = batch_size)
+                # if episode > 100:
+                #     if episode % 300 == 0:
+                #         for agent_num in range(len(self.agents)):
+                #             self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size = len(self.replay_buffer.storage))
+                #     else:
+                #         for agent_num in range(len(self.agents)):
+                #             self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size = batch_size)
             if episode > 200 or episode % 10 == 0:
                 print(actions)
                 print(f"Episode {episode + 1}: Total Reward = {total_reward}")

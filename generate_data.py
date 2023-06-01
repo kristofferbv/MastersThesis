@@ -41,10 +41,12 @@ def plot_data(df):
     plt.legend()
     plt.show()
 
-def generate_seasonal_data_based_on_products(products, num_periods, seed = None):
+
+def generate_seasonal_data_based_on_products(products, num_periods, seed=None):
     products_list = []
     if seed is not None:
         np.random.seed(seed)
+
     for product in products:
         # First, we decompose the series to get the seasonal component
         res = sm.tsa.seasonal_decompose(product["sales_quantity"], model='additive', period=52)
@@ -58,8 +60,12 @@ def generate_seasonal_data_based_on_products(products, num_periods, seed = None)
         trend = np.linspace(product["sales_quantity"].mean(), product["sales_quantity"].mean(), num_periods)
         data += trend
         # Modify the standard deviation calculation to also depend on seasonality
-        noise_std_dev = 0.1 * (trend + seasonal_data)
-        noise = np.random.normal(0, noise_std_dev)
+        noise_std_dev = 0.1 * abs(trend + seasonal_data)
+        if seed is None:
+            rng = np.random.default_rng()
+            noise = rng.normal(0, noise_std_dev)
+        else:
+            noise = np.random.normal(0, noise_std_dev)
         # noise = np.random.normal(loc=res.resid.mean(), scale=res.resid.std(), size = num_periods)
         data += noise
         new_index = pd.date_range(product["sales_quantity"].index[0], periods=num_periods, freq='W')
@@ -68,6 +74,7 @@ def generate_seasonal_data_based_on_products(products, num_periods, seed = None)
         products_list.append(product)
 
     return products_list
+
 
 # Generate new data for each product and store them in a list
 # new_data = [generate_seasonal_data(product, num_periods=100) for product in products]
@@ -89,7 +96,6 @@ def generate_next_week_demand(product_series):
     # Predict next week's seasonal component
     seasonal_prediction = res.seasonal[next_week - 1]  # subtract 1 because Python uses 0-based indexing
 
-
     # Modify the standard deviation calculation to also depend on seasonality
     noise_std_dev = 0.1 * (trend_prediction + seasonal_prediction)
 
@@ -101,8 +107,6 @@ def generate_next_week_demand(product_series):
     demand = trend_prediction + seasonal_prediction + noise
 
     return demand
-
-
 
 # # Generate and plot data
 # df = generate_data(5, 30)

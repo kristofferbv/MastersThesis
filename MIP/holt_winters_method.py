@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import statistics
 
 
-def forecast(df, date, shouldShowPlot=False, n_time_periods=20):
+def forecast(df, date, shouldShowPlot=False, n_time_periods=20, include_negative_values = False):
     if isinstance(df, pd.DataFrame):
         # Split the data into training and testing sets
         train = df.loc[df.index <= date]["sales_quantity"]
@@ -27,7 +27,8 @@ def forecast(df, date, shouldShowPlot=False, n_time_periods=20):
     forecast = fit.forecast(n_time_periods)
 
     # making sure we don't forecast negative values
-    forecast[forecast < 0] = 0
+    if not include_negative_values:
+        forecast[forecast < 0] = 0
 
     if shouldShowPlot:
         # Evaluate the forecast
@@ -46,11 +47,17 @@ def forecast(df, date, shouldShowPlot=False, n_time_periods=20):
         mse = np.mean((test.values[:n_time_periods] - forecast) ** 2)
         print(f'MSE: {mse:.2f}')
 
-    try:
-        standard_deviation = statistics.stdev((test.values[:n_time_periods] - forecast))
-    except:
-        print("df", df)
-        print("date", date)
+    if len(test.values[:n_time_periods]) > 1:
+        try:
+            standard_deviation = statistics.stdev((test.values[:n_time_periods] - forecast))
+            return np.insert(forecast.values, 0, 0), [standard_deviation] * (len(forecast) + 1)  # Dividing by 5 because safety stock is too high
+        except:
+            print("df", df)
+            print("date", date)
+            return 0
+    else:
+        standard_deviation = 0
+    return np.insert(forecast.values, 0, 0), standard_deviation * (len(forecast) + 1)  # Dividing by 5 because safety stock is too high
 
-    return np.insert(forecast.values, 0, 0), [standard_deviation / 5] * (len(forecast) + 1)     # Dividing by 5 because safety stock is too high
+
 

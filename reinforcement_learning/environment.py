@@ -1,3 +1,4 @@
+import copy
 import os
 from abc import ABC
 
@@ -7,6 +8,7 @@ import pandas as pd
 from gym import spaces
 from sklearn.preprocessing import StandardScaler
 import config_utils
+from MIP import holt_winters_method, sarima
 from generate_data import generate_next_week_demand
 
 
@@ -29,7 +31,10 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
         # Parameters
         self.major_setup_cost = rl_config["joint_setup_cost"]
-        self.minor_setup_cost = rl_config["minor_setup_cost"]
+        # self.minor_setup_cost = rl_config["minor_setup_cost"]
+        self.minor_setup_ratio = rl_config["minor_setup_ratio"]
+        self.minor_setup_cost = [self.minor_setup_ratio * self.major_setup_cost / len(self.products) for i in range(0, len(self.products))]
+
         self.holding_cost = rl_config["holding_cost"]
         self.shortage_cost = rl_config["shortage_cost"]
         self.safety_stock = {}
@@ -59,11 +64,20 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.time_period += increase
     def reset_time_period(self):
         self.time_period = 0
+    def set_costs(self, products):
+        unit_costs = [df.iloc[0]['average_unit_cost'] for df in products]
+        self.holding_cost = [0.1 * x for x in unit_costs]
+        # Calculate shortage costs
+        self.shortage_cost = []
+        for product_index in range(len(products)):
+            self.shortage_cost.append(self.holding_cost[product_index] / (1 / 0.95 - 1))
+
+
 
     def reset(self, **kwargs):
         # Reset the environment to the initial state. Setting start period so that we can ensure we have all historical data required for the first state
         self.current_period = max(self.rolling_window, self.n_periods_historical_data) + self.time_period
-        self.inventory_levels = [0 for _ in self.products]
+        # self.inventory_levels = [0 for _ in self.products]
         return self._get_observation()
 
     def step(self, action):
@@ -71,9 +85,12 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # action = [x * self.action_multiplier for x in action]
         # Apply the replenishment action
         major_setup_triggered = False
-        return_action= action
+
+
+        # action = [round(action / 2) * 2 for action in action]
+
         individual_rewards = []
-        count_major_setup_sharing = len([i for i in action if i > 1])
+        count_major_setup_sharing = len([i for i in action if i > 0])
 
         demands = []
         minor_costs = []
@@ -84,7 +101,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
 
         for i, product in enumerate(self.products):
-            if action[i] > 1:
+            if action[i] > 0:
                 self.inventory_levels[i] += action[i]
                 # Apply only fractional part of major setup costs corresponding to number of products ordering
                 # if count_major_setup_sharing == 1:
@@ -99,7 +116,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
             # Simulate demand and calculate shortage cost and holding cost.
             try:
-                demand = product.iloc[self.current_period]  # dividing by 10 for training purpose only
+                demand = product.iloc[self.current_period]["sales_quantity"]  # dividing by 10 for training purpose only
             except:
                 print(self.current_period)
             shortage_cost = abs(min((self.inventory_levels[i] - demand), 0)) * self.shortage_cost[i]
@@ -139,10 +156,13 @@ class JointReplenishmentEnv(gym.Env, ABC):
         demand = []
         total_forecast = 0
         forecast = 0
+        start_date = self.products[0].index[self.current_period]
         for i, product in enumerate(self.scaled_products):
-            historical_demand = product.iloc[max(self.current_period - self.n_periods_historical_data, 0):self.current_period].values
+            historical_demand = product["sales_quantity"].iloc[max(self.current_period - self.n_periods_historical_data, 0):self.current_period].values
             if self.should_include_individual_forecast or self.should_include_total_forecast:
-                forecast_demand = product.iloc[max(self.current_period - self.rolling_window, 0):self.current_period].values
+                # forecast, _ = sarima.forecast(product, start_date, n_time_periods=1)
+                # forecast = forecast[1]
+                forecast_demand = product["sales_quantity"].iloc[max(self.current_period - self.rolling_window, 0):self.current_period].values
                 forecast = sum(forecast_demand) / len(forecast_demand)
                 total_forecast += forecast
             if len(historical_demand) < self.n_periods_historical_data:
@@ -152,9 +172,9 @@ class JointReplenishmentEnv(gym.Env, ABC):
                 concat = [self.inventory_levels[i] / 10, forecast]
                 observation.append(np.concatenate((concat, historical_demand)))
             else:
-                inventory.append(self.inventory_levels[i] / 10)
+                inventory.append(self.inventory_levels[i])
                 demand.append(historical_demand)
-                observation.append(np.concatenate(([self.inventory_levels[i] / 10], historical_demand)))
+                observation.append(np.concatenate(([self.inventory_levels[i]/10], historical_demand)))
         if self.should_include_total_forecast:
             observation = [np.append(arr, total_forecast) for arr in observation]
 
@@ -168,19 +188,35 @@ class JointReplenishmentEnv(gym.Env, ABC):
         return np.array(observation) # (inventory, demand)
 
     def normalize_demand(self, products):
+        products_copy = copy.deepcopy(products)
         products_reshaped = []
-        for product in products:
+        for product in products_copy:
             # Initialize the scaler
-            scaler = StandardScaler()
+            self.scaler = StandardScaler()
 
             # Fit the scaler on your data
-            scaler.fit(product.values.reshape(-1, 1))
+            self.scaler.fit(product["sales_quantity"].values.reshape(-1, 1))
 
             # Now you can use this scaler to transform your data
-            normalized_sales_quantity = scaler.transform(product.values.reshape(-1, 1))
+            normalized_sales_quantity = self.scaler.transform(product["sales_quantity"].values.reshape(-1, 1))
 
             # Convert the normalized numpy array back to Series
             normalized_series = pd.Series(normalized_sales_quantity.flatten(), index=product.index)
             # Add the normalized series to the list
-            products_reshaped.append(normalized_series)
+            product["sales_quantity"] = normalized_series
+            products_reshaped.append(product)
         return products_reshaped
+    def scale_demand(self, products):
+        products_copy = copy.deepcopy(products)
+        products_reshaped = []
+        for product in products_copy:
+            # Now you can use this scaler to transform your data
+            normalized_sales_quantity = self.scaler.transform(product["sales_quantity"].values.reshape(-1, 1))
+            normalized_sales_quantity = np.around(normalized_sales_quantity * 10) / 10
+
+            # Convert the normalized numpy array back to Series
+            normalized_series = pd.Series(normalized_sales_quantity.flatten(), index=product.index)
+            # Add the normalized series to the list
+            product["sales_quantity"] = normalized_series
+            products_reshaped.append(product)
+        self.scaled_products = products_reshaped

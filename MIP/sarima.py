@@ -59,7 +59,7 @@ def optimize_SARIMA(df, start_date):
 
 
 
-def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=(1, 0, 1, 52), shouldShowPlot=True, verbose = True):
+def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=(1, 0, 1, 52), shouldShowPlot=False, verbose = False):
     # Set the frequency of the index to weekly
     df = df.asfreq("W")
     # Getting the product hash
@@ -72,7 +72,7 @@ def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=
     test = df.loc[df.index > start_date]
 
     # Check if a model file already exists for the given product_hash
-    model_filename = f"sarima_models/model_12.pkl"
+    model_filename = f"sarima_models/model_{product_hash}.pkl"
     if verbose:
         print("product_hash", model_filename)
     if os.path.exists(model_filename):
@@ -86,7 +86,7 @@ def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=
         model = model.fit(maxiter=100)
 
     # Save the model
-    # model.save(model_filename)
+    model.save(model_filename)
 
     # Forecast the next 20 periods
     end_date = start_date + pd.DateOffset(weeks=n_time_periods)
@@ -124,4 +124,4 @@ def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=
     std_dev.insert(0, 0)
 
     # Dividing by 10 because safety stock is too high
-    return predictions, [x/3 for x in std_dev]
+    return predictions, std_dev

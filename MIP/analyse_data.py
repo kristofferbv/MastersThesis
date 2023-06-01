@@ -1,4 +1,5 @@
 import pandas as pd
+from scipy import stats
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.stattools import adfuller
@@ -31,7 +32,7 @@ def get_non_stationary_products(products, start_date=None, should_plot=False, ve
                 print("Non-stationarity is discovered!")
                 print(f'ADF Statistic: {ad_fuller_result[0]}')
                 print(f'p-value: {ad_fuller_result[1]}')
-                print("product: ", label_name.iloc[0])
+                print("product: ", label_name)
     # Plotting it:
     if should_plot and len(stationary_products) != 0:
         fig, axes = plt.subplots(nrows=len(stationary_products), sharex=True, figsize=(10, len(stationary_products) * 3))
@@ -117,6 +118,11 @@ def decompose_sales_quantity(df, product_name = 0):
 
     # Plot the residuals
     decomposition.resid.plot(ax=ax4)
+    _, p_value = stats.shapiro(decomposition.resid)
+    if p_value < 0.05:
+        print('Data do not follow a normal distribution')
+    else:
+        print('Data follow a normal distribution')
     ax4.set_title('Residuals')
     if is_dataframe:
         # Set title of figure

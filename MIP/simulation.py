@@ -29,27 +29,34 @@ simulation_length = config["simulation"]["simulation_length"] # This is the numb
 warm_up_length = config["simulation"]["warm_up_length"] # This is the number of time periods we are using to warm up
 should_perform_warm_up = config["simulation"]["should_perform_warm_up"]
 reset_length =  config["simulation"]["reset_length"]
-start_index = 105
+start_index = 208
 
 def simulate(real_products):
     total_costs = []
     inventory_levels = None
     print("GEE", (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods)
-    generated_products = generate_seasonal_data_based_on_products(real_products, (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods)
+    generated_products = generate_seasonal_data_based_on_products(real_products, (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
+
     print(len(generated_products[0]))
+    print(generated_products[0])
     start_date = generated_products[0].index[start_index]
-    if should_perform_warm_up:
+    for product in generated_products:
+        sarima.forecast(product, start_date, 20, shouldShowPlot=True)
+        holt_winters_method.forecast(product, start_date, shouldShowPlot=True, n_time_periods=20)
+    if should_perform_warm_up and warm_up_length > 0:
         print("Warming up")
         inventory_levels, start_date = perform_warm_up(generated_products, start_date, n_time_periods)
     for episode in range(n_episodes):
             # simulate and sample costs
             print("Running simulation...")
-            costs, inventory_levels, _ , _ = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, inventory_levels=inventory_levels)
+            costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, inventory_levels=inventory_levels)
+            print(start_date)
             total_costs.append(costs)
             print(f"Costs for episode {episode} is: {costs}")
             print("Resetting...")
             # resetting
-            costs, inventory_levels, _ , _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, inventory_levels=inventory_levels)
+            if reset_length > 0:
+                costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, inventory_levels=inventory_levels)
     print(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}")
 
 def perform_warm_up(products, start_date, n_time_periods):
@@ -166,6 +173,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
 
         deterministic_model = det_mod.DeterministicModel(len(products))
         deterministic_model.set_demand_forecast(dict_demands)
+
         if should_set_holding_cost_dynamically:
             deterministic_model.set_holding_costs(unit_costs)
         deterministic_model.set_safety_stock(dict_sds)
