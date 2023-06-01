@@ -31,33 +31,67 @@ should_perform_warm_up = config["simulation"]["should_perform_warm_up"]
 reset_length =  config["simulation"]["reset_length"]
 start_index = 208
 
-def simulate(real_products):
-    total_costs = []
-    inventory_levels = None
-    print("GEE", (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods)
-    generated_products = generate_seasonal_data_based_on_products(real_products, (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
+product_categories = config["deterministic_model"]["product_categories"]
+seed = config["main"]["seed"]
+n_products = sum(product_categories.values())
 
-    print(len(generated_products[0]))
-    print(generated_products[0])
-    start_date = generated_products[0].index[start_index]
-    for product in generated_products:
-        sarima.forecast(product, start_date, 20, shouldShowPlot=True)
-        holt_winters_method.forecast(product, start_date, shouldShowPlot=True, n_time_periods=20)
-    if should_perform_warm_up and warm_up_length > 0:
-        print("Warming up")
-        inventory_levels, start_date = perform_warm_up(generated_products, start_date, n_time_periods)
-    for episode in range(n_episodes):
-            # simulate and sample costs
-            print("Running simulation...")
-            costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, inventory_levels=inventory_levels)
-            print(start_date)
-            total_costs.append(costs)
-            print(f"Costs for episode {episode} is: {costs}")
-            print("Resetting...")
-            # resetting
-            if reset_length > 0:
+n_erratic = product_categories["erratic"]
+n_smooth = product_categories["smooth"]
+n_intermittent = product_categories["intermittent"]
+n_lumpy = product_categories["lumpy"]
+
+major_setup_cost = config["deterministic_model"]["joint_setup_cost"]
+minor_setup_ratio = config["deterministic_model"]["minor_setup_ratio"]
+beta = config["deterministic_model"]["beta"]
+
+
+
+
+
+def simulate(real_products):
+
+    output_folder = "results"
+
+    output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
+    file_path = os.path.join(output_folder, output_file)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    
+    with open(file_path, "a") as f:
+        for category in product_categories.keys():
+            number_of_products = product_categories[category]
+            f.write("Number of products of category " + category + " is " + str(number_of_products) + "\n")
+        total_costs = []
+        inventory_levels = None
+        print("GEE", (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods)
+        generated_products = generate_seasonal_data_based_on_products(real_products, (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
+        print(len(generated_products[0]))
+        start_date = generated_products[0].index[start_index]
+
+       
+        if should_perform_warm_up:
+            print("Warming up")
+            inventory_levels, start_date = perform_warm_up(generated_products, start_date, n_time_periods)
+        for episode in range(n_episodes):
+                # simulate and sample costs
+                print("Running simulation...")
+                costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, inventory_levels=inventory_levels)
+                total_costs.append(costs)
+                print(f"Costs for episode {episode} is: {costs}")
+                #f.write(f"Actions for episode {episode} are: {actions}" + "\n")
+                #print(f"Actions for episode {episode} are: {actions}")
+                print("Resetting...")
+                # resetting
                 costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, inventory_levels=inventory_levels)
-    print(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}")
+        print(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}")
+        f.write(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}" + "\n")
+        import statistics
+        standard_deviation_costs = statistics.stdev(total_costs)
+        f.write(f"Standard deviations of costs: {standard_deviation_costs}" + "\n")
+        f.close()
+  
 
 def perform_warm_up(products, start_date, n_time_periods):
     inventory_levels = [0 for i in range(len(products))]
@@ -74,7 +108,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
     verbose = config["simulation"]["verbose"]  # number of time periods
     should_set_holding_cost_dynamically = config["simulation"]["should_set_holding_cost_dynamically"]
     if should_set_holding_cost_dynamically:
-        unit_costs = [df.iloc[0]['average_unit_cost'] for df in products]
+        unit_price = [df.iloc[0]['average_unit_price'] for df in products]
 
     dict_demands = {}
     dict_sds = {}
@@ -167,15 +201,14 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
             if forecasting_method == "holt_winter":
                 dict_demands[product_index], dict_sds[product_index] = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
             elif forecasting_method == "sarima":
-                dict_demands[product_index], dict_sds[product_index] = sarima.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
+                dict_demands[product_index], dict_sds[product_index] = sarima.forecast(products[product_index], start_date, n_time_periods=n_time_periods, shouldShowPlot=False)
             else:
                 raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
 
         deterministic_model = det_mod.DeterministicModel(len(products))
         deterministic_model.set_demand_forecast(dict_demands)
-
         if should_set_holding_cost_dynamically:
-            deterministic_model.set_holding_costs(unit_costs)
+            deterministic_model.set_holding_costs(unit_price)
         deterministic_model.set_safety_stock(dict_sds)
         deterministic_model.set_big_m()
         deterministic_model.model.setParam("OutputFlag", 0)
@@ -226,14 +259,28 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
 
     end_time = time.time()  # Stop measuring the time
     runtime = end_time - start_time
-    print(f"Solution time for this episode is: {runtime} seconds")
 
-    for product_index in range(len(products)):
-        service_level = sum_fulfilled_demand[product_index] / sum_actual_demand[product_index]
-        print(f"Achieved service level for Product {product_index}: {service_level}")
+    output_folder = "results"
 
-    
-    print(actions)
+    output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
+    file_path = os.path.join(output_folder, output_file)
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    with open(file_path, "a") as f:
+        f.write(f"Solution time for this episode is: {runtime} seconds" + "\n")
+        print(f"Solution time for this episode is: {runtime} seconds")
+
+        for product_index in range(len(products)):
+            service_level = sum_fulfilled_demand[product_index] / sum_actual_demand[product_index]
+            print(f"Achieved service level for Product {product_index}: {service_level}")
+            f.write(f"Achieved service level for Product {product_index}: {service_level}" + "\n")
+
+        f.write(f"Actions for this episode are: {actions}" + "\n")
+        f.write(f"Total costs for this episode is: {total_costs}" + "\n")
+        
+        print(actions)
+        f.close()
 
     return total_costs, inventory_levels, start_date, actions
 
