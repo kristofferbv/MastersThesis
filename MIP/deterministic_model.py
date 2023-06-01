@@ -54,9 +54,9 @@ class DeterministicModel:
         self.demand_forecast = demand_forecast
         self.model.update()
 
-    def set_holding_costs(self, unit_cost):
+    def set_holding_costs(self, unit_price):
         # Multiply unit cost by 0.1 to get holding costs
-        self.holding_cost = [0.1 * x for x in unit_cost]
+        self.holding_cost = [0.1 * x for x in unit_price]
 
         # Calculate shortage costs
         for product_index in range(self.n_products):
