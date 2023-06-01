@@ -60,7 +60,7 @@ def simulate(real_products):
         total_costs = []
         inventory_levels = None
         print("GEE", (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods)
-        generated_products = generate_seasonal_data_based_on_products(real_products, (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods)
+        generated_products = generate_seasonal_data_based_on_products(real_products, (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
         print(len(generated_products[0]))
         start_date = generated_products[0].index[start_index]
         if should_perform_warm_up:
