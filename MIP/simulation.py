@@ -189,9 +189,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
 
         for product_index in range(len(products)):
             if forecasting_method == "holt_winter":
-                print("før forecasting")
                 dict_demands[product_index], dict_sds[product_index] = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
-                print("Etter forecasting")
             elif forecasting_method == "sarima":
                 dict_demands[product_index], dict_sds[product_index] = sarima.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
             else:
