@@ -70,14 +70,14 @@ def simulate(real_products):
                 # simulate and sample costs
                 print("Running simulation...")
                 f.write(f"Running episode: {episode}")
-                costs, inventory_levels, _ , _ = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, inventory_levels=inventory_levels)
+                costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, inventory_levels=inventory_levels)
                 total_costs.append(costs)
                 print(f"Costs for episode {episode} is: {costs}")
                 #f.write(f"Actions for episode {episode} are: {actions}" + "\n")
                 #print(f"Actions for episode {episode} are: {actions}")
                 print("Resetting...")
                 # resetting
-                costs, inventory_levels, _ , _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, inventory_levels=inventory_levels)
+                costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, inventory_levels=inventory_levels)
         print(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}")
         f.write(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}" + "\n")
         f.close()
