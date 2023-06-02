@@ -35,10 +35,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.minor_setup_ratio = rl_config["minor_setup_ratio"]
         self.minor_setup_cost = [self.minor_setup_ratio * self.major_setup_cost / len(self.products) for i in range(0, len(self.products))]
 
-        self.holding_cost = rl_config["holding_cost"]
-        self.shortage_cost = rl_config["shortage_cost"]
         self.safety_stock = {}
-        self.big_m = rl_config["big_m"]
         self.start_inventory = [0, 0, 0, 0, 0, 0]
         self.n_periods = rl_config["n_time_periods"]
 
@@ -65,7 +62,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
     def reset_time_period(self):
         self.time_period = 0
     def set_costs(self, products):
-        unit_costs = [df.iloc[0]['average_unit_cost'] for df in products]
+        unit_costs = [df.iloc[0]['average_unit_price'] for df in products]
         self.holding_cost = [0.1 * x for x in unit_costs]
         # Calculate shortage costs
         self.shortage_cost = []

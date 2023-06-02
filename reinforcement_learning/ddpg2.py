@@ -300,8 +300,8 @@ class DDPG():
             while True:
                 tf_prev_state = tf.convert_to_tensor([prev_state])
                 self.std_dev = self.std_dev * 0.99
-                if (self.std_dev < 0.25):
-                    self.std_dev = 0.25
+                if (self.std_dev < 0.3):
+                    self.std_dev = 0.3
                 ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(self.std_dev) * np.ones(1))
                 action = self.policy(tf_prev_state, ou_noise)[0]
                 for i in range(len(action)):
@@ -341,7 +341,7 @@ class DDPG():
             plt.ylabel("Avg. Epsiodic Reward")
             plt.show()
 
-    def test(self, episodes = 1000, path="actor_model_winner"):
+    def test(self, episodes = 1000, path="actor_model"):
         # loading model
         actor = tf.keras.models.load_model(path)
         avg_reward_list = []
@@ -364,7 +364,7 @@ class DDPG():
                 for i in range(len(action)):
                     if action[i] < 5:
                         action[i] = 0
-                # print(action)
+                print(action)
                 state, reward, done, info = self.env.step(action)
                 total_reward = sum(reward)
                 episodic_reward += total_reward

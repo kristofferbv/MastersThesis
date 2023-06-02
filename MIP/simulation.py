@@ -48,7 +48,7 @@ beta = config["deterministic_model"]["beta"]
 
 
 
-def simulate(real_products):
+def simulate(real_products, should_write = False):
 
     output_folder = "results"
 
@@ -71,7 +71,7 @@ def simulate(real_products):
         start_date = generated_products[0].index[start_index]
 
        
-        if should_perform_warm_up:
+        if should_perform_warm_up and warm_up_length>0:
             print("Warming up")
             inventory_levels, start_date = perform_warm_up(generated_products, start_date, n_time_periods)
         for episode in range(n_episodes):
@@ -80,17 +80,17 @@ def simulate(real_products):
                 costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, inventory_levels=inventory_levels)
                 total_costs.append(costs)
                 print(f"Costs for episode {episode} is: {costs}")
-                #f.write(f"Actions for episode {episode} are: {actions}" + "\n")
-                #print(f"Actions for episode {episode} are: {actions}")
-                print("Resetting...")
-                # resetting
-                costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, inventory_levels=inventory_levels)
+                if reset_length > 0:
+                    print("Resetting...")
+                    # resetting
+                    costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, inventory_levels=inventory_levels)
         print(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}")
-        f.write(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}" + "\n")
-        import statistics
-        standard_deviation_costs = statistics.stdev(total_costs)
-        f.write(f"Standard deviations of costs: {standard_deviation_costs}" + "\n")
-        f.close()
+        if should_write:
+            f.write(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}" + "\n")
+            import statistics
+            standard_deviation_costs = statistics.stdev(total_costs)
+            f.write(f"Standard deviations of costs: {standard_deviation_costs}" + "\n")
+            f.close()
   
 
 def perform_warm_up(products, start_date, n_time_periods):
