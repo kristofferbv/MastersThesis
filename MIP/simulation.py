@@ -5,6 +5,8 @@ import pandas as pd
 import os
 import sys
 import time
+import statistics
+
 
 import deterministic_model as det_mod
 import sarima
@@ -45,9 +47,6 @@ minor_setup_ratio = config["deterministic_model"]["minor_setup_ratio"]
 beta = config["deterministic_model"]["beta"]
 
 
-
-
-
 def simulate(real_products):
 
     output_folder = "results"
@@ -64,6 +63,8 @@ def simulate(real_products):
             number_of_products = product_categories[category]
             f.write("Number of products of category " + category + " is " + str(number_of_products) + "\n")
         total_costs = []
+        list_mean = []
+        list_std = []
         inventory_levels = None
         print("GEE", (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods)
         generated_products = generate_seasonal_data_based_on_products(real_products, (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
@@ -79,6 +80,8 @@ def simulate(real_products):
                 print("Running simulation...")
                 costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, inventory_levels=inventory_levels)
                 total_costs.append(costs)
+                list_mean.append(sum(total_costs)/len(total_costs))
+                list_std.append(statistics.stdev(total_costs))
                 print(f"Costs for episode {episode} is: {costs}")
                 #f.write(f"Actions for episode {episode} are: {actions}" + "\n")
                 #print(f"Actions for episode {episode} are: {actions}")
@@ -87,7 +90,9 @@ def simulate(real_products):
                 costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, inventory_levels=inventory_levels)
         print(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}")
         f.write(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}" + "\n")
-        import statistics
+        f.write(f'List of mean for each period: {list_mean}' + "\n")
+        f.write(f'List of standard deviation for each period: {list_std}' + "\n")
+
         standard_deviation_costs = statistics.stdev(total_costs)
         f.write(f"Standard deviations of costs: {standard_deviation_costs}" + "\n")
         f.close()
@@ -212,6 +217,9 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
         deterministic_model.set_safety_stock(dict_sds)
         deterministic_model.set_big_m()
         deterministic_model.model.setParam("OutputFlag", 0)
+        deterministic_model.setParam('TimeLimit', 2*60)  # set the time limit to 2 minutes for the gurobi model
+        deterministic_model.setParam('MIPGap', 0.01) # set the MIPGap to be 1% 
+
         deterministic_model.set_inventory_levels(inventory_levels)
         deterministic_model.set_up_model()
         deterministic_model.optimize()

@@ -71,10 +71,9 @@ class DeterministicModel:
                     squared_sum = sum(standard_deviations[product_index][time_period + t] ** 2 for t in range(0, tau_period))
                     self.safety_stock[product_index][time_period][tau_period] = norm.ppf(self.service_level[product_index][tau_period]) * np.sqrt(squared_sum)
                     self.safety_stock[product_index][time_period][tau_period] = self.safety_stock[product_index][time_period][tau_period]
-        self.model.update()
-        # print("safety stock")
-        # print(self.safety_stock)
 
+        self.model.update()
+        
     # Set big m values
     def set_big_m(self):
         for product_index in (self.products):
