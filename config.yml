@@ -31,7 +31,7 @@ main:
   should_analyse: False
   stationary_products: True
   generate_new_data: True
-  seed: 0
+  seed: 2
 simulation:
   forecasting_method: "sarima"
   verbose: False

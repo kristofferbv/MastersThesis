@@ -217,8 +217,8 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
         deterministic_model.set_safety_stock(dict_sds)
         deterministic_model.set_big_m()
         deterministic_model.model.setParam("OutputFlag", 0)
-        deterministic_model.setParam('TimeLimit', 2*60)  # set the time limit to 2 minutes for the gurobi model
-        deterministic_model.setParam('MIPGap', 0.01) # set the MIPGap to be 1% 
+        deterministic_model.model.setParam('TimeLimit', 2*60)  # set the time limit to 2 minutes for the gurobi model
+        deterministic_model.model.setParam('MIPGap', 0.01) # set the MIPGap to be 1% 
 
         deterministic_model.set_inventory_levels(inventory_levels)
         deterministic_model.set_up_model()
