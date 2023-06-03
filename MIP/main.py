@@ -53,7 +53,7 @@ if __name__ == '__main__':
     products = []
     if seed is not None:
         # Setting a random seed ensure we select the same random products each time
-        np.random.seed(seed)
+        random.seed(seed)
     for category in product_categories.keys():
         category_products = retrieve_data.read_products("2016-01-01", "2020-12-30", category)
         print(category)
