@@ -1,9 +1,3 @@
-wanted_format:
-  n_time_periods: 26
-  joint_setup_cost: 2000
-  minor_setup_ratio: 1.2
-  should_include_safety_stock: True
-  service level: [0.95, 0.95, 0.95, 0.95] 
 deterministic_model:
   product_categories: { "erratic": 6, "smooth": 6, "intermittent": 6, "lumpy": 6}
   n_time_periods: 13
@@ -43,39 +37,6 @@ simulation:
   reset_length: 13
   should_write: True
 
-
-actor:
-  layers: [128,128]                        # Example: [30,30]
-  activation_functions: ["tanh","tanh","relu"]  # Example: ["relu","relu"]. Examples of activation functions are relu linear, sigmoid, tanh
-  learning_rate: 0.0001
-  output_activation_function: "softmax"
-  optimizer: "Adam"                                 # Examples of optimizers are Adagrad, Stochastic Gradient Descent (SGD), RMSprop or Adam
-  loss_function: "mse"
-  batch_size: 128                                   # Normal values: 32, 64, 128
-  epochs: 10000
-  epsilon: 0.5
-  epsilon_decay: 0.995
-  epsilon_min_value: 0.05
-  episodes_epsilon_one: 100
-  stochastic: False
-
-critic:
-  layers: [128,128]                        # Example: [30,30]
-  activation_functions: ["tanh","tanh","relu"]  # Example: ["relu","relu"]. Examples of activation functions are relu linear, sigmoid, tanh
-  learning_rate: 0.0001
-  output_activation_function: "relu"
-  optimizer: "Adam"                                 # Examples of optimizers are Adagrad, Stochastic Gradient Descent (SGD), RMSprop or Adam
-  loss_function: "mse"
-  batch_size: 128                                   # Normal values: 32, 64, 128
-  epochs: 10000
-  epsilon: 0.5
-  epsilon_decay: 0.995
-  epsilon_min_value: 0.05
-  episodes_epsilon_one: 100
-  stochastic: False
-a2c:
-  discount_rate: 0.99
-  n_episodes: 1000
 environment:
   n_periods_historical_data: 2
   rolling_window_forecast: 5
@@ -88,16 +49,3 @@ environment:
 rl:
   method: "ppo"
   generate_data: True
-
-ppo:
-  steps_per_epoch: 4000
-  epochs: 3000
-  gamma: 0.99
-  clip_ratio: 0.2
-  policy_learning_rate: 3e-4
-  value_function_learning_rate: 1e-3
-  train_policy_iterations: 80
-  train_value_iterations: 80
-  lam: 0.97
-  target_kl: 0.01
-  hidden_sizes: (64, 64)
