@@ -58,42 +58,44 @@ def optimize_SARIMA(df, start_date):
     return result_df
 
 
-
-def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=(1, 0, 1, 52), shouldShowPlot=False, verbose = False):
+def forecast(df, start_date, model = None, n_time_periods=20, order=(1, 0, 1), seasonal_order=(1, 0, 1, 52), shouldShowPlot=False, verbose=False):
     # Set the frequency of the index to weekly
     df = df.asfreq("W")
     # Getting the product hash
 
     product_hash = df["product_hash"].iloc[0]
-    df = df["sales_quantity"]
-
 
     train = df.loc[df.index <= start_date]
     train = train.resample('W').asfreq().fillna(0)
+    train_df = train
     test = df.loc[df.index > start_date]
     test = test.resample('W').asfreq().fillna(0)
+    train = train["sales_quantity"]
+    test = test["sales_quantity"]
+
 
     # Check if a model file already exists for the given product_hash
     model_filename = f"sarima_models/model_{product_hash}.pkl"
     if verbose:
         print("product_hash", model_filename)
-    has_model = False
-    if os.path.exists(model_filename) and os.path.getsize(model_filename) > 0:
+    if os.path.exists(model_filename) and os.path.getsize(model_filename) > 0 and model is None:
         try:
             # Load the existing model
             model = pd.read_pickle(model_filename)
-            has_model = True
         except EOFError:
             print(f"EOFError: File {model_filename} is empty or does not exist.")
         if verbose:
             print("Using existing model for product hash: ", 1)
-    if not has_model:
+    if model is None:
         # Fit a new SARIMA model
-        model = SARIMAX(train, order=order, seasonal_order=seasonal_order)
-        model = model.fit(maxiter=100)
 
-    # Save the model
-    model.save(model_filename)
+        model = SARIMAX(train, order=order, seasonal_order=seasonal_order, initialization='approximate_diffuse')
+        model = model.fit(maxiter=100)
+        # Save the model
+        # model.save(model_filename)
+    else:
+        # Update the existing model with the latest data
+        model = model.update(train)
 
     # Forecast the next 20 periods
     end_date = start_date + pd.DateOffset(weeks=n_time_periods)
@@ -101,10 +103,6 @@ def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=
 
     # calculate standard deviation:
     conf_int = forecast.conf_int(alpha=0.05)  # 95% confidence interval
-
-    # Compute the standard deviation for each forecast period
-    var_pred_mean = forecast.var_pred_mean
-    std_dev = np.sqrt(var_pred_mean)
 
     if shouldShowPlot:
         # Evaluate the forecast
@@ -127,10 +125,8 @@ def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=
     predictions = forecast.predicted_mean.tolist()
     # Inserting 0 at time period 0
     predictions.insert(0, 0)
-    std_dev = std_dev.tolist()
-    std_dev.insert(0, 0)
-    if np.isnan(std_dev).any():
-        raise ValueError("std_dev contains NaN values")
+    if np.isnan(predictions).any():
+        raise ValueError("predictions contains NaN values")
 
     # Dividing by 10 because safety stock is too high
-    return predictions, std_dev
+    return predictions, model, train_df

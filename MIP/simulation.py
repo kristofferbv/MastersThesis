@@ -7,11 +7,11 @@ import sys
 import time
 import statistics
 
-
 import deterministic_model as det_mod
 import sarima
 import holt_winters_method
 from MIP.analyse_data import plot_sales_quantity
+from MIP.standard_deviation import get_initial_std_dev, get_std_dev
 from config_utils import load_config
 import generate_data
 from generate_data import generate_seasonal_data_based_on_products
@@ -24,14 +24,14 @@ parent_path = os.path.dirname(current_path)
 sys.path.append(parent_path)
 config_path = os.path.join(parent_path, "config.yml")
 
-
 config = load_config(config_path)
 n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
-n_episodes = config["simulation"]["n_episodes"] # This is the number of times we run a full simulation
-simulation_length = config["simulation"]["simulation_length"] # This is the number of time periods we want to calculate the costs for
-warm_up_length = config["simulation"]["warm_up_length"] # This is the number of time periods we are using to warm up
+n_episodes = config["simulation"]["n_episodes"]  # This is the number of times we run a full simulation
+simulation_length = config["simulation"]["simulation_length"]  # This is the number of time periods we want to calculate the costs for
+warm_up_length = config["simulation"]["warm_up_length"]  # This is the number of time periods we are using to warm up
 should_perform_warm_up = config["simulation"]["should_perform_warm_up"]
-reset_length =  config["simulation"]["reset_length"]
+reset_length = config["simulation"]["reset_length"]
+should_write = config["simulation"]["should_write"]
 start_index = 208
 
 product_categories = config["deterministic_model"]["product_categories"]
@@ -49,7 +49,6 @@ beta = config["deterministic_model"]["beta"]
 
 
 def simulate(real_products):
-
     output_folder = "results"
 
     output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
@@ -66,7 +65,7 @@ def simulate(real_products):
             number_of_products = product_categories[category]
             current_index += number_of_products
             f.write("Number of products of category " + category + " is " + str(number_of_products) + "\n")
-            if category=="erratic" or category == "smooth":
+            if category == "erratic" or category == "smooth":
                 generated_products += generate_seasonal_data_based_on_products(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
             else:
                 generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
@@ -78,41 +77,44 @@ def simulate(real_products):
         inventory_levels = None
         start_date = generated_products[0].index[start_index]
 
-       
-        if should_perform_warm_up:
+        models = {}
+        if should_perform_warm_up and warm_up_length > 0:
             print("Warming up")
-            inventory_levels, start_date = perform_warm_up(generated_products, start_date, n_time_periods)
+            inventory_levels, start_date, models = perform_warm_up(generated_products, start_date, n_time_periods)
         for episode in range(n_episodes):
-                # simulate and sample costs
-                print("Running simulation...")
-                costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, inventory_levels=inventory_levels)
-                total_costs.append(costs)
-                list_mean.append(sum(total_costs)/len(total_costs))
+            # simulate and sample costs
+            print("Running simulation...")
+            costs, inventory_levels, start_date, _, models = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, models=models, inventory_levels=inventory_levels)
+            total_costs.append(costs)
+            list_mean.append(sum(total_costs) / len(total_costs))
+            if episode > 0:
                 list_std.append(statistics.stdev(total_costs))
-                print(f"Costs for episode {episode} is: {costs}")
-                #f.write(f"Actions for episode {episode} are: {actions}" + "\n")
-                #print(f"Actions for episode {episode} are: {actions}")
+            print(f"Costs for episode {episode} is: {costs}")
+            # f.write(f"Actions for episode {episode} are: {actions}" + "\n")
+            # print(f"Actions for episode {episode} are: {actions}")
+            if reset_length > 0:
                 print("Resetting...")
                 # resetting
-                costs, inventory_levels, start_date , _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, inventory_levels=inventory_levels)
-        print(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}")
-        f.write(f"Total average costs for all episodes is: {sum(total_costs)/len(total_costs)}" + "\n")
-        f.write(f'List of mean for each period: {list_mean}' + "\n")
-        f.write(f'List of standard deviation for each period: {list_std}' + "\n")
+                costs, inventory_levels, start_date, _, models = run_one_episode(start_date, n_time_periods, generated_products, reset_length, models=models, inventory_levels=inventory_levels)
+        if should_write:
+            f.write(f"Total average costs for all episodes is: {sum(total_costs) / len(total_costs)}" + "\n")
+            f.write(f'List of mean for each period: {list_mean}' + "\n")
+            f.write(f'List of standard deviation for each period: {list_std}' + "\n")
 
-        standard_deviation_costs = statistics.stdev(total_costs)
-        f.write(f"Standard deviations of costs: {standard_deviation_costs}" + "\n")
-        f.close()
-  
+            standard_deviation_costs = statistics.stdev(total_costs)
+            f.write(f"Standard deviations of costs: {standard_deviation_costs}" + "\n")
+            f.close()
+        print(f"Total average costs for all episodes is: {sum(total_costs) / len(total_costs)}")
+
 
 def perform_warm_up(products, start_date, n_time_periods):
     inventory_levels = [0 for i in range(len(products))]
-    #for i in range(simulation_length):
-    _, inventory_levels, start_date, _ = run_one_episode(start_date, n_time_periods, products, warm_up_length, inventory_levels=inventory_levels)
-    return inventory_levels, start_date
+    # for i in range(simulation_length):
+    _, inventory_levels, start_date, _, models = run_one_episode(start_date, n_time_periods, products, warm_up_length, inventory_levels=inventory_levels)
+    return inventory_levels, start_date, models
 
-def run_one_episode(start_date, n_time_periods, products, episode_length,  inventory_levels = None):
 
+def run_one_episode(start_date, n_time_periods, products, episode_length, models=None, inventory_levels=None):
     start_time = time.time()
 
     config = load_config("../config.yml")
@@ -121,11 +123,15 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
     should_set_holding_cost_dynamically = config["simulation"]["should_set_holding_cost_dynamically"]
     if should_set_holding_cost_dynamically:
         unit_price = [df.iloc[0]['average_unit_price'] for df in products]
-
+    if models is None:
+        models = {}
     dict_demands = {}
     dict_sds = {}
     actions = {}  # Store the first actions for each time step
     orders = {}
+    forecast_errors = {}
+    prev_std_dev = {}
+    prev_forecast = {}
     if inventory_levels is None:
         inventory_levels = [0 for i in range(len(products))]
 
@@ -138,14 +144,12 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
     sum_actual_demand = {product_index: 0 for product_index in range(len(products))}
     sum_fulfilled_demand = {product_index: 0 for product_index in range(len(products))}
 
-
     for time_step in range(episode_length):
         print(f"Time step {time_step}/{episode_length}")
         start_date = start_date + timedelta(days=7)
 
         period_costs = 0
         major_setup_added = False
-
         # Update inventory levels based on previous actions and actual demand
         actual_demands = []
         if time_step != 0:
@@ -154,6 +158,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
                     demand = products[product_index].loc[start_date, "sales_quantity"]
                 else:
                     demand = products[product_index].loc[start_date]
+                forecast_errors[product_index] = demand - prev_forecast[product_index]
 
                 actual_demands.append(demand)
 
@@ -208,12 +213,36 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
 
                 print("Total setup costs:")
                 print(setup_costs)
-
         for product_index in range(len(products)):
             if forecasting_method == "holt_winter":
-                dict_demands[product_index], dict_sds[product_index] = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
+                if time_step == 0:
+                    dict_demands[product_index], train = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
+                    dict_sds[product_index] = get_initial_std_dev(train, n_time_periods)
+                    # storing std dev and forecast to use for updating the std deviation of errors in the forecast
+                    prev_std_dev[product_index] = dict_sds[product_index][1]
+                    prev_forecast[product_index] = dict_demands[product_index][1]
+                else:
+                    dict_sds[product_index] = get_std_dev(prev_std_dev[product_index], forecast_errors[product_index], n_time_periods, alpha=0.1)
+                    dict_demands[product_index], _ = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
+                    # storing std dev and forecast to use for updating the std deviation of errors in the forecast
+                    prev_std_dev[product_index] = dict_sds[product_index][1]
+                    prev_forecast[product_index] = dict_demands[product_index][1]
+
             elif forecasting_method == "sarima":
-                dict_demands[product_index], dict_sds[product_index] = sarima.forecast(products[product_index], start_date, n_time_periods=n_time_periods, shouldShowPlot=False)
+                if time_step == 0:
+                    # fitting the model
+                    dict_demands[product_index], models[product_index], train = sarima.forecast(products[product_index], start_date, n_time_periods=n_time_periods, shouldShowPlot=False)
+                    dict_sds[product_index] = get_initial_std_dev(train, n_time_periods)
+                    # storing std dev and forecast to use for updating the std deviation of errors in the forecast
+                    prev_std_dev[product_index] = dict_sds[product_index][1]
+                    prev_forecast[product_index] = dict_demands[product_index][1]
+                else:
+                    dict_sds[product_index] = get_std_dev(prev_std_dev[product_index], forecast_errors[product_index], n_time_periods, alpha=0.1)
+                    dict_demands[product_index], _, _ = sarima.forecast(products[product_index], start_date, model=models[product_index], n_time_periods=n_time_periods, shouldShowPlot=False)
+                    # storing std dev and forecast to use for updating the std deviation of errors in the forecast
+                    prev_std_dev[product_index] = dict_sds[product_index][1]
+                    prev_forecast[product_index] = dict_demands[product_index][1]
+
             else:
                 raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
 
@@ -224,8 +253,8 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
         deterministic_model.set_safety_stock(dict_sds)
         deterministic_model.set_big_m()
         deterministic_model.model.setParam("OutputFlag", 0)
-        deterministic_model.model.setParam('TimeLimit', 2*60)  # set the time limit to 2 minutes for the gurobi model
-        deterministic_model.model.setParam('MIPGap', 0.01) # set the MIPGap to be 1% 
+        deterministic_model.model.setParam('TimeLimit', 2 * 60)  # set the time limit to 2 minutes for the gurobi model
+        deterministic_model.model.setParam('MIPGap', 0.01)  # set the MIPGap to be 1%
 
         deterministic_model.set_inventory_levels(inventory_levels)
         deterministic_model.set_up_model()
@@ -257,7 +286,6 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
                         if abs(orders[time_step][product_index][tau]) < threshold:
                             orders[time_step][product_index][tau] = 0
 
-   
     # print("Total costs at after all periods : ")
     # print(total_costs)
     # print("Total shortage costs")
@@ -274,30 +302,27 @@ def run_one_episode(start_date, n_time_periods, products, episode_length,  inven
 
     end_time = time.time()  # Stop measuring the time
     runtime = end_time - start_time
+    if should_write:
+        output_folder = "results"
 
-    output_folder = "results"
+        output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
+        file_path = os.path.join(output_folder, output_file)
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
 
-    output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
-    file_path = os.path.join(output_folder, output_file)
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
+        with open(file_path, "a") as f:
+            f.write(f"Solution time for this episode is: {runtime} seconds" + "\n")
 
-    with open(file_path, "a") as f:
-        f.write(f"Solution time for this episode is: {runtime} seconds" + "\n")
-        print(f"Solution time for this episode is: {runtime} seconds")
+            for product_index in range(len(products)):
+                service_level = sum_fulfilled_demand[product_index] / sum_actual_demand[product_index]
+                print(f"Achieved service level for Product {product_index}: {service_level}")
+                f.write(f"Achieved service level for Product {product_index}: {service_level}" + "\n")
 
-        for product_index in range(len(products)):
-            service_level = sum_fulfilled_demand[product_index] / sum_actual_demand[product_index]
-            print(f"Achieved service level for Product {product_index}: {service_level}")
-            f.write(f"Achieved service level for Product {product_index}: {service_level}" + "\n")
+            f.write(f"Actions for this episode are: {actions}" + "\n")
+            f.write(f"Total costs for this episode is: {total_costs}" + "\n")
 
-        f.write(f"Actions for this episode are: {actions}" + "\n")
-        f.write(f"Total costs for this episode is: {total_costs}" + "\n")
-        
-        print(actions)
-        f.close()
+            f.close()
+    print(f"Solution time for this episode is: {runtime} seconds")
+    print(actions)
 
-    return total_costs, inventory_levels, start_date, actions
-
-
-
+    return total_costs, inventory_levels, start_date, actions, models

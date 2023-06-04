@@ -10,8 +10,8 @@ import statistics
 def forecast(df, date, shouldShowPlot=False, n_time_periods=20):
     if isinstance(df, pd.DataFrame):
         # Split the data into training and testing sets
-        train = df.loc[df.index <= date]["sales_quantity"]
-        test = df.loc[df.index > date]["sales_quantity"]
+        train = df.loc[df.index <= date]
+        test = df.loc[df.index > date]
     else:
         train = df.loc[df.index <= date]
         test = df.loc[df.index > date]
@@ -20,7 +20,7 @@ def forecast(df, date, shouldShowPlot=False, n_time_periods=20):
     # train = train.asfreq('W-SUN')
 
     # Fit the model and make forecasts
-    model = ExponentialSmoothing(train, seasonal_periods=52, trend='add', seasonal='add')
+    model = ExponentialSmoothing(train["sales_quantity"], seasonal_periods=52, trend='add', seasonal='add')
 
     fit = model.fit()
     # Forecasting len(test) periods ahead
@@ -32,7 +32,7 @@ def forecast(df, date, shouldShowPlot=False, n_time_periods=20):
     if shouldShowPlot:
         # Evaluate the forecast
         # plt.plot(train.index, train.values, label='Actual')
-        plt.plot(test.index[:n_time_periods], test.values[:n_time_periods], label='Actual')
+        plt.plot(test.index[:n_time_periods], test["sales_quantity"].values[:n_time_periods], label='Actual')
         plt.plot(test.index[:n_time_periods], forecast.values, label='Forecast')
 
         # Add labels and legend
@@ -43,14 +43,14 @@ def forecast(df, date, shouldShowPlot=False, n_time_periods=20):
 
         # Show the plot
         plt.show()
-        mse = np.mean((test.values[:n_time_periods] - forecast) ** 2)
+        mse = np.mean((test["sales_quantity"].values[:n_time_periods] - forecast) ** 2)
         print(f'MSE: {mse:.2f}')
 
     try:
-        standard_deviation = statistics.stdev((test.values[:n_time_periods] - forecast))
+        standard_deviation = statistics.stdev((test["sales_quantity"].values[:n_time_periods] - forecast))
     except:
         print("df", df)
         print("date", date)
 
-    return np.insert(forecast.values, 0, 0), [standard_deviation] * (len(forecast) + 1)     # Dividing by 5 because safety stock is too high
+    return np.insert(forecast.values, 0, 0), train
 
