@@ -69,18 +69,25 @@ def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=
 
 
     train = df.loc[df.index <= start_date]
+    train = train.resample('W').asfreq().fillna(0)
     test = df.loc[df.index > start_date]
+    test = test.resample('W').asfreq().fillna(0)
 
     # Check if a model file already exists for the given product_hash
     model_filename = f"sarima_models/model_{product_hash}.pkl"
     if verbose:
         print("product_hash", model_filename)
-    if os.path.exists(model_filename):
-        # Load the existing model
-        model = pd.read_pickle(model_filename)
+    has_model = False
+    if os.path.exists(model_filename) and os.path.getsize(model_filename) > 0:
+        try:
+            # Load the existing model
+            model = pd.read_pickle(model_filename)
+            has_model = True
+        except EOFError:
+            print(f"EOFError: File {model_filename} is empty or does not exist.")
         if verbose:
             print("Using existing model for product hash: ", 1)
-    else:
+    if not has_model:
         # Fit a new SARIMA model
         model = SARIMAX(train, order=order, seasonal_order=seasonal_order)
         model = model.fit(maxiter=100)
@@ -122,6 +129,8 @@ def forecast(df, start_date, n_time_periods=20, order=(1, 0, 1), seasonal_order=
     predictions.insert(0, 0)
     std_dev = std_dev.tolist()
     std_dev.insert(0, 0)
+    if np.isnan(std_dev).any():
+        raise ValueError("std_dev contains NaN values")
 
     # Dividing by 10 because safety stock is too high
     return predictions, std_dev

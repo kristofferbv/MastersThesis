@@ -11,6 +11,7 @@ import statistics
 import deterministic_model as det_mod
 import sarima
 import holt_winters_method
+from MIP.analyse_data import plot_sales_quantity
 from config_utils import load_config
 import generate_data
 from generate_data import generate_seasonal_data_based_on_products
@@ -57,18 +58,24 @@ def simulate(real_products):
         os.remove(file_path)
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
-    
+    generated_products = []
+    current_index = 0
+    last_index = 0
     with open(file_path, "a") as f:
         for category in product_categories.keys():
             number_of_products = product_categories[category]
+            current_index += number_of_products
             f.write("Number of products of category " + category + " is " + str(number_of_products) + "\n")
+            if category=="erratic" or category == "smooth":
+                generated_products += generate_seasonal_data_based_on_products(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
+            else:
+                generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
+            last_index = current_index
+
         total_costs = []
         list_mean = []
         list_std = []
         inventory_levels = None
-        print("GEE", (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods)
-        generated_products = generate_seasonal_data_based_on_products(real_products, (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
-        print(len(generated_products[0]))
         start_date = generated_products[0].index[start_index]
 
        
