@@ -68,13 +68,10 @@ def forecast_analysis(df, date, shouldShowPlot=False, verbose = False, n_time_pe
     forecast[forecast < 0] = 0
     mse = np.mean((test["sales_quantity"].values[:n_time_periods] - forecast) ** 2)
     mae = np.mean(np.abs((test["sales_quantity"].values[:n_time_periods] - forecast)))
-    smape = np.mean(200 * np.abs(test["sales_quantity"].values[:n_time_periods] - forecast) / np.mean(np.abs(test["sales_quantity"].values[:n_time_periods])))
     std_dev = np.std(test["sales_quantity"].values[:n_time_periods] - forecast)  # Standard deviation of forecast errors
-    cv = np.std(test["sales_quantity"].values[:n_time_periods] - forecast) / np.mean(test["sales_quantity"].values[:n_time_periods]) * 100
     rmse = np.sqrt(np.mean((test["sales_quantity"].values[:n_time_periods] - forecast) ** 2))
 
     if verbose:
-        print(f'sMAPE Holt Winter: {smape:.2f}')
         print(np.abs(test["sales_quantity"].values[:n_time_periods] - forecast))
         print(np.abs(test["sales_quantity"].values[:n_time_periods]) + np.abs(forecast))
         print(f'MAE Holt Winter: {mae:.2f}')

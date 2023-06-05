@@ -82,9 +82,7 @@ def forecast_analysis(df, start_date, model=None, n_time_periods=20, alpha=0.1, 
     forecast[forecast < 0] = 0
     mse = np.mean((test.values[:n_time_periods] - forecast) ** 2)
     mae = np.mean(np.abs((test.values[:n_time_periods] - forecast)))
-    smape = np.mean(200 * np.abs(test.values[:n_time_periods] - forecast) / (np.abs(test.values[:n_time_periods]) + np.abs(forecast)))
     std_dev = np.std(test.values[:n_time_periods] - forecast)  # Standard deviation of forecast errors
-    cv = np.std(test.values[:n_time_periods] - forecast) / np.mean(test.values[:n_time_periods]) * 100
     rmse = np.sqrt(np.mean((test.values[:n_time_periods] - forecast) ** 2))
 
     if verbose:
