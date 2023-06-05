@@ -1,6 +1,5 @@
 from datetime import timedelta
 
-import numpy as np
 import pandas as pd
 import os
 import sys
@@ -8,9 +7,7 @@ import time
 import statistics
 
 import deterministic_model as det_mod
-import sarima
-import holt_winters_method
-from MIP.analyse_data import plot_sales_quantity
+from MIP.forecasting import holt_winters_method, sarima
 from MIP.standard_deviation import get_initial_std_dev, get_std_dev
 from config_utils import load_config
 import generate_data
@@ -216,14 +213,14 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, models
         for product_index in range(len(products)):
             if forecasting_method == "holt_winter":
                 if time_step == 0:
-                    dict_demands[product_index], train = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
+                    dict_demands[product_index], train, _ = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
                     dict_sds[product_index] = get_initial_std_dev(train, n_time_periods)
                     # storing std dev and forecast to use for updating the std deviation of errors in the forecast
                     prev_std_dev[product_index] = dict_sds[product_index][1]
                     prev_forecast[product_index] = dict_demands[product_index][1]
                 else:
                     dict_sds[product_index] = get_std_dev(prev_std_dev[product_index], forecast_errors[product_index], n_time_periods, alpha=0.1)
-                    dict_demands[product_index], _ = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
+                    dict_demands[product_index], _,_ = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
                     # storing std dev and forecast to use for updating the std deviation of errors in the forecast
                     prev_std_dev[product_index] = dict_sds[product_index][1]
                     prev_forecast[product_index] = dict_demands[product_index][1]
@@ -231,14 +228,14 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, models
             elif forecasting_method == "sarima":
                 if time_step == 0:
                     # fitting the model
-                    dict_demands[product_index], models[product_index], train = sarima.forecast(products[product_index], start_date, n_time_periods=n_time_periods, shouldShowPlot=False)
+                    dict_demands[product_index], models[product_index], train,_ = sarima.forecast(products[product_index], start_date, n_time_periods=n_time_periods, shouldShowPlot=False)
                     dict_sds[product_index] = get_initial_std_dev(train, n_time_periods)
                     # storing std dev and forecast to use for updating the std deviation of errors in the forecast
                     prev_std_dev[product_index] = dict_sds[product_index][1]
                     prev_forecast[product_index] = dict_demands[product_index][1]
                 else:
                     dict_sds[product_index] = get_std_dev(prev_std_dev[product_index], forecast_errors[product_index], n_time_periods, alpha=0.1)
-                    dict_demands[product_index], _, _ = sarima.forecast(products[product_index], start_date, model=models[product_index], n_time_periods=n_time_periods, shouldShowPlot=False)
+                    dict_demands[product_index], _, _, _ = sarima.forecast(products[product_index], start_date, model=models[product_index], n_time_periods=n_time_periods, shouldShowPlot=False)
                     # storing std dev and forecast to use for updating the std deviation of errors in the forecast
                     prev_std_dev[product_index] = dict_sds[product_index][1]
                     prev_forecast[product_index] = dict_demands[product_index][1]

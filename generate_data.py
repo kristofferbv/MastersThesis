@@ -52,6 +52,8 @@ def generate_seasonal_data_based_on_products(products, num_periods, seed=None):
         np.random.seed(seed)
 
     for product in products:
+        product = product.iloc[-208:]
+
         # First, we decompose the series to get the seasonal component
         res = sm.tsa.seasonal_decompose(product["sales_quantity"], model='additive', period=52)
         # Then, we repeat the seasonal component for the desired number of periods
@@ -69,12 +71,13 @@ def generate_seasonal_data_based_on_products(products, num_periods, seed=None):
         # trend = np.linspace(product["sales_quantity"].mean(), product["sales_quantity"].mean(), num_periods)
         trend = np.tile(trend_filled, num_repetitions)[:num_periods]
         data += trend
+        nonzero_residuals = res.resid[res.resid != 0].dropna()
 
         if seed is None:
             rng = np.random.default_rng()
-            noise = rng.normal(loc=res.resid.mean(), scale=res.resid.std(), size = num_periods)
+            noise = rng.normal(loc=nonzero_residuals.mean(), scale=nonzero_residuals.std(), size = num_periods)
         else:
-            noise = np.random.normal(loc=res.resid.mean(), scale=res.resid.std(), size = num_periods)
+            noise = np.random.normal(loc=nonzero_residuals.mean(), scale=nonzero_residuals.std(), size = num_periods)
         # Estimate the kernel density of the residuals
         # noise = np.random.normal(loc=res.resid.mean(), scale=res.resid.std(), size = num_periods)
 
@@ -96,6 +99,7 @@ def generate_seasonal_data_for_intermittent_demand(products, num_periods, p_dema
         np.random.seed(seed)
 
     for product in products:
+        product = product.iloc[-208:]
 
         # Decompose the series to get the seasonal and trend component
         res = sm.tsa.seasonal_decompose(product["sales_quantity"], model='additive', period=52)
@@ -125,8 +129,8 @@ def generate_seasonal_data_for_intermittent_demand(products, num_periods, p_dema
         demand_occurrences = np.random.choice([0, 1], size=num_periods, p=[1 - p_demand, p_demand])
 
         # Generate demand size using the Poisson distribution or other method
-        lambda_ = np.mean(res.resid[res.resid > 0].dropna()) + np.mean(res.trend[res.resid > 0].dropna())
-        demand_size = np.random.poisson(lam=lambda_, size=num_periods)  # Modify based on your desired distribution
+        # lambda_ = np.mean(res.resid[res.resid > 0].dropna()) + np.mean(res.trend[res.resid > 0].dropna())
+        # demand_size = np.random.poisson(lam=lambda_, size=num_periods)  # Modify based on your desired distribution
 
         # Combine demand occurrences and sizes to generate demand data
         data += np.where(demand_occurrences == 1, noise.ravel(), 0)

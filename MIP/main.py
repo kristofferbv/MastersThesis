@@ -10,12 +10,10 @@ parent_path = os.path.dirname(current_path)
 sys.path.append(parent_path)
 
 import retrieve_data
-from analyse_data import plot_sales_quantity, get_non_stationary_products, decompose_sales_quantity
+from MIP.analysis.analyse_data import plot_sales_quantity, get_non_stationary_products, decompose_sales_quantity
 from config_utils import load_config
 import simulation
 from generate_data import *
-import holt_winters_method
-import sarima
 
 # Get the directory of the current script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -70,7 +68,7 @@ if __name__ == '__main__':
     # products = generate_seasonal_data_based_on_products(products, 500, seed = 1)
     # sarima.forecast(products[0], start_date, 20)
     # holt_winters_method.forecast(products[0], start_date, True, 20)
-    
+
     if should_analyse:  # analysing plotting, decomposing and testing for stationarity
         plot_sales_quantity(products)
         get_non_stationary_products(products, should_plot=True, verbose=True)
