@@ -213,6 +213,7 @@ class MultiAgent:
         # Main training loop
         # Warm-up phase
         state = self.env.reset()
+        self.env.set_costs(self.products)
         # for _ in range(warm_up_steps):
         #     action = env.action_space.sample()  # Take random action
         #     next_state, reward, done, *_ = env.step(action)
@@ -247,17 +248,9 @@ class MultiAgent:
                     print("ACTIons", actions)
                 # print("actions", actions)
                 # Perform action and get reward
-
                 next_state, reward, done, *_ = self.env.step(actions)
-                print("STATE", next_state)
                 total_reward += sum(reward)
-                #
-                # if (sum(reward)>-1150):
-                #     print("yeaaah", reward)
-                #     reward = [x + 1000 for x in reward]
-                # running_avg_reward = 0.99 * running_avg_reward + 0.01 * sum(reward)
-                # running_std_reward = np.sqrt(0.99 * running_std_reward ** 2 + 0.01 * (sum(reward) - running_avg_reward) ** 2)
-                # reward = [-abs((reward - running_avg_reward) / running_std_reward)for reward in reward]
+
 
                 # Store experience in replay buffer
                 self.replay_buffer.add((state, actions, next_state, reward, done))

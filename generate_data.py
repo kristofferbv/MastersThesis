@@ -10,6 +10,8 @@ from scipy import stats
 from scipy.stats import gaussian_kde
 from sklearn.neighbors import KernelDensity
 
+from MIP.analysis import analyse_data
+
 
 def generate_data(num_ids: int, weeks: int = 204):
     """Generate a DataFrame with num_ids unique IDs and random transactions over specified weeks."""
@@ -46,7 +48,7 @@ def plot_data(df):
     plt.show()
 
 
-def generate_seasonal_data_based_on_products(products, num_periods, seed=None):
+def generate_seasonal_data_based_on_products(products, num_periods, seed=None, period=52):
     products_list = []
     if seed is not None:
         np.random.seed(seed)
@@ -54,44 +56,54 @@ def generate_seasonal_data_based_on_products(products, num_periods, seed=None):
     for product in products:
         product = product.iloc[-208:]
 
-        # First, we decompose the series to get the seasonal component
-        res = sm.tsa.seasonal_decompose(product["sales_quantity"], model='additive', period=52)
-        # Then, we repeat the seasonal component for the desired number of periods
+        res = sm.tsa.seasonal_decompose(product["sales_quantity"], model='additive', period=period)
         num_repetitions = int(np.ceil(num_periods / len(product["sales_quantity"])))
 
-        # Fill NaN values in the trend and seasonal components
         trend_filled = res.trend.fillna(method='bfill').fillna(method="ffill")
         seasonal_filled = res.seasonal.fillna(method='ffill')
 
         seasonal_data = np.tile(seasonal_filled, num_repetitions)[:num_periods]
         data = seasonal_data
 
-
-        # We add a trend and some noise to make it more realistic
-        # trend = np.linspace(product["sales_quantity"].mean(), product["sales_quantity"].mean(), num_periods)
-        trend = np.tile(trend_filled, num_repetitions)[:num_periods]
+        trend = np.linspace(product["sales_quantity"].mean(), product["sales_quantity"].mean(), num_periods)
         data += trend
-        nonzero_residuals = res.resid[res.resid != 0].dropna()
 
+        residuals = res.resid.dropna()
+        mean_resid = residuals.mean()
+        var_resid = residuals.var()
+        print(residuals.var())
+        print("mean", product["sales_quantity"].mean())
+
+        p = product["sales_quantity"].mean() / var_resid
+        if p <= 0 or p >= 1 or np.isnan(p):
+            print(f"Invalid p: {p}. Using default p=0.5")
+            p = 0.5  # default value
+        n = product["sales_quantity"].mean() ** 2 / (var_resid - product["sales_quantity"].mean())
+        if np.isnan(n) or n <= 0:
+            print(f"Invalid n: {n}. Using default n=1")
+            n = 1  # default value
+
+
+        # Compute the factor n for each period
+        expected_demand = trend + seasonal_data
+        n_values = n / np.sqrt(expected_demand)
+
+        # Generate noise using Negative Binomial distribution
         if seed is None:
             rng = np.random.default_rng()
-            noise = rng.normal(loc=nonzero_residuals.mean(), scale=nonzero_residuals.std(), size = num_periods)
+            noise = rng.negative_binomial(n=n, p=p, size=num_periods)
         else:
-            noise = np.random.normal(loc=nonzero_residuals.mean(), scale=nonzero_residuals.std(), size = num_periods)
-        # Estimate the kernel density of the residuals
-        # noise = np.random.normal(loc=res.resid.mean(), scale=res.resid.std(), size = num_periods)
+            noise = np.random.negative_binomial(n=n, p=p, size=num_periods)
 
-
-        # Generate noise by resampling from the kernel density estimate
         data += noise
         new_index = pd.date_range(product["sales_quantity"].index[0], periods=num_periods, freq='W')
-        product = product.reindex(new_index)  # reindex the dataframe
-        # print(pd.Series(data, index=new_index))
+        product = product.reindex(new_index)
         product["sales_quantity"] = pd.Series(data, index=new_index)
         product["sales_quantity"] = product["sales_quantity"].clip(lower=0)
         products_list.append(product)
 
     return products_list
+
 
 def generate_seasonal_data_for_intermittent_demand(products, num_periods, p_demand = 0.5, seed = None):
     products_list = []
@@ -100,7 +112,6 @@ def generate_seasonal_data_for_intermittent_demand(products, num_periods, p_dema
 
     for product in products:
         product = product.iloc[-208:]
-
         # Decompose the series to get the seasonal and trend component
         res = sm.tsa.seasonal_decompose(product["sales_quantity"], model='additive', period=52)
         num_repetitions = int(np.ceil(num_periods / len(product["sales_quantity"])))
@@ -178,6 +189,8 @@ def generate_next_week_demand(product_series):
     demand = trend_prediction + seasonal_prediction + noise
 
     return demand
+
+
 
 # # Generate and plot data
 # df = generate_data(5, 30)

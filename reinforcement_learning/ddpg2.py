@@ -7,10 +7,11 @@ import os
 import signal
 import retrieve_data
 import numpy as np
-from keras import layers
+from keras import layers, regularizers
 import tensorflow as tf
-from keras.layers import Activation
+from keras.layers import Activation, Conv1D
 
+from MIP.analysis.analyse_data import plot_sales_quantity
 from reinforcement_learning.environment import JointReplenishmentEnv
 
 # # Get the directory of the current script
@@ -48,7 +49,7 @@ from reinforcement_learning.environment import JointReplenishmentEnv
 # critic = Critic(state_shape)
 
 
-std_dev = 0.7
+std_dev = 1
 # Learning rate for actor-critic models
 critic_lr = 0.003
 actor_lr = 0.001
@@ -58,7 +59,7 @@ actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
 total_episodes = 10001
 # Discount factor for future rewards
-gamma = 0.90
+gamma = 0.8
 # Used to update target networks
 tau = 0.0005
 
@@ -159,16 +160,24 @@ class DDPG():
         last_init = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
 
         inputs = layers.Input(shape=self.state_shape)
-        out = layers.Dense(256, activation="selu", kernel_initializer="lecun_normal")(inputs)
-        out = layers.Dropout(rate=0.5)(out)
-        out = layers.Dense(256, activation="selu", kernel_initializer="lecun_normal")(out)
-        out = layers.Dropout(rate=0.5)(out)
-        out = layers.Dense(256, activation="selu", kernel_initializer="lecun_normal")(out)
-        out = layers.Dropout(rate=0.5)(out)
-        outputs = layers.Dense(1, activation="sigmoid", kernel_initializer=last_init)(out)
+        out = Conv1D(filters=64, kernel_size=3, activation='relu', kernel_regularizer=regularizers.l2(0.001),    # L2 regularization
+                activity_regularizer=regularizers.l1(0.001))(inputs)
+        # model.add(LSTM(128, activation='relu'))
+        # out = layers.Flatten()(out)
+        out = layers.LSTM(units=128, return_sequences=False, kernel_initializer="lecun_normal",kernel_regularizer=regularizers.l2(0.001),    # L2 regularization
+                activity_regularizer=regularizers.l1(0.001))(out)  # Adjust the number of units to your preference
+        out = layers.Dropout(rate=0.2)(out)
+        out = layers.Dense(128, activation="relu", kernel_initializer="lecun_normal", kernel_regularizer=regularizers.l2(0.001),    # L2 regularization
+                activity_regularizer=regularizers.l1(0.001))(out)
+        out = layers.Dropout(rate=0.2)(out)
+        # out = layers.Dense(128, activation="relu", kernel_initializer="lecun_normal")(out)
+        # out = layers.Dropout(rate=0.2)(out)
+        # out = layers.Dense(256, activation="relu", kernel_initializer="lecun_normal")(out)
+        # out = layers.Dropout(rate=0.5)(out)
+        outputs = layers.Dense(len(self.products), activation="sigmoid", kernel_initializer=last_init)(out)
 
         # Multiply with action upper bound
-        outputs = outputs * 120
+        outputs = outputs * 200
         model = tf.keras.Model(inputs, outputs)
         return model
 
@@ -176,7 +185,7 @@ class DDPG():
         # State as input
         state_input = layers.Input(shape=self.state_shape)
         # state_out = layers.Dense(16, activation="relu")(state_input)
-        state_out = layers.Dense(32, activation="relu")(state_input)
+        state_out = layers.Dense(64, activation="relu")(state_input)
 
         # Action as input
         action_input = layers.Input(shape=(len(self.products), 1))
@@ -185,8 +194,8 @@ class DDPG():
         # Both are passed through seperate layer before concatenating
         concat = layers.Concatenate()([state_out, action_out])
 
-        out = layers.Dense(256, activation="relu", kernel_initializer="lecun_normal")(concat)
-        out = layers.Dense(256, activation="relu", kernel_initializer="lecun_normal")(out)
+        out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(concat)
+        out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(out)
         out = layers.Flatten()(out)
         outputs = layers.Dense(1)(out)
         outputs = outputs * 100
@@ -200,10 +209,9 @@ class DDPG():
         sampled_actions = tf.squeeze(self.actor_model(state))
         noise = noise_object()
         # Adding noise to action
-        sampled_actions = sampled_actions.numpy() + noise * 100
-
+        sampled_actions = sampled_actions.numpy() + noise * 200
         # We make sure action is within bounds
-        legal_action = np.clip(sampled_actions, 0, 150)
+        legal_action = np.clip(sampled_actions, 0, 200)
 
         return [np.squeeze(legal_action)]
 
@@ -291,21 +299,25 @@ class DDPG():
 
         # Takes about 4 min to train
         for ep in range(total_episodes):
-            generated_products = generate_data.generate_seasonal_data_based_on_products(self.products, 300)
+            generated_products = generate_data.generate_seasonal_data_based_on_products(self.products, 500, period=52)
+            # print("plotting")
+            # plot_sales_quantity(generated_products)
+
             self.env.products = generated_products
             self.env.scale_demand(generated_products)
             prev_state = self.env.reset()
+            # self.env.reset_inventory()
             episodic_reward = 0
 
             while True:
                 tf_prev_state = tf.convert_to_tensor([prev_state])
                 self.std_dev = self.std_dev * 0.99
-                if (self.std_dev < 0.3):
-                    self.std_dev = 0.3
+                if (self.std_dev < 0.5):
+                    self.std_dev = 0.5
                 ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(self.std_dev) * np.ones(1))
                 action = self.policy(tf_prev_state, ou_noise)[0]
                 for i in range(len(action)):
-                    if action[i] < 1:
+                    if action[i] < 5:
                         action[i] = 0
                 # Recieve state and reward from environment.
                 state, reward, done, info = self.env.step(action)
@@ -322,11 +334,13 @@ class DDPG():
                 self.update_target(self.target_critic.variables, self.critic_model.variables, tau)
 
                 if done:
+                    print(action)
                     break
 
                 prev_state = state
 
             ep_reward_list.append(episodic_reward)
+            self.avg_reward_list.append(episodic_reward)
 
             # Mean of last 40 episodes
             avg_reward = np.mean(ep_reward_list[-30:])
@@ -341,7 +355,7 @@ class DDPG():
             plt.ylabel("Avg. Epsiodic Reward")
             plt.show()
 
-    def test(self, episodes = 1000, path="actor_model"):
+    def test(self, episodes = 1, path="actor_model"):
         # loading model
         actor = tf.keras.models.load_model(path)
         avg_reward_list = []
@@ -350,7 +364,7 @@ class DDPG():
             self.env.set_costs(self.products)
 
             episodic_reward = 0
-            generated_products = generate_data.generate_seasonal_data_based_on_products(self.products, 300)
+            generated_products = generate_data.generate_seasonal_data_based_on_products(self.products, 500)
             self.env.products = generated_products
             self.env.scale_demand(generated_products)
             prev_state = self.env.reset()

@@ -92,8 +92,7 @@ def plot_sales_quantity(products, start_date=None):
     plt.show()
 
 
-def decompose_sales_quantity(df, product_name = 0):
-    freq = 52
+def decompose_sales_quantity(df, product_name = 0, freq = 52):
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 8), sharex=True)
 
     if isinstance(df, pd.DataFrame):

@@ -25,14 +25,14 @@ steps_per_epoch = 3000
 epochs = 1000
 gamma = 0.99
 clip_ratio = 0.6
-policy_learning_rate = 1e-4
-value_function_learning_rate = 3e-4
+policy_learning_rate = 3e-4
+value_function_learning_rate = 1e-3
 train_policy_iterations = 80
 train_value_iterations = 80
 lam = 0.97
 target_kl = 0.01
 hidden_sizes = (32, 64, 32)
-exploration_rate = 0.05
+exploration_rate = 0.1
 
 
 
@@ -106,7 +106,7 @@ def mlp(x, sizes, activation=tf.tanh, output_activation=None):
 
     # Build a feedforward neural network
     for size in sizes[:-1]:
-        x= keras.layers.Dense(units=size, activation=activation)(x)
+        x = keras.layers.Dense(units=size, activation=activation)(x)
 
     return keras.layers.Dense(units=sizes[-1], activation=output_activation)(x)
 
@@ -153,6 +153,7 @@ class PPO:
 
     def train_ppo(self):
         observation, episode_return, episode_length = self.env.reset(), 0, 0
+        self.env.set_costs(self.products)
 
         # Iterate over the number of epochs
         for epoch in range(epochs):
@@ -173,11 +174,12 @@ class PPO:
                     should_decay = False
                     logits.append(logit)
                     actions.append(action[0].numpy())
-                individual_actions = actions + [epoch]
+                individual_actions = actions
 
                 # Unwrap the observation from a tuple to a list before feeding it to the environment
                 observation_new, reward, done, *_ = self.env.step(individual_actions)
-                episode_return += sum(reward)
+                reward = sum(reward)
+                episode_return += reward
                 episode_length += 1
 
                 # Get the value and log-probability of the action
@@ -397,8 +399,8 @@ class PPO:
     def train_value_function(self, observation_buffer, return_buffer):
         with tf.GradientTape() as tape:  # Record operations for automatic differentiation.
             value_loss = tf.reduce_mean((return_buffer - self.critic(observation_buffer)) ** 2)
-            print(value_loss)
         value_grads = tape.gradient(value_loss, self.critic.trainable_variables)
         self.value_optimizer.apply_gradients(zip(value_grads, self.critic.trainable_variables))
+
 
 

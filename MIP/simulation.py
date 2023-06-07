@@ -65,7 +65,10 @@ def simulate(real_products):
             if category == "erratic" or category == "smooth":
                 generated_products += generate_seasonal_data_based_on_products(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
             else:
+                print("FUCK!!")
+                print(len(generated_products))
                 generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
+                print(len(generated_products))
             last_index = current_index
 
         total_costs = []

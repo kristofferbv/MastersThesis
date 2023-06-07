@@ -8,7 +8,7 @@ import pandas as pd
 from gym import spaces
 from sklearn.preprocessing import StandardScaler
 import config_utils
-from MIP import holt_winters_method, sarima
+from MIP.forecasting import sarima, holt_winters_method
 from generate_data import generate_next_week_demand
 
 
@@ -50,10 +50,12 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.action_multiplier = self.max_order_quantity / self.n_action_classes
         if not self.action_multiplier.is_integer():
             raise Exception("maximum_order_quantity / n_action_classes must be an integer")
+        self.counter = 0
+        self.forecast = []
 
         self.action_space = gym.spaces.Discrete(self.n_action_classes)  # 10 discrete actions from 0 to 9 inclusive
         self.observation_space = spaces.Box(low=0, high=np.inf, shape=(len(products), self.n_periods_historical_data + 1 + self.should_include_individual_forecast + self.should_include_total_forecast), dtype=np.float32)
-
+        self.forecast = {}
         self.inventory_levels = [0 for _ in self.products]
         self.reset()
 
@@ -75,7 +77,11 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # Reset the environment to the initial state. Setting start period so that we can ensure we have all historical data required for the first state
         self.current_period = max(self.rolling_window, self.n_periods_historical_data) + self.time_period
         # self.inventory_levels = [0 for _ in self.products]
+        self.counter = 0
         return self._get_observation()
+
+    def reset_inventory(self):
+        self.inventory_levels = [0 for _ in self.products]
 
     def step(self, action):
         # Need to discretize the actions.
@@ -113,7 +119,8 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
             # Simulate demand and calculate shortage cost and holding cost.
             try:
-                demand = product.iloc[self.current_period]["sales_quantity"]  # dividing by 10 for training purpose only
+                demand = product.iloc[self.current_period]["sales_quantity"]
+
             except:
                 print(self.current_period)
             shortage_cost = abs(min((self.inventory_levels[i] - demand), 0)) * self.shortage_cost[i]
@@ -143,7 +150,6 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # Update the current period
         self.current_period += 1
         done = self.current_period == self.n_periods + max(self.rolling_window, self.n_periods_historical_data) + self.time_period
-
         return self._get_observation(), individual_rewards, done, {}
 
     def _get_observation(self):
@@ -154,13 +160,18 @@ class JointReplenishmentEnv(gym.Env, ABC):
         total_forecast = 0
         forecast = 0
         start_date = self.products[0].index[self.current_period]
+        has_counted = False
         for i, product in enumerate(self.scaled_products):
             historical_demand = product["sales_quantity"].iloc[max(self.current_period - self.n_periods_historical_data, 0):self.current_period].values
             if self.should_include_individual_forecast or self.should_include_total_forecast:
-                # forecast, _ = sarima.forecast(product, start_date, n_time_periods=1)
-                # forecast = forecast[1]
-                forecast_demand = product["sales_quantity"].iloc[max(self.current_period - self.rolling_window, 0):self.current_period].values
-                forecast = sum(forecast_demand) / len(forecast_demand)
+                if product["product_hash"].iloc[1] not in self.forecast.keys():
+                    self.forecast[product["product_hash"].iloc[1]], _ = holt_winters_method.forecast(product, start_date, n_time_periods=53)
+                forecast = self.forecast[product["product_hash"].iloc[1]][self.counter]
+                if not has_counted:
+                    self.counter += 1
+                    has_counted = True
+                # forecast_demand = product["sales_quantity"].iloc[max(self.current_period - self.rolling_window, 0):self.current_period].values
+                # forecast = sum(forecast_demand) / len(forecast_demand)
                 total_forecast += forecast
             if len(historical_demand) < self.n_periods_historical_data:
                 historical_demand = np.pad(historical_demand, (self.n_periods_historical_data - len(historical_demand), 0), mode='constant', constant_values=0)

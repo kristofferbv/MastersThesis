@@ -14,12 +14,39 @@ from generate_data import generate_seasonal_data_based_on_products
 # Define hyperparameters
 gamma = 0.98  # discount factor
 tau = 0.005  # target network update rate
-actor_lr = 0.000005  # learning rate of actor network
-critic_lr = 0.00005  # learning rate of critic network
+actor_lr = 0.00005  # learning rate of actor network
+critic_lr = 0.0005  # learning rate of critic network
 batch_size = 100  # minibatch size
-num_episodes = 230
+num_episodes = 5000
 num_agents = 4  # number of agents
 warm_up_steps = 1000
+
+class OUActionNoise:
+    def __init__(self, mean, std_deviation, theta=0.15, dt=1e-2, x_initial=None):
+        self.theta = theta
+        self.mean = mean
+        self.std_dev = std_deviation
+        self.dt = dt
+        self.x_initial = x_initial
+        self.reset()
+
+    def __call__(self):
+        # Formula taken from https://www.wikipedia.org/wiki/Ornstein-Uhlenbeck_process.
+        x = (
+                self.x_prev
+                + self.theta * (self.mean - self.x_prev) * self.dt
+                + self.std_dev * np.sqrt(self.dt) * np.random.normal(size=self.mean.shape)
+        )
+        # Store x into x_prev
+        # Makes next noise dependent on current one
+        self.x_prev = x
+        return x
+
+    def reset(self):
+        if self.x_initial is not None:
+            self.x_prev = self.x_initial
+        else:
+            self.x_prev = np.zeros_like(self.mean)
 
 
 class Actor(models.Model):
@@ -234,7 +261,7 @@ class ReplayBuffer:
 
     def sample(self, batch_size=batch_size):
         priorities = np.arange(len(self.storage))  # Use indices as priorities (age-based prioritization)
-        probabilities = priorities / np.sum(priorities)  # Compute probabilities proportional to priorities
+        # probabilities = priorities / np.sum(priorities)  # Compute probabilities proportional to priorities
         indices = np.random.choice(len(self.storage), size=batch_size)  # Sample indices with probabilities
         states, actions, next_states, rewards, dones = [], [], [], [], []
 
@@ -285,8 +312,11 @@ class MultiAgent:
         noise_reduction = start_std_dev / num_episodes
 
         factor = 0
+        self.std_dev = 0.5
 
         for episode in range(num_episodes + 100):
+            if episode < 50:
+                self.env.reset_inventory()
             noise_std_dev = start_std_dev - episode * noise_reduction
             products = generate_seasonal_data_based_on_products(self.products, 500)
             self.env.scale_demand(products)
@@ -296,22 +326,29 @@ class MultiAgent:
             state = self.env.reset()
             samples = []
             while not done:
-                if episode > 100:
-                    factor *= 0.95
-                    if factor < 0.05:
-                        factor = 0
-                # Select action according to policy
-                if random.random() < factor:
-                    actions = tf.random.uniform(shape=[4],minval=0,maxval=70)
-                else:
-                    random_number = random.uniform(-1, 1)
-                # actions = [agent.select_action(state[i])[0] + random_number * faktor for i, agent in enumerate(self.agents)]
-                    actions = [np.clip(agent.select_action(state[i])[0], 0, 100) for i, agent in enumerate(self.agents)]
-                    # Add Gaussian noise to the action
-                    actions = actions + np.random.normal(0, noise_std_dev, size=len(self.products))
+                # if episode > 100:
+                #     factor *= 0.95
+                #     if factor < 0.05:
+                #         factor = 0
+                #     if noise_std_dev < 0.1:
+                #         noise_std_dev = 0.1
 
-                    # Clip the action to make sure it's within the valid range
-                    actions = np.clip(actions, 0, 100)
+                if (self.std_dev < 0.3):
+                    self.std_dev = 0.3
+                ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(self.std_dev) * np.ones(1))
+                noise = ou_noise()
+                # Select action according to policy
+                # if random.random() < factor:
+                #     actions = tf.random.uniform(shape=[4],minval=0,maxval=70)
+                # else:
+                # random_number = random.uniform(-1, 1)
+            # actions = [agent.select_action(state[i])[0] + random_number * faktor for i, agent in enumerate(self.agents)]
+                actions = [np.clip(agent.select_action(state[i])[0] + noise[0], 0, 100) for i, agent in enumerate(self.agents)]
+                # Add Gaussian noise to the action
+                # actions = actions + np.random.normal(0, noise_std_dev, size=len(self.products))
+
+                # Clip the action to make sure it's within the valid range
+                actions = np.clip(actions, 0, 100)
 
                 # print("actions", actions)
                 # Perform action and get reward
@@ -329,20 +366,21 @@ class MultiAgent:
                 # reward = [-abs((reward - running_avg_reward) / running_std_reward)for reward in reward]
 
                 self.replay_buffer.add((state, actions, next_state, reward, done))
-                for agent_num in range(len(self.agents)):
-                    self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size=batch_size)
+
 
                 # Move to next state
                 state = next_state
 
-                 # Train agent
-                # if episode > 100:
-                #     if episode % 300 == 0:
-                #         for agent_num in range(len(self.agents)):
-                #             self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size = len(self.replay_buffer.storage))
-                #     else:
-                #         for agent_num in range(len(self.agents)):
-                #             self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size = batch_size)
+            # Train agent
+            for agent_num in range(len(self.agents)):
+                self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size=batch_size)
+            # if episode > 100:
+            #     if episode % 300 == 0:
+            #         for agent_num in range(len(self.agents)):
+            #             self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size = len(self.replay_buffer.storage))
+            #     else:
+            #         for agent_num in range(len(self.agents)):
+            #             self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size = batch_size)
             if episode > 200 or episode % 10 == 0:
                 print(actions)
                 print(f"Episode {episode + 1}: Total Reward = {total_reward}")
