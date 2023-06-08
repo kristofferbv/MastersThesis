@@ -10,9 +10,9 @@ from collections import defaultdict
 
 
 class DeterministicModel:
-    def __init__(self, n_products):
+    def __init__(self, n_products, config):
 
-        config = load_config("../config.yml")
+        #config = load_config("../config.yml")
         self.n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
         self.n_products = n_products  # number of product types
         self.products = [i for i in range(0, self.n_products)]

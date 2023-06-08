@@ -21,31 +21,33 @@ parent_path = os.path.dirname(current_path)
 sys.path.append(parent_path)
 config_path = os.path.join(parent_path, "config.yml")
 
-config = load_config(config_path)
-n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
-n_episodes = config["simulation"]["n_episodes"]  # This is the number of times we run a full simulation
-simulation_length = config["simulation"]["simulation_length"]  # This is the number of time periods we want to calculate the costs for
-warm_up_length = config["simulation"]["warm_up_length"]  # This is the number of time periods we are using to warm up
-should_perform_warm_up = config["simulation"]["should_perform_warm_up"]
-reset_length = config["simulation"]["reset_length"]
-should_write = config["simulation"]["should_write"]
-start_index = 208
-
-product_categories = config["deterministic_model"]["product_categories"]
-seed = config["main"]["seed"]
-n_products = sum(product_categories.values())
-
-n_erratic = product_categories["erratic"]
-n_smooth = product_categories["smooth"]
-n_intermittent = product_categories["intermittent"]
-n_lumpy = product_categories["lumpy"]
-
-major_setup_cost = config["deterministic_model"]["joint_setup_cost"]
-minor_setup_ratio = config["deterministic_model"]["minor_setup_ratio"]
-beta = config["deterministic_model"]["beta"]
+#config = load_config(config_path)
 
 
-def simulate(real_products):
+def simulate(real_products, config):
+    n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
+    n_episodes = config["simulation"]["n_episodes"]  # This is the number of times we run a full simulation
+    simulation_length = config["simulation"]["simulation_length"]  # This is the number of time periods we want to calculate the costs for
+    warm_up_length = config["simulation"]["warm_up_length"]  # This is the number of time periods we are using to warm up
+    should_perform_warm_up = config["simulation"]["should_perform_warm_up"]
+    reset_length = config["simulation"]["reset_length"]
+    should_write = config["simulation"]["should_write"]
+    start_index = 208
+
+    product_categories = config["deterministic_model"]["product_categories"]
+    seed = config["main"]["seed"]
+    n_products = sum(product_categories.values())
+
+    n_erratic = product_categories["erratic"]
+    n_smooth = product_categories["smooth"]
+    n_intermittent = product_categories["intermittent"]
+    n_lumpy = product_categories["lumpy"]
+
+    major_setup_cost = config["deterministic_model"]["joint_setup_cost"]
+    minor_setup_ratio = config["deterministic_model"]["minor_setup_ratio"]
+    beta = config["deterministic_model"]["beta"]
+
+
     output_folder = "results"
 
     output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
@@ -61,12 +63,14 @@ def simulate(real_products):
         for category in product_categories.keys():
             number_of_products = product_categories[category]
             current_index += number_of_products
-            f.write("Number of products of category " + category + " is " + str(number_of_products) + "\n")
             if category == "erratic" or category == "smooth":
                 generated_products += generate_seasonal_data_based_on_products(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
             else:
                 generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
             last_index = current_index
+        
+        
+        f.write("Number of products from each cateogry is:  Erratic: " + str(product_categories["erratic"]) + ", Smooth: " + str(product_categories["smooth"]) + ", Intermittent: " + str(product_categories["intermittent"]) + ", Lumpy: " + str(product_categories["lumpy"]) + "\n")
 
         total_costs = []
         list_mean = []
@@ -77,13 +81,17 @@ def simulate(real_products):
         models = {}
         if should_perform_warm_up and warm_up_length > 0:
             print("Warming up")
-            inventory_levels, start_date, models = perform_warm_up(generated_products, start_date, n_time_periods)
+            inventory_levels, start_date, models = perform_warm_up(generated_products, start_date, n_time_periods, config)
+        
+        avg_run_time = 0
+
         for episode in range(n_episodes):
             # simulate and sample costs
             print("Running simulation...")
-            costs, inventory_levels, start_date, _, models = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, models=models, inventory_levels=inventory_levels)
+            costs, inventory_levels, start_date, _, models, avg_run_time_time_step = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, config, models=models, inventory_levels=inventory_levels)
             total_costs.append(costs)
             list_mean.append(sum(total_costs) / len(total_costs))
+            avg_run_time += avg_run_time_time_step
             if episode > 0:
                 list_std.append(statistics.stdev(total_costs))
             print(f"Costs for episode {episode} is: {costs}")
@@ -92,7 +100,10 @@ def simulate(real_products):
             if reset_length > 0:
                 print("Resetting...")
                 # resetting
-                costs, inventory_levels, start_date, _, models = run_one_episode(start_date, n_time_periods, generated_products, reset_length, models=models, inventory_levels=inventory_levels)
+                costs, inventory_levels, start_date, _, models,_ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, config, models=models, inventory_levels=inventory_levels)
+        
+        avg_run_time = avg_run_time/n_episodes
+
         if should_write:
             f.write(f"Total average costs for all episodes is: {sum(total_costs) / len(total_costs)}" + "\n")
             f.write(f'List of mean for each period: {list_mean}' + "\n")
@@ -100,21 +111,35 @@ def simulate(real_products):
 
             standard_deviation_costs = statistics.stdev(total_costs)
             f.write(f"Standard deviations of costs: {standard_deviation_costs}" + "\n")
+            f.write(f"The average time to run the model in Gurobi is: {avg_run_time}" + "\n")
             f.close()
         print(f"Total average costs for all episodes is: {sum(total_costs) / len(total_costs)}")
 
 
-def perform_warm_up(products, start_date, n_time_periods):
+def perform_warm_up(products, start_date, n_time_periods, config):
+    n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
+    warm_up_length = config["simulation"]["warm_up_length"]  # This is the number of time periods we are using to warm up
     inventory_levels = [0 for i in range(len(products))]
     # for i in range(simulation_length):
-    _, inventory_levels, start_date, _, models = run_one_episode(start_date, n_time_periods, products, warm_up_length, inventory_levels=inventory_levels)
+    _, inventory_levels, start_date, _, models, _ = run_one_episode(start_date, n_time_periods, products, warm_up_length, config, inventory_levels=inventory_levels)
     return inventory_levels, start_date, models
 
 
-def run_one_episode(start_date, n_time_periods, products, episode_length, models=None, inventory_levels=None):
-    start_time = time.time()
+def run_one_episode(start_date, n_time_periods, products, episode_length, config, models=None, inventory_levels=None):
+    n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
+    n_episodes = config["simulation"]["n_episodes"]  # This is the number of times we run a full simulation
+    should_write = config["simulation"]["should_write"]
+    product_categories = config["deterministic_model"]["product_categories"]
+    seed = config["main"]["seed"]
+    n_products = sum(product_categories.values())
+    n_erratic = product_categories["erratic"]
+    n_smooth = product_categories["smooth"]
+    n_intermittent = product_categories["intermittent"]
+    n_lumpy = product_categories["lumpy"]
+    major_setup_cost = config["deterministic_model"]["joint_setup_cost"]
+    minor_setup_ratio = config["deterministic_model"]["minor_setup_ratio"]
+    beta = config["deterministic_model"]["beta"]
 
-    config = load_config("../config.yml")
     forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
     verbose = config["simulation"]["verbose"]  # number of time periods
     should_set_holding_cost_dynamically = config["simulation"]["should_set_holding_cost_dynamically"]
@@ -140,6 +165,8 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, models
 
     sum_actual_demand = {product_index: 0 for product_index in range(len(products))}
     sum_fulfilled_demand = {product_index: 0 for product_index in range(len(products))}
+
+    avg_run_time_time_step = 0
 
     for time_step in range(episode_length):
         print(f"Time step {time_step}/{episode_length}")
@@ -243,7 +270,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, models
             else:
                 raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
 
-        deterministic_model = det_mod.DeterministicModel(len(products))
+        deterministic_model = det_mod.DeterministicModel(len(products), config)
         deterministic_model.set_demand_forecast(dict_demands)
         if should_set_holding_cost_dynamically:
             deterministic_model.set_holding_costs(unit_price)
@@ -257,6 +284,9 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, models
         deterministic_model.set_up_model()
         deterministic_model.optimize()
 
+
+        run_time_time_step = deterministic_model.model.Runtime
+        avg_run_time_time_step += run_time_time_step
         # Extract and store the first action for each product in the current time step
         actions[time_step] = {}
         threshold = 1e-5
@@ -297,8 +327,6 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, models
     # runtime = deterministic_model.model.Runtime
     # print("The run time is %f" % runtime)
 
-    end_time = time.time()  # Stop measuring the time
-    runtime = end_time - start_time
     if should_write:
         output_folder = "results"
 
@@ -308,7 +336,6 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, models
             os.makedirs(output_folder)
 
         with open(file_path, "a") as f:
-            f.write(f"Solution time for this episode is: {runtime} seconds" + "\n")
 
             for product_index in range(len(products)):
                 service_level = sum_fulfilled_demand[product_index] / sum_actual_demand[product_index]
@@ -319,7 +346,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, models
             f.write(f"Total costs for this episode is: {total_costs}" + "\n")
 
             f.close()
-    print(f"Solution time for this episode is: {runtime} seconds")
     print(actions)
+    avg_run_time_time_step = avg_run_time_time_step/episode_length
 
-    return total_costs, inventory_levels, start_date, actions, models
+    return total_costs, inventory_levels, start_date, actions, models, avg_run_time_time_step
