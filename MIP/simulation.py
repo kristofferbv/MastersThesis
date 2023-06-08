@@ -7,11 +7,11 @@ import time
 import statistics
 
 import deterministic_model as det_mod
+from MIP.analysis.analyse_data import plot_sales_quantity
 from MIP.forecasting import holt_winters_method, sarima
 from MIP.standard_deviation import get_initial_std_dev, get_std_dev
 from config_utils import load_config
 import generate_data
-from generate_data import generate_seasonal_data_based_on_products
 
 # Get the path of the current script
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -63,12 +63,15 @@ def simulate(real_products, config):
         for category in product_categories.keys():
             number_of_products = product_categories[category]
             current_index += number_of_products
-            if category == "erratic" or category == "smooth":
-                generated_products += generate_seasonal_data_based_on_products(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
+            if category == "erratic":
+                generated_products += generate_data.generate_seasonal_data_for_erratic_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52, seed)
+            elif category == "smooth":
+                generated_products += generate_data.generate_seasonal_data_for_smooth_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52, seed)
+
             else:
-                generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52)
+                generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52, seed)
             last_index = current_index
-        
+        # plot_sales_quantity(generated_products)
         
         f.write("Number of products from each cateogry is:  Erratic: " + str(product_categories["erratic"]) + ", Smooth: " + str(product_categories["smooth"]) + ", Intermittent: " + str(product_categories["intermittent"]) + ", Lumpy: " + str(product_categories["lumpy"]) + "\n")
 
