@@ -8,11 +8,7 @@ import os
 import signal
 import retrieve_data
 import numpy as np
-<<<<<<< Updated upstream
 from keras import layers, regularizers, Sequential
-=======
-from keras import layers, Sequential
->>>>>>> Stashed changes
 import tensorflow as tf
 from keras.layers import Activation, Conv1D
 
@@ -143,11 +139,7 @@ class TransformerBlock(layers.Layer):
         super(TransformerBlock, self).__init__()
         self.att = layers.MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
         self.ffn = Sequential(
-<<<<<<< Updated upstream
             [layers.Dense(ff_dim, activation="relu"), layers.Dense(embed_dim),]
-=======
-            [layers.Dense(ff_dim, activation="relu"), layers.Dense(embed_dim), ]
->>>>>>> Stashed changes
         )
         self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
         self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
@@ -161,11 +153,6 @@ class TransformerBlock(layers.Layer):
         ffn_output = self.ffn(out1)
         ffn_output = self.dropout2(ffn_output, training=training)
         return self.layernorm2(out1 + ffn_output)
-<<<<<<< Updated upstream
-=======
-
-
->>>>>>> Stashed changes
 
 class DDPG():
     def __init__(self, products, state_shape, env):
@@ -193,45 +180,7 @@ class DDPG():
     def update_target(self, target_weights, weights, tau):
         for (a, b) in zip(target_weights, weights):
             a.assign(b * tau + a * (1 - tau))
-    # def get_actor(self):
-    #     # Initialize weights between -3e-3 and 3-e3
-    #     last_init = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
-    #
-    #     inputs = layers.Input(shape=self.state_shape)
-    #     out = layers.Dense(256, activation="relu")(inputs)
-    #     out = layers.Dense(256, activation="relu")(out)
-    #     outputs = layers.Dense(1, activation="sigmoid", kernel_initializer=last_init)(out)
-    #
-    #     # Our upper bound is 2.0 for Pendulum.
-    #     outputs = outputs * 100
-    #     model = tf.keras.Model(inputs, outputs)
-    #     return model
-    #
-    # def get_critic(self):
-    #     # State as input
-    #     state_input = layers.Input(shape=self.state_shape)
-    #     state_out = layers.Dense(16, activation="relu", kernel_initializer="lecun_normal")(state_input)
-    #     state_out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(state_out)
-    #
-    #     # Action as input
-    #     action_input = layers.Input(shape=(len(products), 1))
-    #     action_out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(action_input)
-    #
-    #     # Both are passed through seperate layer before concatenating
-    #     concat = layers.Concatenate()([state_out, action_out])
-    #
-    #     out = layers.Dense(256, activation="relu", kernel_initializer="lecun_normal")(concat)
-    #     out = layers.Dense(256, activation="relu", kernel_initializer="lecun_normal")(out)
-    #     out = layers.Flatten()(out)
-    #     outputs = layers.Dense(1)(out)
-    #     outputs = outputs * 100
-    #
-    #     # Outputs single value for give state-action
-    #     model = tf.keras.Model([state_input, action_input], outputs)
-    #
-    #     return model
 
-<<<<<<< Updated upstream
     # def get_actor(self):
     #     # Initialize weights between -3e-3 and 3-e3
     #     last_init = tf.random_uniform_initializer(minval=-0.001, maxval=0.001)
@@ -268,24 +217,10 @@ class DDPG():
     #     outputs = outputs * 5
     #     model = tf.keras.Model(inputs, outputs)
     #     return model
-=======
-    def get_actor(self):
-        last_init = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
-
-        inputs = layers.Input(shape=self.state_shape)
-        x = layers.Dense(256, activation="relu")(inputs)
-        x = TransformerBlock(256, 8, 256)(x)
-        outputs = layers.Dense(1, activation="sigmoid", kernel_initializer=last_init)(x)
-
-        outputs = outputs * 100
-        model = tf.keras.Model(inputs, outputs)
-        return model
->>>>>>> Stashed changes
 
     def get_critic(self):
         # State as input
         state_input = layers.Input(shape=self.state_shape)
-<<<<<<< Updated upstream
         x = TransformerBlock(13, 8, 16)(state_input)  # Add an additional TransformerBlock layer
         state_out = layers.GlobalAveragePooling1D()(x)
         state_out = layers.Dense(32, activation="relu")(state_input)
@@ -294,35 +229,22 @@ class DDPG():
         # Action as input
         action_input = layers.Input(shape=(len(self.products), 1))
         action_out = layers.Dense(32, activation="relu")(action_input)
-=======
-        state_out = layers.Dense(16, activation="relu", kernel_initializer="lecun_normal")(state_input)
-        state_out = TransformerBlock(16, 2, 64)(state_out)
 
-        # Action as input
-        action_input = layers.Input(shape=(len(products), 1))
-        action_out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(action_input)
-        action_out = TransformerBlock(32, 4, 128)(action_out)
->>>>>>> Stashed changes
-
+        # Both are passed through seperate layer before concatenating
         concat = layers.Concatenate()([state_out, action_out])
 
-<<<<<<< Updated upstream
         out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(concat)
         out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(out)
 
         out = layers.Flatten()(out)
-=======
-        out = layers.Dense(256, activation="relu", kernel_initializer="lecun_normal")(concat)
-        out = TransformerBlock(256, 8, 256)(out)
->>>>>>> Stashed changes
         outputs = layers.Dense(1)(out)
         outputs = outputs * 100
 
+        # Outputs single value for give state-action
         model = tf.keras.Model([state_input, action_input], outputs)
 
         return model
 
-<<<<<<< Updated upstream
     def get_actor(self):
         last_init = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
         inputs = layers.Input(shape=self.state_shape)
@@ -362,9 +284,6 @@ class DDPG():
     #     model = tf.keras.Model([state_input, action_input], outputs)
     #
     #     return model
-=======
-
->>>>>>> Stashed changes
 
     def policy(self, state, noise_object):
         sampled_actions = tf.squeeze(self.actor_model(state))
