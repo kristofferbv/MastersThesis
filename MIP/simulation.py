@@ -159,8 +159,6 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, models
                     demand = products[product_index].loc[start_date, "sales_quantity"]
                 else:
                     demand = products[product_index].loc[start_date]
-                print("DEMAAAND", demand)
-                print(start_date)
 
                 actual_demands.append(demand)
 
@@ -193,12 +191,11 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, models
             total_costs += period_costs
         for product_index in range(len(products)):
             if forecasting_method == "holt_winter":
-                sales_quantity_data = products[product_index].loc[start_date + pd.DateOffset(weeks=1):start_date + pd.DateOffset(weeks=13), "sales_quantity"]
-
-                print("sales:", sales_quantity_data)
-                print(holt_winters_method.forecast(products[product_index],start_date, 13))
+                zero_data = pd.Series([0])
+                sales_quantity_data = products[product_index].loc[start_date + pd.DateOffset(weeks=1):start_date + pd.DateOffset(weeks=14), "sales_quantity"]
+                sales_quantity_data = pd.concat([zero_data, sales_quantity_data]).reset_index(drop=True)
                 dict_demands[product_index] = sales_quantity_data
-                print(start_date)
+                print(sales_quantity_data)
 
         deterministic_model = det_mod.DeterministicModel(len(products))
         deterministic_model.set_demand_forecast(dict_demands)
