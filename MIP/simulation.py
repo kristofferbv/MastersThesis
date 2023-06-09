@@ -214,8 +214,8 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
         major_setup_added = False
         # Update inventory levels based on previous actions and actual demand
         actual_demands = []
-        if time_step != 0:
-            for product_index, product in enumerate(products):
+        for product_index, product in enumerate(products):
+            if time_step != 0:
                 if isinstance(product, pd.DataFrame):
                     demand = products[product_index].loc[start_date, "sales_quantity"]
                 else:
@@ -249,33 +249,6 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
 
                 previous_il = inventory_levels[product_index]
                 inventory_levels[product_index] = max(0, previous_il + actions[time_step - 1][product_index] - demand)
-
-            total_costs += period_costs
-            if verbose:
-                print("Period costs: ")
-                print(period_costs)
-
-                print("Actions at time period ", time_step - 1)
-                print(actions[time_step - 1])
-
-                print("Actual_demand for period ", time_step - 1)
-                print(actual_demands)
-
-                print("Inventory levels at start of time period ", time_step)
-                print(inventory_levels)
-
-                print("Total costs at time period : ", time_step)
-                print(total_costs)
-
-                print("Total holding costs:")
-                print(holding_costs)
-
-                print("Total shortage costs:")
-                print(shortage_costs)
-
-                print("Total setup costs:")
-                print(setup_costs)
-        for product_index in range(len(products)):
             if forecasting_method == "holt_winter":
                 if time_step == 0:
                     dict_demands[product_index], train = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
@@ -300,13 +273,41 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
                     prev_forecast[product_index] = dict_demands[product_index][1]
                 else:
                     dict_sds[product_index] = get_std_dev(prev_std_dev[product_index], forecast_errors[product_index], n_time_periods, alpha=0.1)
-                    dict_demands[product_index], _, _= sarima.forecast(products[product_index], start_date, model=models[product_index], n_time_periods=n_time_periods)
+                    dict_demands[product_index], _, _ = sarima.forecast(products[product_index], start_date, model=models[product_index], n_time_periods=n_time_periods)
                     # storing std dev and forecast to use for updating the std deviation of errors in the forecast
                     prev_std_dev[product_index] = dict_sds[product_index][1]
                     prev_forecast[product_index] = dict_demands[product_index][1]
 
             else:
                 raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
+
+
+        total_costs += period_costs
+        if verbose:
+            print("Period costs: ")
+            print(period_costs)
+
+            print("Actions at time period ", time_step - 1)
+            print(actions[time_step - 1])
+
+            print("Actual_demand for period ", time_step - 1)
+            print(actual_demands)
+
+            print("Inventory levels at start of time period ", time_step)
+            print(inventory_levels)
+
+            print("Total costs at time period : ", time_step)
+            print(total_costs)
+
+            print("Total holding costs:")
+            print(holding_costs)
+
+            print("Total shortage costs:")
+            print(shortage_costs)
+
+            print("Total setup costs:")
+            print(setup_costs)
+
 
         deterministic_model = det_mod.DeterministicModel(len(products), config)
         deterministic_model.set_demand_forecast(dict_demands)
