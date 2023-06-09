@@ -2,6 +2,7 @@ import random
 import os
 import sys
 
+
 # Get the path of the current script
 current_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -15,7 +16,6 @@ from config_utils import load_config
 import simulation
 from generate_data import *
 
-
 # Get the directory of the current script
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -26,7 +26,9 @@ os.chdir(current_dir)
 
 if __name__ == '__main__':
 
-    config_files = ["config.yml", "config2.yml"]
+    #config_files = ["config.yml", "config2.yml", "config3.yml", "config4.yml", "config5.yml", "config6.yml", "config7.yml","config8.yml","config9.yml","config10.yml"]
+
+    config_files = ["config.yml"]
 
     for config_file in config_files:
         config = load_config(config_file)
@@ -53,6 +55,7 @@ if __name__ == '__main__':
         if seed is not None:
             # Setting a random seed ensure we select the same random products each time
             random.seed(seed)
+            
         for category in product_categories.keys():
             category_products = retrieve_data.read_products("2016-01-01", "2020-12-30", category)
             print(category)

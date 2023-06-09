@@ -1,4 +1,0 @@
-Number of products of category erratic is 4
-Number of products of category smooth is 4
-Number of products of category intermittent is 4
-Number of products of category lumpy is 4
