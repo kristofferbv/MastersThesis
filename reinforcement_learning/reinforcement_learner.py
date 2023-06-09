@@ -63,7 +63,7 @@ if __name__ == "__main__":
     # if should_generate_data:
     generated_products = generate_seasonal_data_based_on_products(real_products, 500)
     products = generated_products
-    plot_sales_quantity(products)
+    # plot_sales_quantity(products)
     # for i in generated_products:
     #     print(i["sales_quantity"])
     # plot_sales_quantity(real_products)

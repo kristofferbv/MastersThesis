@@ -57,7 +57,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
 
         self.action_space = gym.spaces.Discrete(self.n_action_classes)  # 10 discrete actions from 0 to 9 inclusive
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(len(products), self.n_periods_historical_data + 1 + self.should_include_individual_forecast + self.should_include_total_forecast), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(self.n_periods_historical_data + 1 + self.should_include_individual_forecast + self.should_include_total_forecast, len(products)), dtype=np.float32)
         self.forecast = {}
         self.inventory_levels = [0 for _ in self.products]
         self.reset()

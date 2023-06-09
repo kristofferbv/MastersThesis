@@ -47,7 +47,7 @@ def plot_data(df):
     plt.legend()
     plt.show()
 
-def generate_seasonal_data_for_erratic_demand(products, num_periods, seed=3, period=52):
+def generate_seasonal_data_for_smooth_demand(products, num_periods, seed=3, period=52):
     products_list = []
     if seed is not None:
         np.random.seed(seed)
@@ -88,7 +88,7 @@ def generate_seasonal_data_for_erratic_demand(products, num_periods, seed=3, per
 
 
 
-def generate_seasonal_data_for_smooth_demand(products, num_periods, seed=None, period=52):
+def generate_seasonal_data_for_erratic_demand(products, num_periods, seed=None, period=52):
     products_list = []
     if seed is not None:
         np.random.seed(seed)

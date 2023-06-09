@@ -159,7 +159,8 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, models
                     demand = products[product_index].loc[start_date, "sales_quantity"]
                 else:
                     demand = products[product_index].loc[start_date]
-                forecast_errors[product_index] = demand - prev_forecast[product_index]
+                print("DEMAAAND", demand)
+                print(start_date)
 
                 actual_demands.append(demand)
 
@@ -190,68 +191,19 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, models
                 inventory_levels[product_index] = max(0, previous_il + actions[time_step - 1][product_index] - demand)
 
             total_costs += period_costs
-            if verbose:
-                print("Period costs: ")
-                print(period_costs)
-
-                print("Actions at time period ", time_step - 1)
-                print(actions[time_step - 1])
-
-                print("Actual_demand for period ", time_step - 1)
-                print(actual_demands)
-
-                print("Inventory levels at start of time period ", time_step)
-                print(inventory_levels)
-
-                print("Total costs at time period : ", time_step)
-                print(total_costs)
-
-                print("Total holding costs:")
-                print(holding_costs)
-
-                print("Total shortage costs:")
-                print(shortage_costs)
-
-                print("Total setup costs:")
-                print(setup_costs)
         for product_index in range(len(products)):
             if forecasting_method == "holt_winter":
-                if time_step == 0:
-                    dict_demands[product_index], train = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
-                    dict_sds[product_index] = get_initial_std_dev(train, n_time_periods)
-                    # storing std dev and forecast to use for updating the std deviation of errors in the forecast
-                    prev_std_dev[product_index] = dict_sds[product_index][1]
-                    prev_forecast[product_index] = dict_demands[product_index][1]
-                else:
-                    dict_sds[product_index] = get_std_dev(prev_std_dev[product_index], forecast_errors[product_index], n_time_periods, alpha=0.1)
-                    dict_demands[product_index], _ = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
-                    # storing std dev and forecast to use for updating the std deviation of errors in the forecast
-                    prev_std_dev[product_index] = dict_sds[product_index][1]
-                    prev_forecast[product_index] = dict_demands[product_index][1]
+                sales_quantity_data = products[product_index].loc[start_date + pd.DateOffset(weeks=1):start_date + pd.DateOffset(weeks=13), "sales_quantity"]
 
-            elif forecasting_method == "sarima":
-                if time_step == 0:
-                    # fitting the model
-                    dict_demands[product_index], models[product_index], train = sarima.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
-                    dict_sds[product_index] = get_initial_std_dev(train, n_time_periods)
-                    # storing std dev and forecast to use for updating the std deviation of errors in the forecast
-                    prev_std_dev[product_index] = dict_sds[product_index][1]
-                    prev_forecast[product_index] = dict_demands[product_index][1]
-                else:
-                    dict_sds[product_index] = get_std_dev(prev_std_dev[product_index], forecast_errors[product_index], n_time_periods, alpha=0.1)
-                    dict_demands[product_index], _, _= sarima.forecast(products[product_index], start_date, model=models[product_index], n_time_periods=n_time_periods)
-                    # storing std dev and forecast to use for updating the std deviation of errors in the forecast
-                    prev_std_dev[product_index] = dict_sds[product_index][1]
-                    prev_forecast[product_index] = dict_demands[product_index][1]
-
-            else:
-                raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
+                print("sales:", sales_quantity_data)
+                print(holt_winters_method.forecast(products[product_index],start_date, 13))
+                dict_demands[product_index] = sales_quantity_data
+                print(start_date)
 
         deterministic_model = det_mod.DeterministicModel(len(products))
         deterministic_model.set_demand_forecast(dict_demands)
         if should_set_holding_cost_dynamically:
             deterministic_model.set_holding_costs(unit_price)
-        deterministic_model.set_safety_stock(dict_sds)
         deterministic_model.set_big_m()
         deterministic_model.model.setParam("OutputFlag", 0)
         deterministic_model.model.setParam('TimeLimit', 2 * 60)  # set the time limit to 2 minutes for the gurobi model
@@ -286,20 +238,6 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, models
                         orders[time_step][product_index][tau] = var.x
                         if abs(orders[time_step][product_index][tau]) < threshold:
                             orders[time_step][product_index][tau] = 0
-
-    # print("Total costs at after all periods : ")
-    # print(total_costs)
-    # print("Total shortage costs")
-    # print(shortage_costs)
-    # print("Holding costs:")
-    # print(holding_costs)
-    # print("Setup costs")
-    # print(setup_costs)
-    # print(actions)
-    # print("orders")
-    # print(orders)
-    # runtime = deterministic_model.model.Runtime
-    # print("The run time is %f" % runtime)
 
     end_time = time.time()  # Stop measuring the time
     runtime = end_time - start_time

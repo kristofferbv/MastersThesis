@@ -11,6 +11,15 @@ import numpy as np
 from keras import layers, regularizers, Sequential
 import tensorflow as tf
 from keras.layers import Activation, Conv1D
+from pandas import read_csv
+import numpy as np
+from keras import Model
+from keras.layers import Layer
+import keras.backend as K
+from keras.layers import Input, Dense, SimpleRNN
+from sklearn.preprocessing import MinMaxScaler
+from keras.models import Sequential
+from keras.metrics import mean_squared_error
 
 from MIP.analysis.analyse_data import plot_sales_quantity
 from reinforcement_learning.environment import JointReplenishmentEnv
@@ -141,8 +150,8 @@ class TransformerBlock(layers.Layer):
         self.ffn = Sequential(
             [layers.Dense(ff_dim, activation="relu"), layers.Dense(embed_dim),]
         )
-        self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
-        self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
+        self.layernorm1 = layers.LayerNormalization()
+        self.layernorm2 = layers.LayerNormalization(epsilon=1e-4)
         self.dropout1 = layers.Dropout(rate)
         self.dropout2 = layers.Dropout(rate)
 
@@ -153,6 +162,45 @@ class TransformerBlock(layers.Layer):
         ffn_output = self.ffn(out1)
         ffn_output = self.dropout2(ffn_output, training=training)
         return self.layernorm2(out1 + ffn_output)
+
+
+class attention(Layer):
+    def __init__(self, **kwargs):
+        super(attention, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.W = self.add_weight(name='attention_weight', shape=(input_shape[-1], 1),
+                                 initializer='random_normal', trainable=True)
+        self.b = self.add_weight(name='attention_bias', shape=(input_shape[1], 1),
+                                 initializer='zeros', trainable=True)
+        super(attention, self).build(input_shape)
+
+    def call(self, x):
+        # Alignment scores. Pass them through tanh function
+        e = K.tanh(K.dot(x, self.W) + self.b)
+        # Remove dimension of size 1
+        e = K.squeeze(e, axis=-1)
+        # Compute the weights
+        alpha = K.softmax(e)
+        # Reshape to tensorFlow format
+        alpha = K.expand_dims(alpha, axis=-1)
+        # Compute the context vector
+        context = x * alpha
+        context = K.sum(context, axis=1)
+        return context
+
+class PositionalEncoding(layers.Layer):
+    def __init__(self, sequence_length, num_features, dtype=tf.float32):
+        super(PositionalEncoding, self).__init__()
+        position = np.arange(sequence_length)[:, np.newaxis]
+        div_term = np.exp(np.arange(0, num_features, 2) * -(np.log(10000.0) / num_features))
+        positional_encoding = np.zeros((sequence_length, num_features))
+        positional_encoding[:, 0::2] = np.sin(position * div_term)
+        positional_encoding[:, 1::2] = np.cos(position * div_term)
+        self.positional_encoding = tf.convert_to_tensor(positional_encoding, dtype=dtype)
+
+    def call(self, inputs):
+        return inputs + self.positional_encoding
 
 class DDPG():
     def __init__(self, products, state_shape, env):
@@ -181,28 +229,33 @@ class DDPG():
         for (a, b) in zip(target_weights, weights):
             a.assign(b * tau + a * (1 - tau))
 
-    # def get_actor(self):
-    #     # Initialize weights between -3e-3 and 3-e3
-    #     last_init = tf.random_uniform_initializer(minval=-0.001, maxval=0.001)
-    #
-    #     inputs = layers.Input(shape=self.state_shape)
-    #     out = Conv1D(filters=64, kernel_size=3, activation='relu')(inputs)
-    #     # model.add(LSTM(128, activation='relu'))
-    #     # out = layers.Flatten()(out)
-    #     out = layers.LSTM(units=32, return_sequences=False, activation="relu",kernel_initializer="lecun_normal")(out)  # Adjust the number of units to your preference
-    #     out = layers.Dropout(rate=0.5)(out)
-    #     out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(inputs)
-    #     out = layers.Dropout(rate=0.2)(out)
-    #     out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(out)
-    #     out = layers.Dropout(rate=0.2)(out)
-    #     # out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(out)
-    #     # out = layers.Dropout(rate=0.5)(out)
-    #     outputs = layers.Dense(1,  kernel_initializer=last_init)(out)
-    #
-    #     # Multiply with action upper bound
-    #     # outputs = outputs * 100
-    #     model = tf.keras.Model(inputs, outputs)
-    #     return model
+    def get_actor(self):
+        # Initialize weights between -3e-3 and 3-e3
+        last_init = tf.random_uniform_initializer(minval=-0.001, maxval=0.001)
+
+        inputs = layers.Input(shape=self.state_shape)
+        print(self.state_shape)
+        # out = Conv1D(filters=64, kernel_size=3, activation='relu')(inputs)
+        # model.add(LSTM(128, activation='relu'))
+        # out = layers.LSTM(units=32, return_sequences= True, activation="sigmoid",kernel_initializer="lecun_normal")(inputs)  # Adjust the number of units to your preference
+        # attention_layer = attention()(out)
+        out = layers.Flatten()(inputs)
+        # out = layers.Dropout(rate=0.5)(out)
+        out = layers.Dense(200, activation="tanh", kernel_initializer="lecun_normal")(out)
+        # out = layers.Dropout(rate=0.2)(out)
+        out = layers.Dense(400, activation="tanh", kernel_initializer="lecun_normal")(out)
+        out = layers.Dense(200, activation="tanh", kernel_initializer="lecun_normal")(out)
+
+        # out = layers.Dropout(rate=0.2)(out)
+
+        # out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(out)
+        # out = layers.Dropout(rate=0.5)(out)
+        outputs = layers.Dense(len(self.products),  kernel_initializer=last_init)(out)
+
+        # Multiply with action upper bound
+        # outputs = outputs * 100
+        model = tf.keras.Model(inputs, outputs)
+        return model
 
     # def get_actor(self):
     #     # Initialize weights between -3e-3 and 3-e3
@@ -221,14 +274,19 @@ class DDPG():
     def get_critic(self):
         # State as input
         state_input = layers.Input(shape=self.state_shape)
-        x = TransformerBlock(13, 8, 16)(state_input)  # Add an additional TransformerBlock layer
-        state_out = layers.GlobalAveragePooling1D()(x)
+        # x = TransformerBlock(8, 8, 16)(state_input)  # Add an additional TransformerBlock layer
+        # state_out = layers.GlobalAveragePooling1D()(x)
         state_out = layers.Dense(32, activation="relu")(state_input)
+        state_out = layers.Flatten()(state_out)
+        # state_out = layers.GlobalAveragePooling1D()(state_out)
+
         # state_out = layers.Dense(32, activation="relu")(state_out)
 
         # Action as input
         action_input = layers.Input(shape=(len(self.products), 1))
         action_out = layers.Dense(32, activation="relu")(action_input)
+        action_out = layers.Flatten()(action_out)
+
 
         # Both are passed through seperate layer before concatenating
         concat = layers.Concatenate()([state_out, action_out])
@@ -238,26 +296,28 @@ class DDPG():
 
         out = layers.Flatten()(out)
         outputs = layers.Dense(1)(out)
-        outputs = outputs * 100
+        outputs = outputs 
 
         # Outputs single value for give state-action
         model = tf.keras.Model([state_input, action_input], outputs)
 
         return model
 
-    def get_actor(self):
-        last_init = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
-        inputs = layers.Input(shape=self.state_shape)
-        x = TransformerBlock(13, 20, 32)(inputs)
-        x = TransformerBlock(13, 12, 32)(x)  # Add an additional TransformerBlock layer
-        x = TransformerBlock(13, 4, 32)(x)  # Add an additional TransformerBlock layer
-        x = layers.GlobalAveragePooling1D()(x)
-        # x = layers.Dense(16, activation="relu")(x)
-        # x = layers.Dropout(rate=0.5)(x)
-        outputs = layers.Dense(8, activation="sigmoid", kernel_initializer=last_init)(x)
-        outputs = outputs * 100
-        model = tf.keras.Model(inputs, outputs)
-        return model
+    # def get_actor(self):
+    #     last_init = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
+    #     inputs = layers.Input(shape=self.state_shape)
+    #     x = layers.Dense(len(self.products), activation="relu", kernel_initializer=last_init)(inputs)
+    #     x = PositionalEncoding(self.state_shape[0], self.state_shape[1])(x)
+    #     x = TransformerBlock(len(self.products), 4, 64)(x)
+    #     # x = TransformerBlock(8, 12, 32)(x)  # Add an additional TransformerBlock layer
+    #     # x = TransformerBlock(8, 4, 32)(x)  # Add an additional TransformerBlock layer
+    #     x = layers.GlobalAveragePooling1D()(x)
+    #     # x = layers.Dense(16, activation="relu")(x)
+    #     # x = layers.Dropout(rate=0.5)(x)
+    #     outputs = layers.Dense(len(self.products), activation="relu", kernel_initializer=last_init)(x)
+    #     outputs = outputs
+    #     model = tf.keras.Model(inputs, outputs)
+    #     return model
 
     # def get_critic(self):
     #     # State as input
@@ -369,7 +429,7 @@ class DDPG():
             # by the critic for our actions
             actor_loss = -tf.math.reduce_mean(critic_value)
         actor_grad = tape.gradient(actor_loss, self.actor_model.trainable_variables)
-        actor_grad, _ = tf.clip_by_global_norm(actor_grad, 1)  # Apply gradient clipping
+        actor_grad, _ = tf.clip_by_global_norm(actor_grad, 0.01)  # Apply gradient clipping
         actor_optimizer.apply_gradients(
             zip(actor_grad, self.actor_model.trainable_variables)
         )
@@ -380,7 +440,7 @@ class DDPG():
         # To store average reward history of last few episodes
         self.avg_reward_list = []
         self.env.set_costs(self.products, 100)
-        epsilon = 1  # start with full randomness
+        epsilon = 0.5  # start with full randomness
         epsilon_min = 0.01  # the lowest level of randomness we want
         epsilon_decay = 0.995  # how quickly to decrease randomness
         # Takes about 4 min to train
@@ -397,18 +457,19 @@ class DDPG():
             self.env.products = generated_products
             self.env.scale_demand(generated_products)
             prev_state = self.env.reset()
-            if ep<500:
-                self.env.reset_inventory()
+            # if ep<500:
+            self.env.reset_inventory()
             episodic_reward = 0
+            prev_state = tf.convert_to_tensor([prev_state])
+            prev_state = tf.transpose(prev_state, perm=[0, 2, 1])
 
             while True:
-                tf_prev_state = tf.convert_to_tensor([prev_state])
                 self.std_dev = self.std_dev * 0.999
                 if (self.std_dev < 0.3):
                     self.std_dev = 0.3
                 ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(self.std_dev) * np.ones(1))
-                action = self.policy(tf_prev_state, ou_noise)[0]
-                # if np.random.rand() <= epsilon:  # decide whether to explore or exploit
+                action = self.policy(prev_state, ou_noise)[0]
+                # if np.random.rand() <= epsilon and ep >50:  # decide whether to explore or exploit
                 #     # exploration: choose a random action
                 #     new_actions = []
                 #     for a in action:
@@ -418,13 +479,15 @@ class DDPG():
                 #     action = new_actions
 
                 for i in range(len(action)):
-                    if action[i] < 5:
+                    if action[i] < 1:
                         action[i] = 0
                 # if random.random() <0.001:
                 #     action = [0 for i in range(len(self.products))]
                 #     print("YEEEEEEEEEeeeeeeeeeeeeeeeSSSSS!!!!")
                 # Recieve state and reward from environment.
                 state, reward, done, info = self.env.step(action)
+                state = tf.convert_to_tensor([state])
+                state = tf.transpose(state, perm=[0, 2, 1])
                 total_reward = sum(reward)
 
                 reward = sum(reward)
