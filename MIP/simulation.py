@@ -77,7 +77,7 @@ def simulate(real_products, config):
     list_avg_optimality_gap = []
     list_std_optimality_gap = []
     service_levels = {product_index: [] for product_index in range(n_products)}
-    actual_demand_list =  {episode: [] for episode in range(n_episodes)}
+    #actual_demand_list =  {episode: [] for episode in range(n_episodes)}
 
     inventory_levels = None
     start_date = generated_products[0].index[start_index]
@@ -90,7 +90,7 @@ def simulate(real_products, config):
 
     for episode in range(n_episodes):
         # simulate and sample costs
-        print("Running simulation...")
+        print(f"Running simulation episode {episode}")
 
         data_to_write.append(f"Start inventory levels of episode: {episode} are {inventory_levels}")
 
@@ -106,12 +106,12 @@ def simulate(real_products, config):
         if episode > 0:
             list_std.append(statistics.stdev(total_costs))
         data_to_write.append(f"Actions for episode {episode} are: {actions}")
-        data_to_write.append(f"Tau values for epiode {episode} are: {tau_values}")
+        data_to_write.append(f"Tau values for episode {episode} are: {tau_values}")
         #data_to_write.append(f"Costs for episode {episode} is: {costs}")
             # f.write(f"Actions for episode {episode} are: {actions}" + "\n")
             # print(f"Actions for episode {episode} are: {actions}")
         #print(service_level)
-        actual_demand_list[episode] = actual_demands
+        data_to_write.append(f"Actual demands for episode {episode} are: {actual_demands}")
             
         for product_index in range(n_products):
             service_levels[product_index].append(service_level[product_index])
@@ -129,7 +129,7 @@ def simulate(real_products, config):
         data_to_write.append(f'List of mean costs for each period: {list_mean}')
         data_to_write.append(f'List of standard deviation of costs for each period: {list_std}')
         data_to_write.append(f"Service levels are: {service_levels}")
-        data_to_write.append(f"Actual demands are: {actual_demand_list}")
+        #data_to_write.append(f"Actual demands are: {actual_demand_list}")
 
 
         standard_deviation_costs = statistics.stdev(total_costs)
@@ -317,7 +317,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
         deterministic_model.set_big_m()
         deterministic_model.model.setParam("OutputFlag", 0)
         deterministic_model.model.setParam('TimeLimit', 2 * 60)  # set the time limit to 2 minutes for the gurobi model
-        deterministic_model.model.setParam('MIPGap', 0.01)  # set the MIPGap to be 1%
+        #deterministic_model.model.setParam('MIPGap', 0.01)  # set the MIPGap to be 1%
 
         deterministic_model.set_inventory_levels(inventory_levels)
         deterministic_model.set_up_model()
