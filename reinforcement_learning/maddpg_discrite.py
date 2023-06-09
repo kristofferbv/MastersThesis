@@ -29,9 +29,9 @@ warm_up_steps = 1000
 class Actor(models.Model):
     def __init__(self, action_dim, max_action):
         super(Actor, self).__init__()
-        self.l1 = layers.LSTM(64, return_sequences=True, activation='tanh')
-        self.l2 = layers.LSTM(64, return_sequences=True, activation='tanh')
-        self.l3 = layers.TimeDistributed(layers.Dense(1, activation='sigmoid'))
+        self.l1 = layers.Dense(64, activation='tanh')
+        self.l2 = layers.Dense(64, activation='tanh')
+        self.l3 = layers.Dense(1, activation='sigmoid')
         self.max_action = max_action
 
     def call(self, inputs):
@@ -43,9 +43,9 @@ class Actor(models.Model):
 class Critic(models.Model):
     def __init__(self):
         super(Critic, self).__init__()
-        self.l1 = layers.LSTM(32, return_sequences=True, activation='tanh')
-        self.l2 = layers.LSTM(32, return_sequences=True, activation='tanh')
-        self.l3 = layers.TimeDistributed(layers.Dense(1))
+        self.l1 = layers.Dense(32,  activation='tanh')
+        self.l2 = layers.Dense(32, activation='tanh')
+        self.l3 = layers.Dense(1)
         self.flatten = layers.Flatten()
 
     def call(self, inputs):
@@ -165,7 +165,6 @@ class Agent:
 
     def select_action(self, state):
         state = tf.convert_to_tensor([state])
-        print("UAJAJJAJAJAJ",self.actor(state))
         return self.actor(state)[0].numpy()
 
 
@@ -210,17 +209,9 @@ class MultiAgent:
         self.replay_buffer = ReplayBuffer(20000)
 
     def train(self):
-        # Main training loop
-        # Warm-up phase
+
         state = self.env.reset()
         self.env.set_costs(self.products)
-        # for _ in range(warm_up_steps):
-        #     action = env.action_space.sample()  # Take random action
-        #     next_state, reward, done, *_ = env.step(action)
-        #     replay_buffer.add((state, action, reward, next_state, done))
-        #     state = next_state
-        #     if done:
-        #         state = env.reset()
 
         # Main training loop
         running_avg_reward = 0
@@ -230,7 +221,6 @@ class MultiAgent:
             done = False
             total_reward = 0
             state = self.env.reset()
-            print("STAAATE", state)
             factor = 0.4
             samples = []
             while not done:
@@ -240,13 +230,12 @@ class MultiAgent:
                         factor = 0.2
                 # Select action according to policy
                 if random.random() < factor:
-                    actions = tf.random.uniform(shape=[4],minval=0,maxval=70)
+                    actions = tf.random.uniform(shape=[6],minval=0,maxval=70)
                 else:
                     # random_number = random.uniform(-1, 1)
                 # actions = [agent.select_action(state[i])[0] + random_number * faktor for i, agent in enumerate(self.agents)]
                     actions = [np.clip(agent.select_action(state[i]), 0, 100) for i, agent in enumerate(self.agents)]
-                    print("ACTIons", actions)
-                # print("actions", actions)
+                    actions = [item[0] for item in actions]
                 # Perform action and get reward
                 next_state, reward, done, *_ = self.env.step(actions)
                 total_reward += sum(reward)

@@ -14,26 +14,24 @@ import gym
 import scipy.signal
 import actor as a
 import time
-from generate_data import generate_seasonal_data_based_on_products
+# from generate_data import generate_seasonal_data_based_on_products
 
 import generate_data
 import retrieve_data
 from reinforcement_learning.environment import JointReplenishmentEnv
 
 # Hyperparameters of the PPO algorithm
-steps_per_epoch = 3000
-epochs = 1000
+steps_per_epoch = 4000
+epochs = 3000
 gamma = 0.99
-clip_ratio = 0.6
-policy_learning_rate = 3e-4
-value_function_learning_rate = 1e-3
+clip_ratio = 0.2
+policy_learning_rate = 3e-5
+value_function_learning_rate = 1e-4
 train_policy_iterations = 80
 train_value_iterations = 80
 lam = 0.97
 target_kl = 0.01
-hidden_sizes = (32, 64, 32)
-exploration_rate = 0.1
-
+hidden_sizes = (128, 128)
 
 
 def discounted_cumulative_sums(x, discount):
@@ -48,22 +46,22 @@ class Buffer:
         self.observation_buffer = np.zeros(
             (size, *observation_dimensions), dtype=np.float32
         )
-        self.action_buffer = np.zeros((size, observation_dimensions[0]), dtype=np.int32)
+        self.action_buffer = np.zeros(size, dtype=np.int32)
         self.advantage_buffer = np.zeros(size, dtype=np.float32)
         self.reward_buffer = np.zeros(size, dtype=np.float32)
         self.return_buffer = np.zeros(size, dtype=np.float32)
         self.value_buffer = np.zeros(size, dtype=np.float32)
-        self.logprobability_buffer = np.zeros((size, observation_dimensions[0]), dtype=np.float32)
+        self.logprobability_buffer = np.zeros(size, dtype=np.float32)
         self.gamma, self.lam = gamma, lam
         self.pointer, self.trajectory_start_index = 0, 0
 
     def store(self, observation, action, reward, value, logprobability):
         # Append one step of agent-environment interaction
         self.observation_buffer[self.pointer] = observation
-        self.action_buffer[self.pointer] = np.array(action)
+        self.action_buffer[self.pointer] = action
         self.reward_buffer[self.pointer] = reward
         self.value_buffer[self.pointer] = value
-        self.logprobability_buffer[self.pointer] = np.array(logprobability)[0]
+        self.logprobability_buffer[self.pointer] = logprobability
         self.pointer += 1
 
     def finish_trajectory(self, last_value=0):
@@ -117,26 +115,21 @@ class PPO:
         self.products = products
         # Initialize the environment and get the dimensionality of the observation space and the number of possible actions
         self.observation_dimensions = env.observation_space.shape
-        print("OBBS", self.observation_dimensions)
-        self.num_actions = env.action_space.n
-        self.exploration_rate = exploration_rate
+        self.num_actions = env.action_space.n ** len(products)
 
         # Initialize the buffer
-        self.buffer = Buffer(env.observation_space.shape, steps_per_epoch)
+        self.buffer = Buffer(self.observation_dimensions, steps_per_epoch)
 
-        # Initialize the actor for all products and the critic as keras models
-        self.observation_input_actor = keras.Input(shape=self.observation_dimensions[1], dtype=tf.float32)
-        self.observation_input_critic = keras.Input(shape=self.observation_dimensions, dtype=tf.float32)
+        # Initialize the actor and the critic as keras models
+        self.observation_input = keras.Input(shape=self.observation_dimensions, dtype=tf.float32)
+        self.logits = mlp(self.observation_input, list(hidden_sizes) + [self.num_actions], tf.tanh, None)
+        print(self.logits)
+        self.actor = keras.Model(inputs=self.observation_input, outputs=self.logits)
 
-
-        logits = mlp(self.observation_input_actor, list(hidden_sizes) + [self.num_actions], tf.tanh, None)
-        self.actors = []
-        for i in range(len(products)):
-            self.actors.append(keras.Model(inputs=self.observation_input_actor, outputs=logits))
-
-        value = tf.squeeze(mlp(self.observation_input_critic, list(hidden_sizes) + [1], tf.tanh, None), axis=1)
-        print(self.observation_input_critic)
-        self.critic = keras.Model(inputs=self.observation_input_critic, outputs=value)
+        value = tf.squeeze(
+            mlp(self.observation_input, list(hidden_sizes) + [1], tf.tanh, None), axis=1
+        )
+        self.critic = keras.Model(inputs=self.observation_input, outputs=value)
 
         # Initialize the policy and the value function optimizers
         self.policy_optimizer = keras.optimizers.Adam(learning_rate=policy_learning_rate)
@@ -152,8 +145,8 @@ class PPO:
     # observation = observation[0]
 
     def train_ppo(self):
+        generated_products = generate_data.generate_seasonal_data_based_on_products(self.products, 500, period=52)
         observation, episode_return, episode_length = self.env.reset(), 0, 0
-        self.env.set_costs(self.products)
 
         # Iterate over the number of epochs
         for epoch in range(epochs):
@@ -161,33 +154,31 @@ class PPO:
             sum_return = 0
             sum_length = 0
             num_episodes = 0
-            should_decay = False
-
+            self.env.set_costs(self.products)
+            generated_products = generate_data.generate_seasonal_data_based_on_products(self.products, 500, period=52)
+            # print("plotting")
+            # plot_sales_quantity(generated_products)
+            self.env.products = generated_products
+            self.env.scale_demand(generated_products)
 
             # Iterate over the steps of each epoch
             for t in range(steps_per_epoch):
                 # Get the logits, action, and take one step in the environment
-                logits = []
-                actions = []
-                for i, obs in enumerate(observation):
-                    logit, action = self.sample_action(obs, i, should_decay)
-                    should_decay = False
-                    logits.append(logit)
-                    actions.append(action[0].numpy())
-                individual_actions = actions
-
-                # Unwrap the observation from a tuple to a list before feeding it to the environment
+                # observation = observation.reshape(1, -1)
+                logits, action, hei = self.sample_action(observation)
+                individual_actions = a.unflatten_action(action[0].numpy(), self.env.action_space.n, len(self.products))
+                individual_actions.append(epoch)
                 observation_new, reward, done, *_ = self.env.step(individual_actions)
+                episode_return += sum(reward)
                 reward = sum(reward)
-                episode_return += reward
                 episode_length += 1
 
                 # Get the value and log-probability of the action
                 value_t = self.critic(tf.reshape(observation, [1, *observation.shape]))
-                logprobability_t = [self.logprobabilities(logit, act) for logit, act in zip(logits, actions)]
+                logprobability_t = self.logprobabilities(logits, action)
 
                 # Store obs, act, rew, v_t, logp_pi_t
-                self.buffer.store(observation, actions, reward, value_t, logprobability_t)
+                self.buffer.store(observation, action, reward, value_t, logprobability_t)
 
                 # Update the observation
                 observation = observation_new
@@ -214,71 +205,52 @@ class PPO:
 
             # Update the policy and implement early stopping using KL divergence
             for _ in range(train_policy_iterations):
-                for i in range(len(self.products)):
-                    observation_i = observation_buffer[:, i, :]
-                    action_i = action_buffer[:, i]
-                    logprobability_i = logprobability_buffer[:, i]
-
-                    kl = self.train_policy(observation_i, action_i, logprobability_i, advantage_buffer, i)
-                    if kl > 1.5 * target_kl:
-                        # Early Stopping
-                        break
-
-                # kl = self.train_policy(
-                #     observation_buffer, action_buffer, logprobability_buffer, advantage_buffer
-                # )
-                # if kl > 1.5 * target_kl:
-                #     # Early Stopping
-                #     break
+                kl = self.train_policy(
+                    observation_buffer, action_buffer, logprobability_buffer, advantage_buffer
+                )
+                if kl > 1.5 * target_kl:
+                    # Early Stopping
+                    break
 
             # Update the value function
             for _ in range(train_value_iterations):
                 self.train_value_function(observation_buffer, return_buffer)
-
             # Append the mean reward per epoch to the list
+
             mean_reward = sum_return / num_episodes
             self.rewards_per_epoch.append(mean_reward)
-
             # Print mean return and length for each epoch
             print(
                 f" Epoch: {epoch + 1}. Mean Reward: {sum_return / num_episodes}. Mean Length: {sum_length / num_episodes} Current_time: {self.env.time_period}"
             )
+            # if epoch != 0 and epoch % 145 == 0:
+            #     self.env.reset_time_period()
+            # if epoch != 0 and epoch % 3 == 0:
+            #     self.env.increase_time_period(5)
 
         self.save_models()
         self.plot_rewards()
 
     def test(self, start_time_period):
-        # Want to print the environment, costs and actions:
-        self.env.verbose = True
         generate_seasonal_data_based_on_products(self.products, 500)
-        self.actors = []
-        # Load the actor networks
-        for i in range(len(self.products)):
-            self.actors.append(load_model(os.path.join('models', f'actor_model_{i}.h5')))
+        actor_model_dir = 'models/actor_model.h5'
+        # Load the actor network
+        self.actor = load_model(actor_model_dir)
 
         done = False
         total_costs = 0
         self.env.time_period = start_time_period
         observation, episode_return, episode_length = self.env.reset(), 0, 0
-        for i in range(0,14):
+        for i in range(0,53):
             print(f"Inventory_level at start of period {self.env.current_period}: {self.env.inventory_levels}")
             # Get the logits, action, and take one step in the environment
             # observation = observation.reshape(1, -1)
-            logits = []
-            actions = []
-            for index, obs in enumerate(observation):
-                obs = np.array(tf.reshape(obs, [-1]))
-                obs = np.expand_dims(obs, axis=0)  # shape is now (1, shape)
-                logit = self.actors[index](obs)
-                action = tf.argmax(logit, axis=1)
-                logits.append(logit)
-                actions.append(action[0].numpy())
-            individual_actions = actions
+            observation = tf.reshape(observation, [1, *observation.shape])
+            logits = self.actor.predict(observation)
+            action = tf.argmax(logits, axis=1)
+            print(action)
 
-            # logits = self.actor.predict(observation)
-            # action = tf.argmax(logits, axis=1)
-
-            # individual_actions = a.unflatten_action(action.numpy()[0], self.env.action_space.n, len(self.products))
+            individual_actions = a.unflatten_action(action.numpy()[0], self.env.action_space.n, len(self.products))
             print(f"Action for time period {self.env.current_period}: {individual_actions}")
             # Just a consequence of the epoch hack
             individual_actions.append(1)
@@ -295,7 +267,7 @@ class PPO:
             observation = observation_new
 
             # Finish trajectory if reached to a terminal state
-            terminal = i == 13
+            terminal = i == 52
             if terminal:
                 print("Total_costs: ", total_costs)
 
@@ -309,9 +281,7 @@ class PPO:
     def save_models(self):
         save_dir = 'models'
         os.makedirs(save_dir, exist_ok=True)
-        print('Saving models...')
-        for i, actor in enumerate(self.actors):
-            actor.save(os.path.join(save_dir, f'actor_model_{i}.h5'))
+        self.actor.save(os.path.join(save_dir, 'actor_model.h5'))
         self.critic.save(os.path.join(save_dir, 'critic_model.h5'))
 
     def signal_handler(self, sig, frame):
@@ -334,63 +304,46 @@ class PPO:
 
 
     @tf.function
-    def sample_action(self, observation, index, should_decay):
+    def sample_action(self, observation):
         observation = tf.reshape(observation, [1, *observation.shape])
-        logits = self.actors[index](observation)
-        random_number = random.random()
-        should_decay = False
-        if should_decay:
-            self.exploration_rate *= 0.97
-        if random_number < self.exploration_rate:
+        logits = self.actor(observation)
+        random_number = tf.random.uniform(shape=())  # Generate a random number using TensorFlow
+        hei = False
+        if random_number < 0.1:
             action = tf.random.categorical(tf.math.log([[1 / logits.shape[-1]] * logits.shape[-1]]), 1)[0]
+            hei = True
         else:
             action = tf.squeeze(tf.random.categorical(logits, 1), axis=1)
-        return logits, action
+        return logits, action, hei
 
 
     # Train the policy by maxizing the PPO-Clip objective
     @tf.function
-    def train_policy(self, observation_buffer, action_buffer, logprobability_buffer, advantage_buffer, i):
-        with tf.GradientTape(persistent=True) as tape:  # Record operations for automatic differentiation.
-            # reshape the observation_buffer to (batch_size * n_products, n_features)
-            # print(observation_buffer)
-            # print(action_buffer)
-            # print(logprobability_buffer)
-            reshaped_observation_buffer = tf.reshape(observation_buffer, (-1, self.observation_dimensions[1]))
-
-            # apply the actor network to the batch of product states
-            logits = self.actors[i](reshaped_observation_buffer)
-
-            # reshape the logits back to (batch_size, n_products, -1)
-            # logits = tf.reshape(logits, (-1, self.observation_dimensions[0], logits.shape[-1]))
-            # action_buffer = tf.reshape(action_buffer, (-1,))
-            # logprobability_buffer = tf.reshape(logprobability_buffer, (-1,))
-
-            # advantage_buffer = tf.expand_dims(advantage_buffer, axis=-1)
-            # advantage_buffer = tf.tile(advantage_buffer, [1, len(self.products)])
-            # advantage_buffer = tf.reshape(advantage_buffer, [-1])
-
-            # print("action_buffer: ", action_buffer)
-            # print("logits: ", logits)
-            # print("logprobability buffer: ", logprobability_buffer)
-            # print()
+    def train_policy(
+            self, observation_buffer, action_buffer, logprobability_buffer, advantage_buffer
+    ):
+        with tf.GradientTape() as tape:  # Record operations for automatic differentiation.
             ratio = tf.exp(
-                self.logprobabilities(logits, action_buffer) - logprobability_buffer
+                self.logprobabilities(self.actor(observation_buffer), action_buffer)
+                - logprobability_buffer
             )
-
             min_advantage = tf.where(
                 advantage_buffer > 0,
                 (1 + clip_ratio) * advantage_buffer,
                 (1 - clip_ratio) * advantage_buffer,
             )
 
+            policy_loss = -tf.reduce_mean(
+                tf.minimum(ratio * advantage_buffer, min_advantage)
+            )
+        policy_grads = tape.gradient(policy_loss, self.actor.trainable_variables)
+        self.policy_optimizer.apply_gradients(zip(policy_grads, self.actor.trainable_variables))
 
-            policy_loss = -tf.reduce_mean(tf.minimum(ratio * advantage_buffer, min_advantage))
-        for actor in self.actors:
-            policy_grads = tape.gradient(policy_loss, actor.trainable_variables)
-            self.policy_optimizer.apply_gradients(zip(policy_grads, actor.trainable_variables))
-
-        kl = tf.reduce_mean(logprobability_buffer - self.logprobabilities(logits, action_buffer))
+        kl = tf.reduce_mean(
+            logprobability_buffer
+            - self.logprobabilities(self.actor(observation_buffer), action_buffer)
+        )
+        kl = tf.reduce_sum(kl)
         return kl
 
 
@@ -401,6 +354,5 @@ class PPO:
             value_loss = tf.reduce_mean((return_buffer - self.critic(observation_buffer)) ** 2)
         value_grads = tape.gradient(value_loss, self.critic.trainable_variables)
         self.value_optimizer.apply_gradients(zip(value_grads, self.critic.trainable_variables))
-
 
 

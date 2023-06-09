@@ -81,7 +81,7 @@ class Actor(models.Model):
         x = self.l5(x)
         x = self.l6(x)
         x = self.l7(x)
-        return abs(x)
+        return abs(x) * 100
 
 
 class Critic(models.Model):
@@ -311,7 +311,7 @@ class MultiAgent:
         start_std_dev = 0.1
         noise_reduction = start_std_dev / num_episodes
 
-        factor = 0
+        factor = 0.5
         self.std_dev = 0.5
 
         for episode in range(num_episodes + 100):
@@ -326,34 +326,34 @@ class MultiAgent:
             state = self.env.reset()
             samples = []
             while not done:
-                # if episode > 100:
-                #     factor *= 0.95
-                #     if factor < 0.05:
-                #         factor = 0
-                #     if noise_std_dev < 0.1:
-                #         noise_std_dev = 0.1
+                if episode > 100:
+                    factor *= 0.95
+                    if factor < 0.05:
+                        factor = 0
+                    if noise_std_dev < 0.1:
+                        noise_std_dev = 0.1
 
                 if (self.std_dev < 0.3):
                     self.std_dev = 0.3
-                ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(self.std_dev) * np.ones(1))
-                noise = ou_noise()
+                # ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(self.std_dev) * np.ones(1))
+                # noise = ou_noise()
                 # Select action according to policy
-                # if random.random() < factor:
-                #     actions = tf.random.uniform(shape=[4],minval=0,maxval=70)
+                if random.random() < factor:
+                    actions = tf.random.uniform(shape=[6],minval=0,maxval=100)
                 # else:
                 # random_number = random.uniform(-1, 1)
             # actions = [agent.select_action(state[i])[0] + random_number * faktor for i, agent in enumerate(self.agents)]
-                actions = [np.clip(agent.select_action(state[i])[0] + noise[0], 0, 100) for i, agent in enumerate(self.agents)]
+                else:
+                    actions = [np.clip(agent.select_action(state[i])[0], 0, 100) for i, agent in enumerate(self.agents)]
                 # Add Gaussian noise to the action
                 # actions = actions + np.random.normal(0, noise_std_dev, size=len(self.products))
 
                 # Clip the action to make sure it's within the valid range
-                actions = np.clip(actions, 0, 100)
+                # actions = np.clip(actions, 0, 5)
 
                 # print("actions", actions)
                 # Perform action and get reward
-                scaled_action = actions * 100
-
+                scaled_action = actions
                 next_state, reward, done, *_ = self.env.step(scaled_action)
                 total_reward += sum(reward)
                 #
