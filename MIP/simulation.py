@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import sys
 import deterministic_model as det_mod
+from MIP.analysis.analyse_data import plot_sales_quantity
 from config_utils import load_config
 from generate_data import generate_seasonal_data_based_on_products
 
@@ -47,13 +48,17 @@ def simulate(real_products):
     generated_products = []
     current_index = 0
     last_index = 0
-    with open(file_path, "a") as f:
-        for category in product_categories.keys():
-            number_of_products = product_categories[category]
-            current_index += number_of_products
+    for category in product_categories.keys():
+        number_of_products = product_categories[category]
+        current_index += number_of_products
+        if number_of_products > 0:
             generated_products += generate_seasonal_data_based_on_products(real_products[last_index:current_index], simulation_length + start_index + n_time_periods + 52)
-            start_date = generated_products[0].index[start_index]
-            sample_data(file_path, start_date, n_time_periods, generated_products, simulation_length)
+            last_index = current_index
+        # plot_sales_quantity(generated_products)
+    start_date = generated_products[0].index[start_index]
+    plot_sales_quantity(generated_products)
+
+    sample_data(file_path, start_date, n_time_periods, generated_products, simulation_length)
 
 def sample_data(file_path, start_date, n_time_periods, products, episode_length):
     config = load_config("../config.yml")
@@ -74,10 +79,9 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length)
         actual_demands = []
         for product_index in range(len(products)):
             zero_data = pd.Series([0])
-            sales_quantity_data = products[product_index].loc[start_date + pd.DateOffset(weeks=1):start_date + pd.DateOffset(weeks=14), "sales_quantity"]
+            sales_quantity_data = products[product_index].loc[start_date + pd.DateOffset(weeks=1):start_date + pd.DateOffset(weeks=13), "sales_quantity"]
             sales_quantity_data = pd.concat([zero_data, sales_quantity_data]).reset_index(drop=True)
             dict_demands[product_index] = sales_quantity_data
-
         deterministic_model = det_mod.DeterministicModel(len(products))
         deterministic_model.set_demand_forecast(dict_demands)
         if should_set_holding_cost_dynamically:
@@ -93,29 +97,36 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length)
 
         # Extract and store the first action for each product in the current time step
         threshold = 1e-5
-
+        dict_actions = {}
+        dict_inventory_levels = {}
+        dict_demands = {}
+        hei =deterministic_model.model.getVars()
         for var in deterministic_model.model.getVars():
             if var.varName.startswith("ReplenishmentQ"):
-
                 product_index, current_time = map(int, var.varName.split("[")[1].split("]")[0].split(","))
                 # Only looking at the action at time t = 1, since that is the actual action for this period
-                if current_time not in dict_actions.keys():
-                    dict_actions[current_time] = {}
+                if product_index not in dict_actions.keys():
+                    dict_actions[product_index] = []
                 # only consider the 13 first actions
                 if current_time < 13:
-                    dict_actions[current_time][product_index] = var.x
-                    if abs(dict_actions[current_time][product_index]) < threshold:
-                        dict_actions[current_time][product_index] = 0
+                    if current_time > 0:
+                        if var.x < threshold:
+                            dict_actions[product_index].append(0)
+                        else:
+                            dict_actions[product_index].append(var.x)
                 else:
                     break
+        dict_actions = transform_dictionary(dict_actions)
         list_dict_actions.append(dict_actions)
         list_dict_inventory_levels.append(dict_inventory_levels)
         dict_historic_demands = {}
         dict_inventory_levels[0] = inventory_levels
-
-        for period in dict_actions.keys():
+        period = 1
+        current_index = -1
+        for product_index in dict_actions.keys():
+            if current_index != product_index:
+                period = 1
             start_date += timedelta(7)
-            dict_inventory_levels[time_step] = {}
             for product_index, product in enumerate(products):
                 if isinstance(product, pd.DataFrame):
                     demand = products[product_index].loc[start_date, "sales_quantity"]
@@ -124,7 +135,7 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length)
 
                 actual_demands.append(demand)
                 previous_il = inventory_levels[product_index]
-                inventory_levels[product_index] = max(0, previous_il + dict_actions[period][product_index] - demand)
+                inventory_levels[product_index] = max(0, previous_il + dict_actions[product_index][period] - demand)
             dict_inventory_levels[period] =  inventory_levels
         list_dict_inventory_levels.append(dict_inventory_levels)
         list_dict_actions.append(dict_actions)
@@ -135,9 +146,6 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length)
             historic_sales_quantity_data = pd.concat([zero_data, historic_sales_quantity_data]).reset_index(drop=True)
             dict_historic_demands[product_index] = historic_sales_quantity_data
         list_dict_historical_demands.append(dict_historic_demands)
-        dict_actions = {}
-        dict_inventory_levels = {}
-        dict_demands = {}
         start_date += timedelta(weeks = 13)
 
 
@@ -147,3 +155,14 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length)
             f.write(f"Inventory: {list_dict_inventory_levels}" + "\n")
             f.write(f"Demand: {list_dict_historical_demands}" + "\n")
         f.close()
+
+def transform_dictionary(original_dict):
+    new_dict = {}
+    for key1, inner_dict in original_dict.items():
+        for key2, value in inner_dict.items():
+            if key2 not in new_dict:
+                new_dict[key2] = {}
+            new_dict[key2][key1] = value
+    return new_dict
+
+

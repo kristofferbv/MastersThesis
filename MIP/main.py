@@ -81,19 +81,18 @@ if __name__ == '__main__':
         # products = [df["sales_quantity"] for df in products]
         plot_sales_quantity(products)
 
-        for i in np.arange(1, 0, -0.1):
-            beta = i
-            if should_analyse:  # analysing plotting, decomposing and testing for stationarity
-                plot_sales_quantity(products)
-                get_non_stationary_products(products, should_plot=True, verbose=True)
-                for i, product in enumerate(products):
-                    if isinstance(product, pd.DataFrame):
-                        decompose_sales_quantity(product, product["product_hash"].iloc[0])
-                    else:
-                        decompose_sales_quantity(product, str(i))
-            if generate_new_data:
-                simulation.simulate(products, config, beta=beta)
-            else:
-                start_date = products[0].index[104]
-                simulation_length = config["simulation"]["simulation_length"]
-                simulation.run_one_episode(start_date, n_time_periods, simulation_length, products, config)
+
+        if should_analyse:  # analysing plotting, decomposing and testing for stationarity
+            plot_sales_quantity(products)
+            get_non_stationary_products(products, should_plot=True, verbose=True)
+            for i, product in enumerate(products):
+                if isinstance(product, pd.DataFrame):
+                    decompose_sales_quantity(product, product["product_hash"].iloc[0])
+                else:
+                    decompose_sales_quantity(product, str(i))
+        if generate_new_data:
+            simulation.simulate(products)
+        else:
+            start_date = products[0].index[104]
+            simulation_length = config["simulation"]["simulation_length"]
+            simulation.run_one_episode(start_date, n_time_periods, simulation_length, products, config)

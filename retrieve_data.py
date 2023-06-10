@@ -1,5 +1,7 @@
 import os
 import random
+from datetime import timedelta
+
 import pandas as pd
 import matplotlib
 
@@ -18,6 +20,9 @@ def categorize_products(file_name, time_interval, should_write_to_file):
     if time_interval != "w" and time_interval != "m":
         raise ValueError("Time_interval parameter must be 'm' or 'w'")
     data_frame = pd.read_csv(file_name, index_col=0)
+
+    # Defining the date range
+    date_range = pd.date_range(start='2016-01-01', end='2020-12-30')
 
     # Creating data_frames for the different categories
     intermittent_demand = pd.DataFrame(columns=data_frame.columns)
@@ -41,18 +46,25 @@ def categorize_products(file_name, time_interval, should_write_to_file):
         count += 1
         # Getting all products in dataFrame with same product hash
         products = data_frame.loc[data_frame['product_hash'] == product['product_hash']]
-        # products.loc[:, 'requested_delivery_date'] = pd.to_datetime(products['requested_delivery_date'])
         products = products.copy()
         products['requested_delivery_date'] = pd.to_datetime(products['requested_delivery_date'])
-        # products.loc[:, 'requested_delivery_date'] = pd.to_datetime(products['requested_delivery_date'])
+
+        # Only consider products within the defined date range
+        products = products[products['requested_delivery_date'].isin(date_range)]
+
         products = products.sort_values(by=['requested_delivery_date'])
+        if products.empty:  # Check if the DataFrame is empty
+            continue  # Skip the current iteration
         first_date = products['requested_delivery_date'].iloc[0]
         last_date = products['requested_delivery_date'].iloc[len(products) - 1]
         difference = (last_date - first_date).days / 7
 
-        if difference < 156:  # want only data with at lest 3 years of data
+        if difference < 156:  # want only data with at least 3 years of data
             continue
-        average_demand_interval = difference / len(products)
+        if (len(products.loc[products['sales_quantity'] > 0, 'requested_delivery_date'].unique())) > 0:
+            average_demand_interval = difference / len(products.loc[products['sales_quantity'] > 0, 'requested_delivery_date'].unique())
+        else:
+            average_demand_interval = 0
         cv_squared = (products["sales_quantity"].std() / products["sales_quantity"].mean()) ** 2
         if average_demand_interval == 0:  # means we only have one occurrence of the product
             continue
@@ -170,10 +182,10 @@ def read_products(start_date, end_date, category="erratic", frequency="weeks"):
     df = df.reset_index()
 
     # Define the time periods
-    january_2016 = pd.to_datetime("2016-01-01")
-    february_2016 = pd.to_datetime("2016-02-01")
-    december_2020 = pd.to_datetime("2020-12-01")
-    january_2021 = pd.to_datetime("2021-01-01")
+    january_2016 = pd.to_datetime(start_date)
+    february_2016 = pd.to_datetime(start_date + timedelta(days=30))
+    december_2020 = pd.to_datetime(end_date)
+    january_2021 = pd.to_datetime(end_date + timedelta(days = 30))
 
 
     # Filter the DataFrame based on the time periods

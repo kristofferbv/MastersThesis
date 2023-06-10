@@ -11,7 +11,7 @@ from collections import defaultdict
 
 class DeterministicModel:
     def __init__(self, n_products):
-
+        print("l3n", n_products)
         config = load_config("../config.yml")
         self.n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
         self.n_products = n_products  # number of product types
