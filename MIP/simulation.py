@@ -2,11 +2,11 @@ from datetime import timedelta
 
 import pandas as pd
 import os
+import numpy as np
 import sys
 import time
 import statistics
 from scipy import stats
-
 
 import deterministic_model as det_mod
 from MIP.analysis.analyse_data import plot_sales_quantity
@@ -39,7 +39,6 @@ def simulate(real_products, config):
     minor_setup_ratio = config["deterministic_model"]["minor_setup_ratio"]
     beta = config["deterministic_model"]["beta"]
 
-
     output_folder = "results"
     output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
     file_path = os.path.join(output_folder, output_file)
@@ -48,13 +47,13 @@ def simulate(real_products, config):
         os.remove(file_path)
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
-    
+
     data_to_write = []
 
     generated_products = []
     current_index = 0
     last_index = 0
-    #with open(file_path, "a") as f:
+    # with open(file_path, "a") as f:
     for category in product_categories.keys():
         number_of_products = product_categories[category]
         current_index += number_of_products
@@ -67,7 +66,7 @@ def simulate(real_products, config):
             generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52, seed)
         last_index = current_index
     # plot_sales_quantity(generated_products)
-        
+
     data_to_write.append("Number of products from each cateogry is:  Erratic: " + str(product_categories["erratic"]) + ", Smooth: " + str(product_categories["smooth"]) + ", Intermittent: " + str(product_categories["intermittent"]) + ", Lumpy: " + str(product_categories["lumpy"]))
 
     total_costs = []
@@ -79,7 +78,7 @@ def simulate(real_products, config):
     list_avg_optimality_gap = []
     list_std_optimality_gap = []
     service_levels = {product_index: [] for product_index in range(n_products)}
-    #actual_demand_list =  {episode: [] for episode in range(n_episodes)}
+    # actual_demand_list =  {episode: [] for episode in range(n_episodes)}
 
     inventory_levels = None
     start_date = generated_products[0].index[start_index]
@@ -87,7 +86,7 @@ def simulate(real_products, config):
     if should_perform_warm_up and warm_up_length > 0:
         print("Warming up")
         inventory_levels, start_date, models = perform_warm_up(generated_products, start_date, n_time_periods, config)
-        
+
     avg_run_time = 0
 
     for episode in range(n_episodes):
@@ -109,10 +108,10 @@ def simulate(real_products, config):
             list_sem.append(stats.sem(total_costs))
         data_to_write.append(f"Actions for episode {episode} are: {actions}")
         data_to_write.append(f"Tau values for episode {episode} are: {tau_values}")
-        #data_to_write.append(f"Costs for episode {episode} is: {costs}")
-            # f.write(f"Actions for episode {episode} are: {actions}" + "\n")
-            # print(f"Actions for episode {episode} are: {actions}")
-        #print(service_level)
+        # data_to_write.append(f"Costs for episode {episode} is: {costs}")
+        # f.write(f"Actions for episode {episode} are: {actions}" + "\n")
+        # print(f"Actions for episode {episode} are: {actions}")
+        # print(service_level)
         data_to_write.append(f"Actual demands for episode {episode} are: {actual_demands}")
 
         for product_index in range(n_products):
@@ -121,18 +120,20 @@ def simulate(real_products, config):
         if reset_length > 0:
             print("Resetting...")
             # resetting
-            costs, inventory_levels, start_date, _, _, models,_, _, _,_,_,_ ,_,_= run_one_episode(start_date, n_time_periods, generated_products, reset_length, config, models=models, inventory_levels=inventory_levels)
-        
-        avg_run_time = avg_run_time/n_episodes
+            costs, inventory_levels, start_date, _, _, models, _, _, _, _, _, _, _, _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, config, models=models, inventory_levels=inventory_levels)
+
+        avg_run_time = avg_run_time / n_episodes
+        if episode > 1 and (stats.sem(total_costs) * 2 * 1.96 < 0.02 * np.mean(total_costs)):
+            print(f"Stopping early after {episode} episodes")
+            break
 
     if should_write:
         data_to_write.append(f"Total costs for each period are: {total_costs}")
-        #data_to_write.append(f"Total average costs for all episodes is: {sum(total_costs) / len(total_costs)}")
+        # data_to_write.append(f"Total average costs for all episodes is: {sum(total_costs) / len(total_costs)}")
         data_to_write.append(f'List of mean costs for each period: {list_mean}')
         data_to_write.append(f'List of standard deviation of costs for each period: {list_sem}')
         data_to_write.append(f"Service levels are: {service_levels}")
-        #data_to_write.append(f"Actual demands are: {actual_demand_list}")
-
+        # data_to_write.append(f"Actual demands are: {actual_demand_list}")
 
         standard_deviation_costs = statistics.stdev(total_costs)
         data_to_write.append(f"Standard deviations of costs: {standard_deviation_costs}")
@@ -140,7 +141,7 @@ def simulate(real_products, config):
         data_to_write.append(f"The average time to run the model in Gurobi is: {avg_run_time}")
         data_to_write.append(f"The standard deviations of run time in Gurobi for each epiode is : {list_std_run_time}")
 
-        data_to_write.append(f"The average optimality gap in Gurobi for each episode is: {list_avg_optimality_gap}") #kan ha et tall overall her?
+        data_to_write.append(f"The average optimality gap in Gurobi for each episode is: {list_avg_optimality_gap}")  # kan ha et tall overall her?
         data_to_write.append(f"The standard deviations of optimality gap in Gurobi for each epiode is : {list_std_optimality_gap}")
 
         data_to_write.append(f"The average forecasting errors are : {list_avg_forecast_errors}")
@@ -159,7 +160,7 @@ def perform_warm_up(products, start_date, n_time_periods, config):
     warm_up_length = config["simulation"]["warm_up_length"]  # This is the number of time periods we are using to warm up
     inventory_levels = [0 for i in range(len(products))]
     # for i in range(simulation_length):
-    _, inventory_levels, start_date, _,_, models, _, _ , _, _,_,_,_,_= run_one_episode(start_date, n_time_periods, products, warm_up_length, config, inventory_levels=inventory_levels)
+    _, inventory_levels, start_date, _, _, models, _, _, _, _, _, _, _, _ = run_one_episode(start_date, n_time_periods, products, warm_up_length, config, inventory_levels=inventory_levels)
     return inventory_levels, start_date, models
 
 
@@ -215,7 +216,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
         period_costs = 0
         major_setup_added = False
         # Update inventory levels based on previous actions and actual demand
-        actual_demands[time_step]= {}
+        actual_demands[time_step] = {}
         for product_index, product in enumerate(products):
             if time_step != 0:
                 if isinstance(product, pd.DataFrame):
@@ -283,7 +284,6 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
             else:
                 raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
 
-
         total_costs += period_costs
         if verbose:
             print("Period costs: ")
@@ -293,7 +293,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
             print(actions[time_step - 1])
 
             print("Actual_demand for period ", time_step - 1)
-            print(actual_demands[time_step-1][product_index])
+            print(actual_demands[time_step - 1][product_index])
 
             print("Inventory levels at start of time period ", time_step)
             print(inventory_levels)
@@ -310,7 +310,6 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
             print("Total setup costs:")
             print(setup_costs)
 
-
         deterministic_model = det_mod.DeterministicModel(len(products), config)
         deterministic_model.set_demand_forecast(dict_demands)
         if should_set_holding_cost_dynamically:
@@ -319,7 +318,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
         deterministic_model.set_big_m()
         deterministic_model.model.setParam("OutputFlag", 0)
         deterministic_model.model.setParam('TimeLimit', 2 * 60)  # set the time limit to 2 minutes for the gurobi model
-        #deterministic_model.model.setParam('MIPGap', 0.01)  # set the MIPGap to be 1%
+        # deterministic_model.model.setParam('MIPGap', 0.01)  # set the MIPGap to be 1%
 
         deterministic_model.set_inventory_levels(inventory_levels)
         deterministic_model.set_up_model()
@@ -335,7 +334,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
         actions[time_step] = {}
         threshold = 1e-5
 
-        #Extract the tau values for the first periods 
+        # Extract the tau values for the first periods
         orders[time_step] = {}
 
         for var in deterministic_model.model.getVars():
@@ -372,38 +371,37 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
     # runtime = deterministic_model.model.Runtime
     # print("The run time is %f" % runtime)
 
-    #if should_write:
-        #output_folder = "results"
+    # if should_write:
+    # output_folder = "results"
 
-        #output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
-        #file_path = os.path.join(output_folder, output_file)
-        #if not os.path.exists(output_folder):
-         #   os.makedirs(output_folder)
+    # output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
+    # file_path = os.path.join(output_folder, output_file)
+    # if not os.path.exists(output_folder):
+    #   os.makedirs(output_folder)
 
-        #with open(file_path, "a") as f:
+    # with open(file_path, "a") as f:
 
     service_levels = []
 
     for product_index in range(n_products):
         service_level = sum_fulfilled_demand[product_index] / sum_actual_demand[product_index]
         service_levels.append(service_level)
-        #print(f"Achieved service level for Product {product_index}: {service_level}")
-                #f.write(f"Achieved service level for Product {product_index}: {service_level}" + "\n")
+        # print(f"Achieved service level for Product {product_index}: {service_level}")
+        # f.write(f"Achieved service level for Product {product_index}: {service_level}" + "\n")
 
-            #f.write(f"Actions for this episode are: {actions}" + "\n")
-            #f.write(f"Total costs for this episode is: {total_costs}" + "\n")
+        # f.write(f"Actions for this episode are: {actions}" + "\n")
+        # f.write(f"Total costs for this episode is: {total_costs}" + "\n")
 
-            #f.close()
-    #print(actions)
+        # f.close()
+    # print(actions)
 
-    avg_run_time_time_step = (sum(run_time_list))/episode_length
+    avg_run_time_time_step = (sum(run_time_list)) / episode_length
     std_run_time = statistics.stdev(run_time_list)
 
-    avg_optimaliy_gap = (sum(gap_list)/len(gap_list))
+    avg_optimaliy_gap = (sum(gap_list) / len(gap_list))
     std_optimality_gap = statistics.stdev(gap_list)
 
-    avg_forecast_errors = sum(forecast_errors.values())/len(forecast_errors.values())
+    avg_forecast_errors = sum(forecast_errors.values()) / len(forecast_errors.values())
     std_forecast_errors = statistics.stdev(forecast_errors.values())
 
-
-    return total_costs, inventory_levels, start_date, actions, orders, models, avg_run_time_time_step, std_run_time,  service_levels, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimaliy_gap, std_optimality_gap
+    return total_costs, inventory_levels, start_date, actions, orders, models, avg_run_time_time_step, std_run_time, service_levels, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimaliy_gap, std_optimality_gap
