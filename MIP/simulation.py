@@ -384,9 +384,21 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
 
     service_levels = []
 
+    print("Fulfilled demand")
+    print(sum_fulfilled_demand)
+
+    print("actual demand")
+    print(actual_demands)
+
+
     for product_index in range(n_products):
-        service_level = sum_fulfilled_demand[product_index] / sum_actual_demand[product_index]
+        if sum_actual_demand[product_index] == 0:
+            service_level = 1
+        else: 
+            service_level = sum_fulfilled_demand[product_index] / sum_actual_demand[product_index]
         service_levels.append(service_level)
+
+        print(service_levels)
         # print(f"Achieved service level for Product {product_index}: {service_level}")
         # f.write(f"Achieved service level for Product {product_index}: {service_level}" + "\n")
 
