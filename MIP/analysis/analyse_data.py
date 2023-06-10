@@ -54,7 +54,7 @@ def get_non_stationary_products(products, start_date=None, should_plot=False, ve
         axes[0].set_title('Non-stationary sales quantity')
         axes[-1].set_xlabel('Date')
         # Show the plot
-        plt.show()
+        #plt.show()
     return stationary_products
 
 
@@ -88,7 +88,7 @@ def plot_sales_quantity(products, start_date=None):
     axes[-1].set_xlabel('Date')
 
     # Show the plot
-    plt.show()
+    #plt.show()
 
 
 def decompose_sales_quantity(df, product_name = 0):

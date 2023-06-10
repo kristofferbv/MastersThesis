@@ -117,7 +117,7 @@ class DeterministicModel:
         minor_setup_incur = self.model.addConstrs((replenishment_q[product, time_period] <= gp.quicksum((self.big_m[product][time_period][tau_period] * order_product[product, time_period, tau_period]  # blir det -1 her mtp index?
                                                                                                          for tau_period in self.tau_periods[:len(self.tau_periods) - time_period + 1])) for product in self.products for time_period in self.time_periods), name="MinorSetupIncur")
         major_setup_incur = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for product in self.products for tau_period in self.tau_periods[:len(self.tau_periods) - time_period+1]) <= place_order[time_period] * self.n_products for time_period in self.time_periods), name="MajorSetupIncur")
-        max_one_order = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period]) <= 1 for product in self.products for time_period in self.time_periods), name="MaxOneOrder")
+        max_one_order = self.model.addConstrs((gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period + 1]) <= 1 for product in self.products for time_period in self.time_periods), name="MaxOneOrder")
         if self.should_include_safety_stock:
             minimum_inventory_ordering = self.model.addConstrs((inventory_level[self.products[p], self.time_periods[i]] >=
                                                                 order_product[self.products[p], self.time_periods[i], self.tau_periods[0]] * self.safety_stock[p][i][1]
