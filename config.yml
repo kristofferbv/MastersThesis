@@ -34,7 +34,7 @@ simulation:
   simulation_length: 10
   warm_up_length: 52
   should_perform_warm_up: False
-  reset_length: 1
+  reset_length: 0
   should_write: True
 
 environment:
