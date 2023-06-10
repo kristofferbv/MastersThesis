@@ -10,7 +10,7 @@ from collections import defaultdict
 
 
 class DeterministicModel:
-    def __init__(self, n_products, config):
+    def __init__(self, n_products, config, beta = None):
 
         #config = load_config("../config.yml")
         self.n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
@@ -31,8 +31,11 @@ class DeterministicModel:
         self.has_been_set_up = False
         self.service_level = defaultdict(dict)
         self.should_include_safety_stock = config["deterministic_model"]["should_include_safety_stock"]
-        self.beta = config["deterministic_model"]["beta"]
-
+        if beta is None:
+            self.beta = config["deterministic_model"]["beta"]
+        else:
+            self.beta = beta
+        print("beta", self.beta)
         # change shortage cost based on formula 
         # could make an if sentence if this could be set by the user
 

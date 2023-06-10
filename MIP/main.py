@@ -83,11 +83,14 @@ if __name__ == '__main__':
                     decompose_sales_quantity(product, product["product_hash"].iloc[0])
                 else:
                     decompose_sales_quantity(product, str(i))
-        if generate_new_data:
-            #print("Products")
-            #print(len(products))
-            simulation.simulate(products, config)
-        else:
-            start_date = products[0].index[104]
-            simulation_length = config["simulation"]["simulation_length"]
-            simulation.run_one_episode(start_date, n_time_periods, simulation_length, products, config)
+        values = np.arange(1, -0.1, -0.1)
+        for value in values[:-1]:
+            beta = value
+            if generate_new_data:
+                #print("Products")
+                #print(len(products))
+                simulation.simulate(products, config, beta = beta)
+            else:
+                start_date = products[0].index[104]
+                simulation_length = config["simulation"]["simulation_length"]
+                simulation.run_one_episode(start_date, n_time_periods, simulation_length, products, config)

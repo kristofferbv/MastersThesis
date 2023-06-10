@@ -16,7 +16,7 @@ from config_utils import load_config
 import generate_data
 
 
-def simulate(real_products, config):
+def simulate(real_products, config, beta = None):
     n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
     n_episodes = config["simulation"]["n_episodes"]  # This is the number of times we run a full simulation
     simulation_length = config["simulation"]["simulation_length"]  # This is the number of time periods we want to calculate the costs for
@@ -37,7 +37,8 @@ def simulate(real_products, config):
 
     major_setup_cost = config["deterministic_model"]["joint_setup_cost"]
     minor_setup_ratio = config["deterministic_model"]["minor_setup_ratio"]
-    beta = config["deterministic_model"]["beta"]
+    if beta is None:
+        beta = config["deterministic_model"]["beta"]
 
     output_folder = "results"
     output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
@@ -95,7 +96,7 @@ def simulate(real_products, config):
 
         data_to_write.append(f"Start inventory levels of episode: {episode} are {inventory_levels}")
 
-        costs, inventory_levels, start_date, actions, tau_values, models, avg_run_time_time_step, std_run_time, service_level, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimality_gap, std_optimality_gap = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, config, models=models, inventory_levels=inventory_levels)
+        costs, inventory_levels, start_date, actions, tau_values, models, avg_run_time_time_step, std_run_time, service_level, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimality_gap, std_optimality_gap = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, config, models=models, inventory_levels=inventory_levels, beta = beta)
         print(f"Total costs for episode {episode} was: ", costs)
         total_costs.append(costs)
         list_mean.append(sum(total_costs) / len(total_costs))
@@ -165,7 +166,7 @@ def perform_warm_up(products, start_date, n_time_periods, config):
     return inventory_levels, start_date, models
 
 
-def run_one_episode(start_date, n_time_periods, products, episode_length, config, models=None, inventory_levels=None):
+def run_one_episode(start_date, n_time_periods, products, episode_length, config, models=None, inventory_levels=None, beta = None):
     n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
     n_episodes = config["simulation"]["n_episodes"]  # This is the number of times we run a full simulation
     should_write = config["simulation"]["should_write"]
@@ -178,7 +179,8 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
     n_lumpy = product_categories["lumpy"]
     major_setup_cost = config["deterministic_model"]["joint_setup_cost"]
     minor_setup_ratio = config["deterministic_model"]["minor_setup_ratio"]
-    beta = config["deterministic_model"]["beta"]
+    if beta is None:
+        beta = config["deterministic_model"]["beta"]
 
     forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
     verbose = config["simulation"]["verbose"]  # number of time periods
@@ -311,7 +313,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
             print("Total setup costs:")
             print(setup_costs)
 
-        deterministic_model = det_mod.DeterministicModel(len(products), config)
+        deterministic_model = det_mod.DeterministicModel(len(products), config, beta = beta)
         deterministic_model.set_demand_forecast(dict_demands)
         if should_set_holding_cost_dynamically:
             deterministic_model.set_holding_costs(unit_price)
@@ -384,12 +386,6 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
 
     service_levels = []
 
-    print("Fulfilled demand")
-    print(sum_fulfilled_demand)
-
-    print("actual demand")
-    print(actual_demands)
-
 
     for product_index in range(n_products):
         if sum_actual_demand[product_index] == 0:
@@ -398,7 +394,6 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
             service_level = sum_fulfilled_demand[product_index] / sum_actual_demand[product_index]
         service_levels.append(service_level)
 
-        print(service_levels)
         # print(f"Achieved service level for Product {product_index}: {service_level}")
         # f.write(f"Achieved service level for Product {product_index}: {service_level}" + "\n")
 
