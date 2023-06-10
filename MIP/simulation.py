@@ -222,7 +222,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
                     demand = products[product_index].loc[start_date, "sales_quantity"]
                 else:
                     demand = products[product_index].loc[start_date]
-                forecast_errors[product_index] = demand - prev_forecast[product_index]
+                forecast_errors[product_index] = abs(demand - prev_forecast[product_index])
 
                 actual_demands[time_step][product_index] = demand
 
@@ -402,8 +402,8 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
     avg_optimaliy_gap = (sum(gap_list)/len(gap_list))
     std_optimality_gap = statistics.stdev(gap_list)
 
-    avg_forecast_errors = sum(forecast_errors)/len(forecast_errors)
-    std_forecast_errors = statistics.stdev(forecast_errors)
+    avg_forecast_errors = sum(forecast_errors.values())/len(forecast_errors.values())
+    std_forecast_errors = statistics.stdev(forecast_errors.values())
 
 
     return total_costs, inventory_levels, start_date, actions, orders, models, avg_run_time_time_step, std_run_time,  service_levels, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimaliy_gap, std_optimality_gap
