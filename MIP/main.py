@@ -65,13 +65,18 @@ if __name__ == '__main__':
             if category == "erratic":
                 # Filter products based on mean sales quantity
                 category_products = [product for product in category_products if product["sales_quantity"].mean() > 20 and product["sales_quantity"].max() < 100]
-                print("category", category_products)
+                #print("Erratic", category_products)
+                
             elif category == "smooth":
                 category_products = [product for product in category_products if product["sales_quantity"].mean() > 3 and product["sales_quantity"].max() < 1000]
+                #print("Smooth", category_products)
+
             elif category == "intermittent":
                 category_products = [product for product in category_products if (product["sales_quantity"] > 0).any() and (product.loc[product["sales_quantity"] > 0, "sales_quantity"].mean() > 2)]
+                #print("Intermittent", category_products) 
             else:
                 category_products = [product for product in category_products if (product["sales_quantity"] > 0).any() and (product.loc[product["sales_quantity"] > 0, "sales_quantity"].mean() > 3)]
+                #print("Lumpy", category_products)
 
             number_of_products = product_categories[category]
 
@@ -99,6 +104,8 @@ if __name__ == '__main__':
                 else:
                     decompose_sales_quantity(product, str(i))
         if generate_new_data:
+            #print("Products")
+            #print(len(products))
             simulation.simulate(products, config)
         else:
             start_date = products[0].index[104]

@@ -114,7 +114,7 @@ def simulate(real_products, config):
             # print(f"Actions for episode {episode} are: {actions}")
         #print(service_level)
         data_to_write.append(f"Actual demands for episode {episode} are: {actual_demands}")
-            
+
         for product_index in range(n_products):
             service_levels[product_index].append(service_level[product_index])
 
@@ -129,7 +129,7 @@ def simulate(real_products, config):
         data_to_write.append(f"Total costs for each period are: {total_costs}")
         #data_to_write.append(f"Total average costs for all episodes is: {sum(total_costs) / len(total_costs)}")
         data_to_write.append(f'List of mean costs for each period: {list_mean}')
-        data_to_write.append(f'List of standard deviation of costs for each period: {list_std}')
+        data_to_write.append(f'List of standard deviation of costs for each period: {list_sem}')
         data_to_write.append(f"Service levels are: {service_levels}")
         #data_to_write.append(f"Actual demands are: {actual_demand_list}")
 
@@ -201,7 +201,6 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
     shortage_costs = 0
     holding_costs = 0
     setup_costs = 0
-
 
     sum_actual_demand = {product_index: 0 for product_index in range(len(products))}
     sum_fulfilled_demand = {product_index: 0 for product_index in range(len(products))}
@@ -384,7 +383,8 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
         #with open(file_path, "a") as f:
 
     service_levels = []
-    for product_index in range(len(products)):
+
+    for product_index in range(n_products):
         service_level = sum_fulfilled_demand[product_index] / sum_actual_demand[product_index]
         service_levels.append(service_level)
         #print(f"Achieved service level for Product {product_index}: {service_level}")
