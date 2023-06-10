@@ -124,7 +124,7 @@ def simulate(real_products, config):
             costs, inventory_levels, start_date, _, _, models, _, _, _, _, _, _, _, _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, config, models=models, inventory_levels=inventory_levels)
 
         avg_run_time = avg_run_time / n_episodes
-        if episode > 1 and (stats.sem(total_costs) * 2 * 1.96 < 0.02 * np.mean(total_costs)):
+        if episode > 20 and (stats.sem(total_costs) * 2 * 1.96 < 0.02 * np.mean(total_costs)):
             print(f"Stopping early after {episode} episodes")
             break
 
