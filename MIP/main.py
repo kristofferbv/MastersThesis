@@ -26,7 +26,7 @@ os.chdir(current_dir)
 
 if __name__ == '__main__':
 
-    #config_files = [ "config3.yml", "config4.yml", "config5.yml", "config6.yml", "config7.yml","config8.yml","config9.yml","config10.yml"]
+    #config_files = ["config.yml", "config2.yml", "config3.yml", "config4.yml", "config5.yml", "config6.yml", "config7.yml","config8.yml","config9.yml","config10.yml"]
 
     config_files = ["config.yml"]
 

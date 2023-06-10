@@ -186,6 +186,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
     dict_demands = {}
     dict_sds = {}
     actions = {}  # Store the first actions for each time step
+    actual_demands = {}
     orders = {}
     forecast_errors = {}
     prev_std_dev = {}
@@ -213,7 +214,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
         period_costs = 0
         major_setup_added = False
         # Update inventory levels based on previous actions and actual demand
-        actual_demands = []
+        actual_demands[time_step]= {}
         for product_index, product in enumerate(products):
             if time_step != 0:
                 if isinstance(product, pd.DataFrame):
@@ -222,7 +223,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
                     demand = products[product_index].loc[start_date]
                 forecast_errors[product_index] = demand - prev_forecast[product_index]
 
-                actual_demands.append(demand)
+                actual_demands[time_step][product_index] = demand
 
                 # used to calculate the service level
                 sum_actual_demand[product_index] += demand
@@ -291,7 +292,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
             print(actions[time_step - 1])
 
             print("Actual_demand for period ", time_step - 1)
-            print(actual_demands)
+            print(actual_demands[time_step-1][product_index])
 
             print("Inventory levels at start of time period ", time_step)
             print(inventory_levels)
