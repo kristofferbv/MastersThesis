@@ -46,6 +46,8 @@ def get_initial_std_dev(df, n_time_periods, seasonal_periods=52):
 
     # Calculate standard deviation for each row
     initial_std_dev = np.exp(log_k1) * df['average_demand'].iloc[-1] ** k2
+    if initial_std_dev < 0 or np.isnan(initial_std_dev):
+        raise ValueError("Invalid standard deviation value")
     initial_std_devs = []
     for i in range(n_time_periods + 1):
         # Using Axsäters method to decide forecast errors over multiple time periods. See page 28 in inventory control
@@ -64,6 +66,8 @@ def get_std_dev(prev_std_dev, forecast_error,  n_time_periods, alpha=0.2):
 
     # Convert MAD at time t to standard deviation
     current_std_dev = np.sqrt(np.pi / 2) * current_mad
+    if current_std_dev < 0 or np.isnan(current_std_dev):
+        raise ValueError("Invalid standard deviation value")
     current_std_devs = []
     for i in range(n_time_periods + 1):
         # Using Axsäters method to decide forecast errors over multiple time periods. See page 28 in inventory control
