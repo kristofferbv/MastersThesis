@@ -5,6 +5,8 @@ import os
 import sys
 import time
 import statistics
+from scipy import stats
+
 
 import deterministic_model as det_mod
 from MIP.analysis.analyse_data import plot_sales_quantity
@@ -70,7 +72,7 @@ def simulate(real_products, config):
 
     total_costs = []
     list_mean = []
-    list_std = []
+    list_sem = []
     list_std_run_time = []
     list_avg_forecast_errors = []
     list_std_forecast_errors = []
@@ -104,7 +106,7 @@ def simulate(real_products, config):
         list_avg_optimality_gap.append(avg_optimality_gap)
         list_std_optimality_gap.append(std_optimality_gap)
         if episode > 0:
-            list_std.append(statistics.stdev(total_costs))
+            list_sem.append(stats.sem(total_costs))
         data_to_write.append(f"Actions for episode {episode} are: {actions}")
         data_to_write.append(f"Tau values for episode {episode} are: {tau_values}")
         #data_to_write.append(f"Costs for episode {episode} is: {costs}")
