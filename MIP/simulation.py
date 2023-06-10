@@ -96,6 +96,7 @@ def simulate(real_products, config):
         data_to_write.append(f"Start inventory levels of episode: {episode} are {inventory_levels}")
 
         costs, inventory_levels, start_date, actions, tau_values, models, avg_run_time_time_step, std_run_time, service_level, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimality_gap, std_optimality_gap = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, config, models=models, inventory_levels=inventory_levels)
+        print(f"Total costs for episode {episode} was: ", costs)
         total_costs.append(costs)
         list_mean.append(sum(total_costs) / len(total_costs))
         list_std_run_time.append(std_run_time)
