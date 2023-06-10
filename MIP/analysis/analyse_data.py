@@ -88,7 +88,7 @@ def plot_sales_quantity(products, start_date=None):
     axes[-1].set_xlabel('Date')
 
     # Show the plot
-    #plt.show()
+    plt.show()
 
 
 def decompose_sales_quantity(df, product_name = 0):
