@@ -10,10 +10,14 @@ from collections import defaultdict
 
 
 class DeterministicModel:
-    def __init__(self, n_products, config, beta = None):
+    def __init__(self, n_products, config, beta = None, n_time_periods = None):
 
         #config = load_config("../config.yml")
-        self.n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
+        if n_time_periods is None:
+            self.n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
+        else:
+            self.n_time_periods = n_time_periods
+        print("time_periods", n_time_periods)
         self.n_products = n_products  # number of product types
         self.products = [i for i in range(0, self.n_products)]
         self.time_periods = [i for i in range(0, self.n_time_periods + 1)]
@@ -35,8 +39,7 @@ class DeterministicModel:
             self.beta = config["deterministic_model"]["beta"]
         else:
             self.beta = beta
-        print("beta", self.beta)
-        # change shortage cost based on formula 
+        # change shortage cost based on formula
         # could make an if sentence if this could be set by the user
 
         service_level = config["deterministic_model"]["service_level"]

@@ -16,8 +16,9 @@ from config_utils import load_config
 import generate_data
 
 
-def simulate(real_products, config, beta = None):
-    n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
+def simulate(real_products, config, beta = None, n_time_periods = None):
+    if n_time_periods is None:
+        n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
     n_episodes = config["simulation"]["n_episodes"]  # This is the number of times we run a full simulation
     simulation_length = config["simulation"]["simulation_length"]  # This is the number of time periods we want to calculate the costs for
     warm_up_length = config["simulation"]["warm_up_length"]  # This is the number of time periods we are using to warm up
@@ -158,7 +159,6 @@ def simulate(real_products, config, beta = None):
 
 
 def perform_warm_up(products, start_date, n_time_periods, config):
-    n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
     warm_up_length = config["simulation"]["warm_up_length"]  # This is the number of time periods we are using to warm up
     inventory_levels = [0 for i in range(len(products))]
     # for i in range(simulation_length):
@@ -167,7 +167,6 @@ def perform_warm_up(products, start_date, n_time_periods, config):
 
 
 def run_one_episode(start_date, n_time_periods, products, episode_length, config, models=None, inventory_levels=None, beta = None):
-    n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
     n_episodes = config["simulation"]["n_episodes"]  # This is the number of times we run a full simulation
     should_write = config["simulation"]["should_write"]
     product_categories = config["deterministic_model"]["product_categories"]
@@ -313,7 +312,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
             print("Total setup costs:")
             print(setup_costs)
 
-        deterministic_model = det_mod.DeterministicModel(len(products), config, beta = beta)
+        deterministic_model = det_mod.DeterministicModel(len(products), config, beta = beta,n_time_periods= n_time_periods)
         deterministic_model.set_demand_forecast(dict_demands)
         if should_set_holding_cost_dynamically:
             deterministic_model.set_holding_costs(unit_price)
