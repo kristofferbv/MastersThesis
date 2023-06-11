@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta, datetime
 import pandas as pd
 import os
@@ -52,7 +53,7 @@ def simulate(real_products):
         number_of_products = product_categories[category]
         current_index += number_of_products
         if number_of_products > 0:
-            generated_products += generate_seasonal_data_based_on_products(real_products[last_index:current_index], simulation_length * n_time_periods + start_index + 52 )
+            generated_products += generate_seasonal_data_based_on_products(real_products[last_index:current_index], simulation_length * n_time_periods + start_index + 52)
             last_index = current_index
         # plot_sales_quantity(generated_products)
     start_date = generated_products[0].index[start_index]
@@ -84,7 +85,7 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length)
         actual_demands = []
         for product_index in range(len(products)):
             zero_data = pd.Series([0])
-            sales_quantity_data = products[product_index].loc[start_date + pd.DateOffset(weeks=1):start_date + pd.DateOffset(weeks=n_time_periods+1), "sales_quantity"]
+            sales_quantity_data = products[product_index].loc[start_date + pd.DateOffset(weeks=1):start_date + pd.DateOffset(weeks=n_time_periods + 1), "sales_quantity"]
             sales_quantity_data = pd.concat([zero_data, sales_quantity_data]).reset_index(drop=True)
             dict_demands[product_index] = sales_quantity_data
         deterministic_model = det_mod.DeterministicModel(len(products))
@@ -103,19 +104,21 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length)
         # Extract and store the first action for each product in the current time step
         threshold = 1e-5
         for time_index in range(1, n_time_periods + 1):
-            dict_actions[time_index + 13*time_step] = []
+            dict_actions[time_index + 13 * time_step] = []
             for product_index in range(len(products)):
                 var = deterministic_model.model.getVarByName(f"ReplenishmentQ[{product_index},{time_index}]")
                 if var.x < threshold:
-                    dict_actions[time_index + 13*time_step].append(0)
+                    dict_actions[time_index + 13 * time_step].append(0)
                 else:
-                    dict_actions[time_index + 13*time_step].append(var.x)
+                    dict_actions[time_index + 13 * time_step].append(var.x)
         list_dict_actions.append(dict_actions)
         list_dict_inventory_levels.append(dict_inventory_levels)
-        dict_inventory_levels[0] = inventory_levels[:]
+        for i in range(0, 12):
+            dict_inventory_levels[i] = inventory_levels[:]
+
         keys = list(dict_actions.keys())
         for time in keys[time_step * 13:]:
-            start_date += timedelta(weeks = 1)
+            start_date += timedelta(weeks=1)
             for product_index, product in enumerate(products):
                 if isinstance(product, pd.DataFrame):
                     demand = products[product_index].loc[start_date, "sales_quantity"]
@@ -124,21 +127,19 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length)
                 actual_demands.append(demand)
                 previous_il = inventory_levels[product_index]
                 inventory_levels[product_index] = max(0, previous_il + dict_actions[time][product_index] - demand)
-            dict_inventory_levels[time] = inventory_levels[:]
+            dict_inventory_levels[time + 12-1] = inventory_levels[:]
         list_dict_inventory_levels.append(dict_inventory_levels)
         list_dict_actions.append(dict_actions)
         for product_index, product in enumerate(products):
             # sample historical data for the last 12 weeks
-            zero_data = pd.Series([0])
-            historic_sales_quantity_data = product.loc[start_date + pd.DateOffset(weeks=-11):start_date + pd.DateOffset(weeks=14), "sales_quantity"]
-            historic_sales_quantity_data = pd.concat([zero_data, historic_sales_quantity_data]).reset_index(drop=True)
+            historic_sales_quantity_data = product.loc[start_date - pd.DateOffset(weeks=11):start_date, "sales_quantity"]
             if time_step == 0:
                 dict_historic_demands[product_index] = list(historic_sales_quantity_data)
             else:
                 dict_historic_demands[product_index].extend(list(historic_sales_quantity_data))
 
         list_dict_historical_demands.append(dict_historic_demands)
-        if time_step % 10 == 0:
+        if time_step % 10 == 0 or time_step == episode_length - 1:
             with open(file_path, "w") as f:
                 f.write(f"Data for period {time_step}:" + "\n")
                 f.write(f"Actions : {dict_actions}" + "\n")
@@ -147,13 +148,13 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length)
             f.close()
 
             with open("results/demand.txt", "w") as f:
-                f.write(f"{dict_historic_demands}")
+                f.write(f"{json.dumps(dict_historic_demands)}")
             f.close()
             with open("results/actions.txt", "w") as f:
-                f.write(f"{dict_actions}")
+                f.write(f"{json.dumps(dict_actions)}")
             f.close()
             with open("results/inventory.txt", "w") as f:
-                f.write(f"{dict_inventory_levels}")
+                f.write(f"{json.dumps(dict_inventory_levels)}")
             f.close()
 
 
