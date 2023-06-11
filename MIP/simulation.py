@@ -59,10 +59,10 @@ def simulate(real_products):
     start_date = generated_products[0].index[start_index]
     # plot_sales_quantity(generated_products)
 
-    sample_data(file_path, start_date, n_time_periods, generated_products, simulation_length)
+    sample_data(file_path, start_date, n_time_periods, generated_products, simulation_length, real_products)
 
 
-def sample_data(file_path, start_date, n_time_periods, products, episode_length):
+def sample_data(file_path, start_date, n_time_periods, products, episode_length, real_products):
     config = load_config("../config.yml")
     should_set_holding_cost_dynamically = config["simulation"]["should_set_holding_cost_dynamically"]
     if should_set_holding_cost_dynamically:
@@ -71,9 +71,6 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length)
     dict_actions = {}  # Store the first actions for each time step
     dict_inventory_levels = {}
 
-    list_dict_historical_demands = []
-    list_dict_actions = []
-    list_dict_inventory_levels = []
     inventory_levels = [0 for i in range(len(products))]
 
     dict_inventory_levels = {}
@@ -81,6 +78,16 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length)
     dict_actions = {}
     dict_historic_demands = {}
     for time_step in range(episode_length):
+        if time_step == 0:
+            for product_index, product in enumerate(products):
+            # sample historical data for the last 12 weeks
+                historic_sales_quantity_data = product.loc[start_date - pd.DateOffset(weeks=12):, "sales_quantity"]
+                dict_historic_demands[product_index] = list(historic_sales_quantity_data)
+
+        # if time_step > 499:
+        #     products = generate_seasonal_data_based_on_products(real_products[:4], 500 * n_time_periods + start_index + 52)
+        #     start_date = products[0].index[start_index]
+
         print(f"Time step {time_step}/{episode_length}")
         actual_demands = []
         for product_index in range(len(products)):
@@ -111,8 +118,6 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length)
                     dict_actions[time_index + 13 * time_step].append(0)
                 else:
                     dict_actions[time_index + 13 * time_step].append(var.x)
-        list_dict_actions.append(dict_actions)
-        list_dict_inventory_levels.append(dict_inventory_levels)
         for i in range(0, 12):
             dict_inventory_levels[i] = inventory_levels[:]
 
@@ -128,17 +133,7 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length)
                 previous_il = inventory_levels[product_index]
                 inventory_levels[product_index] = max(0, previous_il + dict_actions[time][product_index] - demand)
             dict_inventory_levels[time + 12-1] = inventory_levels[:]
-        list_dict_inventory_levels.append(dict_inventory_levels)
-        list_dict_actions.append(dict_actions)
-        for product_index, product in enumerate(products):
-            # sample historical data for the last 12 weeks
-            historic_sales_quantity_data = product.loc[start_date - pd.DateOffset(weeks=11):start_date, "sales_quantity"]
-            if time_step == 0:
-                dict_historic_demands[product_index] = list(historic_sales_quantity_data)
-            else:
-                dict_historic_demands[product_index].extend(list(historic_sales_quantity_data))
 
-        list_dict_historical_demands.append(dict_historic_demands)
         if time_step % 10 == 0 or time_step == episode_length - 1:
             with open(file_path, "w") as f:
                 f.write(f"Data for period {time_step}:" + "\n")

@@ -26,7 +26,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         env_config = config["environment"]
         self.verbose = False
         self.products = products
-        self.scaled_products = self.normalize_demand(products[:])
+        self.scaled_products = self.products #self.normalize_demand(products[:])
         # starting to learn from first period then moving on
         self.time_period = 208
         self.forecasted = False
@@ -57,7 +57,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
 
         self.action_space = gym.spaces.Discrete(self.n_action_classes)  # 10 discrete actions from 0 to 9 inclusive
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(self.n_periods_historical_data + 1 + self.should_include_individual_forecast + self.should_include_total_forecast, len(products)), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=np.inf, shape=( self.n_periods_historical_data + 1 + self.should_include_individual_forecast + self.should_include_total_forecast, len(products)), dtype=np.float32)
         self.forecast = {}
         self.inventory_levels = [0 for _ in self.products]
         self.reset()
@@ -211,7 +211,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
             else:
                 inventory.append(self.inventory_levels[i])
                 demand.append(historical_demand)
-                observation.append(np.concatenate(([self.inventory_levels[i]/10], historical_demand)))
+                observation.append(np.concatenate((historical_demand, [self.inventory_levels[i]])))
         if self.should_include_total_forecast:
             observation = [np.append(arr, total_forecast) for arr in observation]
         self.forecasted = True

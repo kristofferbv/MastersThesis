@@ -24,44 +24,9 @@ from keras.metrics import mean_squared_error
 from MIP.analysis.analyse_data import plot_sales_quantity
 from reinforcement_learning.environment import JointReplenishmentEnv
 
-# # Get the directory of the current script
-# current_dir = os.path.dirname(os.path.abspath(__file__))
-#
-# # Change the working directory to the directory of the current script
-# os.chdir(current_dir)
-#
-# # Main function
-# config = config_utils.load_config("config.yml")
-# should_generate_data = config["rl"]["generate_data"]
-# method = config["rl"]["method"]
-#
-# # If you want each group as a Series of 'transaction_amount', you can do:
-# real_products = retrieve_data.read_products_with_hashes("2016-01-10", "2020-12-30", ["569b6782ce5885fc4abf21cfde38f7d7", "92b1f191dfce9fff64b4effd954ccaab", "8ef91aac79542f11dedec4f79265ae3a", "2fa9c91f40d6780fd5b3c219699eb139", "1fb096daa569c811723ce8796722680e", "f7b3622f9eb50cb4eee149127c817c79"])
-# real_products = real_products[:4]
-# # real_products = [df["sales_quantity"] for df in real_products][:4]
-# for product in real_products:
-#     print(product)
-# generated_products = generate_data.generate_seasonal_data_based_on_products(real_products, 300, 0)
-# products = generated_products
-#
-# # Set up the environment
-# env = JointReplenishmentEnv(products)
-# # state_shape is the input shape for critic and actor
-# state_shape = env.observation_space.shape
-# print(state_shape)
-# # Since agent space only consist of the state of a singe product
-# state_shape_agent = state_shape
-# # action shape is the output shape of the actor
-# action_shape = env.action_space.n
-
-# set up the networks
-# actor = Actor(state_shape_agent, action_shape)
-# critic = Critic(state_shape)
-
-
 std_dev = 1
 # Learning rate for actor-critic models
-critic_lr = 0.002
+critic_lr = 0.003
 actor_lr = 0.001
 
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
@@ -71,7 +36,7 @@ total_episodes = 10001
 # Discount factor for future rewards
 gamma = 0.998
 # Used to update target networks
-tau = 0.0005
+tau = 0.005
 
 # To store reward history of each episode
 ep_reward_list = []
@@ -235,16 +200,23 @@ class DDPG():
 
         inputs = layers.Input(shape=self.state_shape)
         print(self.state_shape)
-        # out = Conv1D(filters=64, kernel_size=3, activation='relu')(inputs)
+        out = Conv1D(filters=64, kernel_size=3, activation='relu')(inputs)
+        out = layers.Dropout(rate=0.5)(out)
+
+
         # model.add(LSTM(128, activation='relu'))
         # out = layers.LSTM(units=32, return_sequences= True, activation="sigmoid",kernel_initializer="lecun_normal")(inputs)  # Adjust the number of units to your preference
+        # out = layers.LSTM(units=32, return_sequences= False, activation="sigmoid",kernel_initializer="lecun_normal")(out)  # Adjust the number of units to your preference
+
         # attention_layer = attention()(out)
-        out = layers.Flatten()(inputs)
+        out = layers.Flatten()(out)
         # out = layers.Dropout(rate=0.5)(out)
-        out = layers.Dense(200, activation="tanh", kernel_initializer="lecun_normal")(out)
+        # out = layers.Dense(100, activation="relu", kernel_initializer="lecun_normal")(out)
         # out = layers.Dropout(rate=0.2)(out)
-        out = layers.Dense(400, activation="tanh", kernel_initializer="lecun_normal")(out)
-        out = layers.Dense(200, activation="tanh", kernel_initializer="lecun_normal")(out)
+        out = layers.Dense(100, activation="relu", kernel_initializer="lecun_normal")(out)
+        out = layers.Dropout(rate=0.5)(out)
+
+        # out = layers.Dense(200, activation="tanh", kernel_initializer="lecun_normal")(out)
 
         # out = layers.Dropout(rate=0.2)(out)
 
@@ -345,11 +317,14 @@ class DDPG():
     #
     #     return model
 
-    def policy(self, state, noise_object):
+    def policy(self, state, noise_object, should_include_noise = True):
         sampled_actions = tf.squeeze(self.actor_model(state))
         noise = noise_object()
         # Adding noise to action
-        sampled_actions = sampled_actions.numpy() + noise * 100
+        if should_include_noise:
+            sampled_actions = sampled_actions.numpy() + noise * 100
+        else:
+            sampled_actions = sampled_actions.numpy()
         # We make sure action is within bounds
         legal_action = np.clip(sampled_actions, 0, 100)
         # discrete_actions =  np.round(legal_action / 2.5).astype(int)
@@ -360,7 +335,7 @@ class DDPG():
 
     def signal_handler(self, sig, frame):
         print('Training interrupted. Saving models...')
-        self.save_models()
+        # self.save_models()
         self.plot_rewards()
         print('Models saved and rewards plotted. Exiting...')
         sys.exit(0)
@@ -374,12 +349,12 @@ class DDPG():
         save_dir = 'models'
         os.makedirs(save_dir, exist_ok=True)
         print('Saving models...')
-        self.actor_model.save(f'actor_model')
+        self.actor_model.save(f'actor_model_test')
 
     def learn(self):
         # Get sampling range
         record_range = min(self.buffer.buffer_counter, self.buffer.buffer_capacity)
-        if self.buffer.buffer_counter>10000: # and random.random() > 0.9:
+        if self.buffer.buffer_counter>1000000: # and random.random() > 0.9:
             # print("NEEEEEEWWWWW BATCH SIZE")
             # self.batch_size = 128
             # self.buffer.reset()
@@ -414,14 +389,13 @@ class DDPG():
                 [next_state_batch, target_actions], training=True
             )
             critic_value = self.critic_model([state_batch, action_batch], training=True)
-            critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
+            critic_loss = tf.math.reduce_mean(tf.abs(y - critic_value))
 
         critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
         critic_grad, _ = tf.clip_by_global_norm(critic_grad, 1)
         critic_optimizer.apply_gradients(
             zip(critic_grad, self.critic_model.trainable_variables)
         )
-
         with tf.GradientTape() as tape:
             actions = self.actor_model(state_batch, training=True)
             critic_value = self.critic_model([state_batch, actions], training=True)
@@ -435,41 +409,49 @@ class DDPG():
         )
 
     def train(self, should_plot=True):
+        # self.actor_model = tf.keras.models.load_model("actor_model")
+        # self.target_actor = tf.keras.models.load_model("actor_model")
+
+
         # To store reward history of each episode
         ep_reward_list = []
         # To store average reward history of last few episodes
         self.avg_reward_list = []
-        self.env.set_costs(self.products, 100)
+        self.env.set_costs(self.products)
         epsilon = 0.5  # start with full randomness
         epsilon_min = 0.01  # the lowest level of randomness we want
         epsilon_decay = 0.995  # how quickly to decrease randomness
         # Takes about 4 min to train
         running_avg_reward = 0
         running_std_reward = 1
+        should_use_noise = False
         for ep in range(total_episodes):
+            self.ep = ep
             if (ep > 380):
-                self.env.set_costs(self.products, 1)
+                self.env.set_costs(self.products)
             epsilon = max(epsilon_min, epsilon * epsilon_decay)
             generated_products = generate_data.generate_seasonal_data_based_on_products(self.products, 500, period=52)
             # print("plotting")
             # plot_sales_quantity(generated_products)
 
             self.env.products = generated_products
-            self.env.scale_demand(generated_products)
+            # self.env.scale_demand(generated_products)
             prev_state = self.env.reset()
             # if ep<500:
             self.env.reset_inventory()
             episodic_reward = 0
             prev_state = tf.convert_to_tensor([prev_state])
-            prev_state = tf.transpose(prev_state, perm=[0, 2, 1])
+            prev_state = tf.transpose(prev_state, perm=[0,2, 1])
 
             while True:
                 self.std_dev = self.std_dev * 0.999
                 if (self.std_dev < 0.3):
                     self.std_dev = 0.3
+                if ep > 50:
+                    should_use_noise = True
                 ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(self.std_dev) * np.ones(1))
                 action = self.policy(prev_state, ou_noise)[0]
-                # if np.random.rand() <= epsilon and ep >50:  # decide whether to explore or exploit
+                # if np.random.rand() <= epsilon:  # decide whether to explore or exploit
                 #     # exploration: choose a random action
                 #     new_actions = []
                 #     for a in action:
@@ -487,7 +469,7 @@ class DDPG():
                 # Recieve state and reward from environment.
                 state, reward, done, info = self.env.step(action)
                 state = tf.convert_to_tensor([state])
-                state = tf.transpose(state, perm=[0, 2, 1])
+                state = tf.transpose(state, perm=[0,2,1])
                 total_reward = sum(reward)
 
                 reward = sum(reward)
@@ -500,8 +482,9 @@ class DDPG():
 
                 # End this episode when `done` is True
                 self.learn()
-                self.update_target(self.target_actor.variables, self.actor_model.variables, tau)
                 self.update_target(self.target_critic.variables, self.critic_model.variables, tau)
+                # if ep > 50:
+                self.update_target(self.target_actor.variables, self.actor_model.variables, tau)
 
                 if done:
                     print(action)
@@ -527,6 +510,7 @@ class DDPG():
 
     def test(self, episodes = 1, path="actor_model"):
         # loading model
+        # actor = self.get_actor()
         actor = tf.keras.models.load_model(path)
         avg_reward_list = []
         for episode in range(episodes):
@@ -536,8 +520,10 @@ class DDPG():
             episodic_reward = 0
             generated_products = generate_data.generate_seasonal_data_based_on_products(self.products, 500)
             self.env.products = generated_products
-            self.env.scale_demand(generated_products)
+            # self.env.scale_demand(generated_products)
             prev_state = self.env.reset()
+            prev_state = tf.transpose(prev_state, perm=[1,0])
+            print("STAATE", prev_state)
 
             while True:
                 tf_prev_state = tf.convert_to_tensor([prev_state])
@@ -548,7 +534,7 @@ class DDPG():
 
                 action = tf.squeeze(actor(tf_prev_state, training=False)).numpy()
                 for i in range(len(action)):
-                    if action[i] < 1:
+                    if action[i] < 5:
                         action[i] = 0
                 print(action)
                 state, reward, done, info = self.env.step(action)
@@ -560,6 +546,7 @@ class DDPG():
                     break
 
                 prev_state = state
+                prev_state = tf.transpose(prev_state, perm=[1,0])
 
             avg_reward_list.append(episodic_reward)
             # Mean of last 40 episodes

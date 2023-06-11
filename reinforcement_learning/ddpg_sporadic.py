@@ -252,7 +252,7 @@ class DDPG():
         save_dir = 'models'
         os.makedirs(save_dir, exist_ok=True)
         print('Saving models...')
-        self.actor_model.save(f'actor_model')
+        self.actor_model.save(f'actor_model_test')
 
     def learn(self):
         # Get sampling range
@@ -395,7 +395,7 @@ class DDPG():
             plt.ylabel("Avg. Epsiodic Reward")
             plt.show()
 
-    def test(self, episodes = 1, path="actor_model"):
+    def test(self, episodes = 1, path="actor_model_test"):
         # loading model
         actor = tf.keras.models.load_model(path)
         avg_reward_list = []

@@ -286,7 +286,7 @@ class PPO:
     def save_models(self):
         save_dir = 'models'
         os.makedirs(save_dir, exist_ok=True)
-        self.actor.save(os.path.join(save_dir, 'actor_model.h5'))
+        self.actor.save(os.path.join(save_dir, 'actor_model_test.h5'))
         self.critic.save(os.path.join(save_dir, 'critic_model.h5'))
 
     def signal_handler(self, sig, frame):
