@@ -28,7 +28,8 @@ def forecast(df, date, n_time_periods=20):
 
     return np.insert(forecast.values, 0, 0), train
 
-def forecast_analysis(df, date, shouldShowPlot=False, verbose = False, n_time_periods=20):
+def forecast_analysis(df, date, shouldShowPlot=False, verbose = False, n_time_periods=20, seasonal_periods = 52):
+    print("season", seasonal_periods)
     if isinstance(df, pd.DataFrame):
         # Split the data into training and testing sets
         train = df.loc[df.index <= date]
@@ -41,7 +42,7 @@ def forecast_analysis(df, date, shouldShowPlot=False, verbose = False, n_time_pe
     # train = train.asfreq('W-SUN')
 
     # Fit the model and make forecasts
-    model = ExponentialSmoothing(train["sales_quantity"], seasonal_periods=52, trend='add', seasonal='add')
+    model = ExponentialSmoothing(train["sales_quantity"], seasonal_periods=seasonal_periods, trend='add', seasonal='add')
 
     fit = model.fit()
     # Forecasting len(test) periods ahead
@@ -66,6 +67,7 @@ def forecast_analysis(df, date, shouldShowPlot=False, verbose = False, n_time_pe
         # Show the plot
         plt.show()
     forecast[forecast < 0] = 0
+    print(forecast)
     mse = np.mean((test["sales_quantity"].values[:n_time_periods] - forecast) ** 2)
     mae = np.mean(np.abs((test["sales_quantity"].values[:n_time_periods] - forecast)))
     std_dev = np.std(test["sales_quantity"].values[:n_time_periods] - forecast)  # Standard deviation of forecast errors
