@@ -212,6 +212,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
     gap_list = []
 
     for time_step in range(episode_length):
+        inventory_levels = [0 for i in range(len(products))]
         print(f"Time step {time_step}/{episode_length}")
         start_date = start_date + timedelta(days=7)
 
@@ -312,7 +313,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
             print("Total setup costs:")
             print(setup_costs)
 
-        deterministic_model = det_mod.DeterministicModel(len(products), config, beta = beta,n_time_periods= n_time_periods)
+        deterministic_model = det_mod.DeterministicModel(len(products), config)
         deterministic_model.set_demand_forecast(dict_demands)
         if should_set_holding_cost_dynamically:
             deterministic_model.set_holding_costs(unit_price)
@@ -400,7 +401,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
         # f.write(f"Total costs for this episode is: {total_costs}" + "\n")
 
         # f.close()
-    # print(actions)
+    print(actions)
 
     avg_run_time_time_step = (sum(run_time_list)) / episode_length
     std_run_time = statistics.stdev(run_time_list)

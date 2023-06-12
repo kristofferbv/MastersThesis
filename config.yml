@@ -1,15 +1,15 @@
 deterministic_model:
-  product_categories: { "erratic": 0, "smooth": 0, "intermittent": 4, "lumpy": 4}
+  product_categories: { "erratic": 4, "smooth": 0, "intermittent": 0, "lumpy": 0}
   n_time_periods: 13
-  joint_setup_cost: 2500
+  joint_setup_cost: 1000
   minor_setup_ratio: 1.2
   service_level: 0.95
-  should_include_safety_stock: True
-  beta: 1
+  should_include_safety_stock: False
+  beta: 0.5
 rl_model:
   n_products: 6
   n_time_periods: 52
-  joint_setup_cost: 5000
+  joint_setup_cost: 1000
   minor_setup_cost: [ 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0 ]
   holding_cost: [ 56.746590597921845, 27.808012422471087, 55.161044780561035, 57.072195025923534, 60.601173777486366, 17.492847296869314]
   shortage_cost: [ 140,  140,  140,  140,  140,  140 ]
@@ -31,10 +31,10 @@ simulation:
   verbose: False
   should_set_holding_cost_dynamically: True
   n_episodes: 5
-  simulation_length: 10
-  warm_up_length: 10
+  simulation_length: 52
+  warm_up_length: 0
   should_perform_warm_up: False
-  reset_length: 5
+  reset_length: 0
   should_write: True
 
 environment:

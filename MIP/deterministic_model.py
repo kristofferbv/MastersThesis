@@ -17,7 +17,6 @@ class DeterministicModel:
             self.n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
         else:
             self.n_time_periods = n_time_periods
-        print("time_periods", n_time_periods)
         self.n_products = n_products  # number of product types
         self.products = [i for i in range(0, self.n_products)]
         self.time_periods = [i for i in range(0, self.n_time_periods + 1)]
@@ -39,6 +38,8 @@ class DeterministicModel:
             self.beta = config["deterministic_model"]["beta"]
         else:
             self.beta = beta
+        print("beta", beta)
+        print("time_periods", n_time_periods)
         # change shortage cost based on formula
         # could make an if sentence if this could be set by the user
 
