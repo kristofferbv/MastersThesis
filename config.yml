@@ -1,5 +1,5 @@
 deterministic_model:
-  product_categories: { "erratic": 2, "smooth": 2, "intermittent": 2, "lumpy": 2}
+  product_categories: { "erratic": 0, "smooth": 4, "intermittent": 0, "lumpy": 0}
   n_time_periods: 12
   joint_setup_cost: 1000
   minor_setup_ratio: 1.2
