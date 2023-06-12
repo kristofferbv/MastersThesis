@@ -2,7 +2,7 @@ import random
 import os
 import sys
 
-from MIP import simulation2
+from MIP import simulate_SS
 
 # Get the path of the current script
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -14,7 +14,7 @@ sys.path.append(parent_path)
 import retrieve_data
 from MIP.analysis.analyse_data import plot_sales_quantity, get_non_stationary_products, decompose_sales_quantity
 from config_utils import load_config
-import simulation
+import simulate_states
 from generate_data import *
 
 # Get the directory of the current script
