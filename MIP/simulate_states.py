@@ -7,7 +7,7 @@ import deterministic_model as det_mod
 from MIP.analysis.analyse_data import plot_sales_quantity
 from MIP.forecasting import holt_winters_method
 from config_utils import load_config
-from generate_data import generate_seasonal_data_based_on_products
+from generate_data import generate_seasonal_data_for_erratic_demand
 
 # Get the path of the current script
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -54,7 +54,7 @@ def simulate(real_products):
         number_of_products = product_categories[category]
         current_index += number_of_products
         if number_of_products > 0:
-            generated_products += generate_seasonal_data_based_on_products(real_products[last_index:current_index], simulation_length * n_time_periods + start_index + 52)
+            generated_products += generate_seasonal_data_for_erratic_demand(real_products[last_index:current_index], simulation_length * n_time_periods + start_index + 52)
             last_index = current_index
         # plot_sales_quantity(generated_products)
     start_date = generated_products[0].index[start_index]
