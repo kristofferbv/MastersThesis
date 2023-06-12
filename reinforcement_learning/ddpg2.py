@@ -32,7 +32,7 @@ actor_lr = 0.00001
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
-total_episodes = 155
+total_episodes = 121
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
@@ -239,11 +239,15 @@ class DDPG():
 
         return model
 
-    def policy(self, state, noise_object, should_include_noise = True):
-        sampled_actions = tf.squeeze(self.actor_model(state))
-        noise = noise_object()
+    def policy(self, state, noise_object = None, should_include_noise = True, actor = None):
+        if actor is None:
+            sampled_actions = tf.squeeze(self.actor_model(state))
+        else:
+            sampled_actions = tf.squeeze(actor(state))
+
         # Adding noise to action
         if should_include_noise:
+            noise = noise_object()
             sampled_actions = sampled_actions.numpy() + noise * 100
         else:
             sampled_actions = sampled_actions.numpy()
@@ -356,7 +360,7 @@ class DDPG():
             self.env.reset_inventory()
             episodic_reward = 0
             prev_state = tf.convert_to_tensor([prev_state])
-            prev_state = tf.transpose(prev_state, perm=[0,2, 1])
+            prev_state = tf.transpose(prev_state, perm=[0, 2, 1])
 
 
             while True:
@@ -387,9 +391,10 @@ class DDPG():
                 self.update_target(self.target_critic.variables, self.critic_model.variables, tau)
                 # if ep > 50:
                 self.update_target(self.target_actor.variables, self.actor_model.variables, tau)
-
+                if ep == 120:
+                    print("EPISODE ACT", action)
                 if done:
-                    print(action)
+                    # print(action)
                     break
 
                 prev_state = state
@@ -413,17 +418,18 @@ class DDPG():
 
     def test(self, episodes = 1, path = None):
         # loading model
-        actor = self.get_actor()
-        actor = tf.keras.models.load_model("best_ont")
+        actor = self.actor_model
+        # actor = tf.keras.models.load_model("the_one")
         avg_reward_list = []
         for episode in range(episodes):
             print(f"episode: {episode}")
             self.env.set_costs(self.products)
 
             episodic_reward = 0
-            generated_products = generate_data.generate_seasonal_data_based_on_products(self.products, 500)
+            generated_products = generate_data.generate_seasonal_data_based_on_products(self.products, 500, period = 52)
             self.env.products = generated_products
             prev_state = self.env.reset()
+            prev_state = tf.convert_to_tensor([prev_state])
             prev_state = tf.transpose(prev_state, perm=[0,2,1])
 
             while True:
@@ -432,8 +438,9 @@ class DDPG():
                 # ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(std_dev) * np.ones(1))
                 # action = self.policy(tf_prev_state, ou_noise, actor)[0]
 
+                action = self.policy(prev_state, should_include_noise = False, actor = actor)[0]
 
-                action = tf.squeeze(actor(tf_prev_state, training=False)).numpy()
+                # action = tf.squeeze(actor(tf_prev_state, training=False)).numpy()
                 for i in range(len(action)):
                     if action[i] < 1:
                         action[i] = 0
@@ -447,6 +454,7 @@ class DDPG():
                     break
 
                 prev_state = state
+                prev_state = tf.convert_to_tensor([prev_state])
                 prev_state = tf.transpose(prev_state, perm=[0,2,1])
                 # prev_state = tf.reshape(prev_state, [13, 8])
 
