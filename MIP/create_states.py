@@ -1,6 +1,7 @@
 import json
 
 import numpy as np
+import pandas as pd
 
 import tensorflow as tf
 from keras.callbacks import EarlyStopping
@@ -75,16 +76,17 @@ def get_actor(sequence, features):
     model = tf.keras.Model(inputs, outputs)
     return model
 
+
 # load demand data
-with open('results/demand.txt', 'r') as file:
+with open('results/demand1.txt', 'r') as file:
     dict_demand = json.load(file)
 
 # load actions data
-with open('results/actions.txt', 'r') as file:
+with open('results/actions1.txt', 'r') as file:
     dict_action = json.load(file)
 
 # load inventory data
-with open('results/inventory.txt', 'r') as file:
+with open('results/inventory1.txt', 'r') as file:
     dict_inventory = json.load(file)
 
 n_products = len(dict_demand)
@@ -98,7 +100,7 @@ input_data = np.zeros((batch_size, n_products, n_features))
 target_data = np.zeros((batch_size, n_products))
 # Loop over all products
 # Iterate over each time period
-sequence_length = 14  # 13 past demand levels + 1 current inventory level
+sequence_length = 52  # 13 past demand levels + 1 current inventory level
 
 # Initialize the input array
 input_data = np.zeros((batch_size, sequence_length, n_products))
@@ -121,10 +123,6 @@ for period in range(sequence_length-1, batch_size):
     order_quantities = dict_action[str(period-sequence_length+2)]
     # Store in the target array
     target_data[period-sequence_length+1, :] = order_quantities
-# print(input_data.shape)
-# print(input_data)
-# print(target_data.shape)
-# print(target_data)
 
 # Saving arrays to file
 # np.save('features234.npy', input_data)  # Replace 'features' and 'targets' with your actual arrays
@@ -143,20 +141,42 @@ for period in range(sequence_length-1, batch_size):
 # input_data_ = np.reshape(input_data_scaled_2D, original_shape)
 
 
+class TransformerBlock(layers.Layer):
+    def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
+        super(TransformerBlock, self).__init__()
+        self.att = layers.MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
+        self.ffn = Sequential(
+            [layers.Dense(ff_dim, activation="relu"), layers.Dense(embed_dim),]
+        ) # The output dimension of the FFN should match the input embed_dim
+        self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
+        self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
+        self.dropout1 = layers.Dropout(rate)
+        self.dropout2 = layers.Dropout(rate)
+
+    def call(self, inputs, training):
+        attn_output = self.att(inputs, inputs)
+        attn_output = self.dropout1(attn_output, training=training)
+        out1 = self.layernorm1(inputs + attn_output)
+        ffn_output = self.ffn(out1)
+        ffn_output = self.dropout2(ffn_output, training=training)
+        return self.layernorm2(out1 + ffn_output)
 
 
 # Set some hyperparameters
 n_products = 4
-n_features = 14
-n_neurons = 200 # Number of neurons in the hidden layer, can be adjusted
+n_features = 52
+n_neurons = 100 # Number of neurons in the hidden layer, can be adjusted
 
 # Define the model
 # input_data = np.transpose(input_data, (0,2,1))
-model = get_actor(n_features, n_products)
+# model = get_actor(n_features, n_products)
+print(input_data.shape)
 model = Sequential([
-    layers.LSTM(n_neurons, activation='relu', return_sequences=True, input_shape=(n_features, n_products)),
+    layers.GRU(n_neurons, activation='relu', return_sequences=True, input_shape=(52, 4)),
     layers.Dropout(0.5),
-    layers.LSTM(n_neurons, activation='relu'),
+    # TransformerBlock(embed_dim=100, num_heads=2, ff_dim=100), # embed_dim should match the output dimension of the previous layer
+    # layers.Dropout(0.5),
+    layers.GRU(n_neurons, activation='relu'),
     layers.Dropout(0.5),
     layers.Dense(n_products)
 ])
@@ -177,13 +197,13 @@ optimizer = Adam(learning_rate=0.001)  # You can replace 0.001 with your desired
 model.compile(optimizer=optimizer, loss='mae')  # Use mean squared error as the loss function
 
 # Print a summary of the model
-model.summary()
+# model.summary()
 
 # Train the model
 # Replace `features` and `targets` with your actual data arrays
-early_stopping = EarlyStopping(monitor='val_loss', patience=10)
+early_stopping = EarlyStopping(monitor='val_loss', patience=30)
 
-history = model.fit(input_data, target_data, batch_size=264, epochs=500, validation_split=0.2)
+history = model.fit(input_data, target_data, batch_size=128, epochs=500, validation_split=0.2, callbacks=early_stopping)
 model.save(f'actor_model')
 # # Evaluate the model
 # # Replace `test_features` and `test_targets` with your actual test data arrays

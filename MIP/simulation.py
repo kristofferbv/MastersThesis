@@ -5,6 +5,7 @@ import os
 import sys
 import deterministic_model as det_mod
 from MIP.analysis.analyse_data import plot_sales_quantity
+from MIP.forecasting import holt_winters_method
 from config_utils import load_config
 from generate_data import generate_seasonal_data_based_on_products
 
@@ -142,13 +143,13 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length,
                 f.write(f"Historic demand: {dict_historic_demands}" + "\n")
             f.close()
 
-            with open("results/demand.txt", "w") as f:
+            with open("results/demand1.txt", "w") as f:
                 f.write(f"{json.dumps(dict_historic_demands)}")
             f.close()
-            with open("results/actions.txt", "w") as f:
+            with open("results/actions1.txt", "w") as f:
                 f.write(f"{json.dumps(dict_actions)}")
             f.close()
-            with open("results/inventory.txt", "w") as f:
+            with open("results/inventory1.txt", "w") as f:
                 f.write(f"{json.dumps(dict_inventory_levels)}")
             f.close()
 

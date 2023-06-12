@@ -71,6 +71,7 @@ class DeterministicModel:
                     self.safety_stock[product_index][time_period][tau_period] = norm.ppf(self.service_level[product_index][tau_period]) * np.sqrt(squared_sum)
                     self.safety_stock[product_index][time_period][tau_period] = self.safety_stock[product_index][time_period][tau_period]
 
+
         self.model.update()
         
     # Set big m values

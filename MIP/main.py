@@ -2,6 +2,8 @@ import random
 import os
 import sys
 
+from MIP import simulation2
+
 # Get the path of the current script
 current_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -91,7 +93,7 @@ if __name__ == '__main__':
                 else:
                     decompose_sales_quantity(product, str(i))
         if generate_new_data:
-            simulation.simulate(products)
+            simulation2.simulate(products)
         else:
             start_date = products[0].index[104]
             simulation_length = config["simulation"]["simulation_length"]
