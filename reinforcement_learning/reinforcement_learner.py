@@ -95,6 +95,6 @@ if __name__ == "__main__":
     #     ma.test()
     if method == "ddpg":
         ddpg = DDPG(real_products, state_shape, env)
-        ddpg.train()
+        # ddpg.train()
         ddpg.test()
 

@@ -378,12 +378,7 @@ class DDPG():
                 # state = tf.reshape(state, [1, 13, -1])
                 state = tf.transpose(state, perm=[0,2,1])
                 total_reward = sum(reward)
-
                 reward = sum(reward)
-                # running_avg_reward = 0.99 * running_avg_reward + 0.01 * sum(reward) * 2
-                # running_std_reward = np.sqrt(0.99 * running_std_reward ** 2 + 0.01 * (sum(reward) * 2 - running_avg_reward) ** 2)
-                # reward = -abs((sum(reward) - running_avg_reward) / running_std_reward)
-
                 self.buffer.record((prev_state, action, reward, state))
                 episodic_reward += total_reward
 
@@ -419,7 +414,7 @@ class DDPG():
     def test(self, episodes = 1, path = None):
         # loading model
         actor = self.get_actor()
-        # actor = tf.keras.models.load_model(path)
+        actor = tf.keras.models.load_model("best_ont")
         avg_reward_list = []
         for episode in range(episodes):
             print(f"episode: {episode}")
@@ -429,7 +424,7 @@ class DDPG():
             generated_products = generate_data.generate_seasonal_data_based_on_products(self.products, 500)
             self.env.products = generated_products
             prev_state = self.env.reset()
-            prev_state = tf.transpose(prev_state, perm=[1,0])
+            prev_state = tf.transpose(prev_state, perm=[0,2,1])
 
             while True:
                 tf_prev_state = tf.convert_to_tensor([prev_state])
@@ -452,7 +447,7 @@ class DDPG():
                     break
 
                 prev_state = state
-                prev_state = tf.transpose(prev_state, perm=[1,0])
+                prev_state = tf.transpose(prev_state, perm=[0,2,1])
                 # prev_state = tf.reshape(prev_state, [13, 8])
 
             avg_reward_list.append(episodic_reward)
