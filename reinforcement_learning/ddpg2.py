@@ -32,7 +32,7 @@ actor_lr = 0.00001
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
-total_episodes = 155
+total_episodes = 100
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
@@ -328,8 +328,10 @@ class DDPG():
         )
 
     def train(self, should_plot=True):
-        self.actor_model = tf.keras.models.load_model("actor_model_1")
-        self.target_actor = tf.keras.models.load_model("actor_model_1")
+        # hei = tf.keras.models.load_model("actor_model")
+        # hade =  tf.keras.models.load_model("actor_model")
+        # self.actor_model = hei
+        # self.target_actor = hade
 
 
         # To store reward history of each episode
@@ -343,13 +345,14 @@ class DDPG():
         # Takes about 4 min to train
 
         for ep in range(total_episodes):
-            if ep > 20:
+            if ep > 100:
                 actor_optimizer.learning_rate = 1e-3  # increased learning rate
             self.ep = ep
             if (ep > 380):
                 self.env.set_costs(self.products)
             epsilon = max(epsilon_min, epsilon * epsilon_decay)
             generated_products = generate_data.generate_seasonal_data_based_on_products(self.products, 500, period=52)
+
 
             self.env.products = generated_products
             prev_state = self.env.reset()
@@ -387,7 +390,8 @@ class DDPG():
                 self.update_target(self.target_critic.variables, self.critic_model.variables, tau)
                 # if ep > 50:
                 self.update_target(self.target_actor.variables, self.actor_model.variables, tau)
-
+                if ep+1 % 50 == 0:
+                    print("EP49Ac", action)
                 if done:
                     print(action)
                     break
@@ -401,7 +405,7 @@ class DDPG():
             avg_reward = np.mean(ep_reward_list[-30:])
             print("Episode * {} * Avg Reward is ==> {}".format(ep, avg_reward))
             avg_reward_list.append(avg_reward)
-        self.actor_model.save(f'actor_model_ep{ep}_saved_model')
+        # self.actor_model.save(f'actor_model_ep{ep}_saved_model')
         if should_plot:
             # Plotting graph
             # Episodes versus Avg. Rewards
@@ -411,10 +415,10 @@ class DDPG():
             plt.show()
         self.test(episodes = 1)
 
-    def test(self, episodes = 1, path = None):
+    def test(self, episodes = 10, path = None):
         # loading model
-        actor = self.get_actor()
-        actor = tf.keras.models.load_model("best_ont")
+        # actor = self.actor_model
+        actor = tf.keras.models.load_model(f"actor_model_ep{99}_saved_model")
         avg_reward_list = []
         for episode in range(episodes):
             print(f"episode: {episode}")
@@ -424,7 +428,7 @@ class DDPG():
             generated_products = generate_data.generate_seasonal_data_based_on_products(self.products, 500)
             self.env.products = generated_products
             prev_state = self.env.reset()
-            prev_state = tf.transpose(prev_state, perm=[0,2,1])
+            prev_state = tf.transpose(prev_state, perm=[1,0])
 
             while True:
                 tf_prev_state = tf.convert_to_tensor([prev_state])
@@ -447,7 +451,7 @@ class DDPG():
                     break
 
                 prev_state = state
-                prev_state = tf.transpose(prev_state, perm=[0,2,1])
+                prev_state = tf.transpose(prev_state, perm=[1,0])
                 # prev_state = tf.reshape(prev_state, [13, 8])
 
             avg_reward_list.append(episodic_reward)

@@ -30,30 +30,46 @@ if __name__ == "__main__":
     method = config["rl_model"]["method"]
     seed = config["main"]["seed"]
     product_categories = config["rl_model"]["product_categories"]
+    config_files = ["config.yml"]
+    n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
+    should_analyse = config["main"]["should_analyse"]
+    use_stationary_data = False  # config["main"]["stationary_products"]
+    generate_new_data = config["main"]["generate_new_data"]
+    n_products = sum(product_categories.values())
+    # retrieve_data.categorize_products("sales_orders.csv", "w", True)
 
+    # calculate average unit costs to compute setup costs
+    all_products = retrieve_data.read_products("2017-01-01", "2020-12-30")
 
-    real_products = []
+    unit_price_all = [df.iloc[0]['average_unit_price'] for df in all_products]
+
+    average_unit_price = sum(unit_price_all) / len(unit_price_all)
+
+    print("The average unit cost is: ", average_unit_price)
+
+    # Reading the products created by the "read_products" function above
+    products = []
     if seed is not None:
         # Setting a random seed ensure we select the same random products each time
         random.seed(seed)
+
     for category in product_categories.keys():
-        category_products = retrieve_data.read_products("2016-01-01", "2020-12-30", category)
-        print(category)
+        category_products = retrieve_data.read_products("2017-01-01", "2020-12-30", category)
+        category_products = [product for product in category_products if product["sales_quantity"].max() <= 150]
+        category_products.sort(key=lambda product: product["sales_quantity"].mean())
+
         number_of_products = product_categories[category]
-        print(number_of_products)
-        if number_of_products > 0:
-            hei = random.sample(category_products, product_categories[category])
-            if category == "erratic":
-                plot_sales_quantity(generate_seasonal_data_for_erratic_demand(hei, 260))
-            elif category == "smooth":
-                plot_sales_quantity(generate_seasonal_data_for_erratic_demand(hei, 260))
-            else:
-                plot_sales_quantity(generate_seasonal_data_for_intermittent_demand(hei, 260))
 
-            real_products += hei
+        if number_of_products > 0 and len(category_products) > 0:
+            # Make sure the number of products required does not exceed the number of available products
+            number_of_products = min(number_of_products, len(category_products))
 
-    for product in real_products:
-        print(product["product_hash"].iloc[1])
+            products += random.sample(category_products, number_of_products)
+        print("len", len(products))
+
+
+    real_products = products
+    plot_sales_quantity(real_products)
 
     # TODO! Note to self: Maybe draw random inventory levels at start of each simulation?
 
@@ -63,7 +79,7 @@ if __name__ == "__main__":
     # if should_generate_data:
     generated_products = generate_seasonal_data_based_on_products(real_products, 500)
     products = generated_products
-    # plot_sales_quantity(products)
+    plot_sales_quantity(products)
     # for i in generated_products:
     #     print(i["sales_quantity"])
     # plot_sales_quantity(real_products)
@@ -95,6 +111,6 @@ if __name__ == "__main__":
     #     ma.test()
     if method == "ddpg":
         ddpg = DDPG(real_products, state_shape, env)
-        # ddpg.train()
+        ddpg.train()
         ddpg.test()
 

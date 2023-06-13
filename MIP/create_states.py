@@ -100,7 +100,7 @@ input_data = np.zeros((batch_size, n_products, n_features))
 target_data = np.zeros((batch_size, n_products))
 # Loop over all products
 # Iterate over each time period
-sequence_length = 52  # 13 past demand levels + 1 current inventory level
+sequence_length =14  # 13 past demand levels + 1 current inventory level
 
 # Initialize the input array
 input_data = np.zeros((batch_size, sequence_length, n_products))
@@ -164,7 +164,7 @@ class TransformerBlock(layers.Layer):
 
 # Set some hyperparameters
 n_products = 4
-n_features = 52
+n_features = 14
 n_neurons = 100 # Number of neurons in the hidden layer, can be adjusted
 
 # Define the model
@@ -172,7 +172,7 @@ n_neurons = 100 # Number of neurons in the hidden layer, can be adjusted
 # model = get_actor(n_features, n_products)
 print(input_data.shape)
 model = Sequential([
-    layers.GRU(n_neurons, activation='relu', return_sequences=True, input_shape=(52, 4)),
+    layers.GRU(n_neurons, activation='relu', return_sequences=True, input_shape=(14, 4)),
     layers.Dropout(0.5),
     # TransformerBlock(embed_dim=100, num_heads=2, ff_dim=100), # embed_dim should match the output dimension of the previous layer
     # layers.Dropout(0.5),
@@ -201,7 +201,7 @@ model.compile(optimizer=optimizer, loss='mae')  # Use mean squared error as the 
 
 # Train the model
 # Replace `features` and `targets` with your actual data arrays
-early_stopping = EarlyStopping(monitor='val_loss', patience=30)
+early_stopping = EarlyStopping(monitor='val_loss', patience=17)
 
 history = model.fit(input_data, target_data, batch_size=128, epochs=500, validation_split=0.2, callbacks=early_stopping)
 model.save(f'actor_model')
