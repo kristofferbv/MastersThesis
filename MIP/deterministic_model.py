@@ -17,9 +17,9 @@ class DeterministicModel:
             self.n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
         else:
             self.n_time_periods = n_time_periods
-        print("time_periods", n_time_periods)
+        print("time_periods", n_time_periods)  # print to see which is used if running a series of varying values for this
         self.n_products = n_products  # number of product types
-        self.products = [i for i in range(0, self.n_products)]
+        self.products = [i for i in range(0, self.n_products)] 
         self.time_periods = [i for i in range(0, self.n_time_periods + 1)]
         self.tau_periods = [i for i in range(1, self.n_time_periods + 1)]
 
@@ -133,8 +133,8 @@ class DeterministicModel:
                                                                 order_product[self.products[p], self.time_periods[i], self.tau_periods[0]] * self.safety_stock[p][i][1]
 
                                                                 + gp.quicksum(order_product[self.products[p], self.time_periods[i], self.tau_periods[j - 1]] * (self.safety_stock[p][i][j]
-                                                                                                                                                                + gp.quicksum(self.demand_forecast[self.products[p]][self.time_periods[i + t]] for t in range(1, j)))
-                                                                              for j in range(2, len(self.time_periods) - i + 1))
+                                                                                                    + gp.quicksum(self.demand_forecast[self.products[p]][self.time_periods[i + t]] for t in range(1, j)))
+                                                                              for j in range(2, self.n_time_periods - i + 2))
                                                                 for p in range(self.n_products) for i in range(1, self.n_time_periods + 1)), name="minimumInventoryOrdering")
 
             minimum_inventory_not_ordering = self.model.addConstrs((inventory_level[self.products[p], self.time_periods[i]] >= self.safety_stock[p][i][1]
