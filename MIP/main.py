@@ -81,11 +81,11 @@ if __name__ == '__main__':
         #         else:
         #             decompose_sales_quantity(product, str(i))
         #
-        if generate_new_data:
-            simulation.simulate(products, config)
-        else:
-            start_date = products[0].index[104]
-            simulation_length = config["simulation"]["simulation_length"]
-            simulation.run_one_episode(start_date, n_time_periods, simulation_length, products, config)
+        # if generate_new_data:
+        #     simulation.simulate(products, config)
+        # else:
+        #     start_date = products[0].index[104]
+        #     simulation_length = config["simulation"]["simulation_length"]
+        #     simulation.run_one_episode(start_date, n_time_periods, simulation_length, products, config)
 
-        # simulate_SS.simulate(products)
+        simulate_SS.simulate(products)

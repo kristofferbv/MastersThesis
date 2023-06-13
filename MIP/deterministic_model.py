@@ -10,9 +10,9 @@ from collections import defaultdict
 
 
 class DeterministicModel:
-    def __init__(self, n_products, config, beta=None, n_time_periods=None):
+    def __init__(self, n_products, beta=None, n_time_periods=None):
 
-        # config = load_config("../config.yml")
+        config = load_config("../config.yml")
         if n_time_periods is None:
             self.n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
         else:
@@ -55,6 +55,10 @@ class DeterministicModel:
 
         # print("shortage costs")
         # print(self.shortage_cost)
+    def set_costs(self, major):
+        self.major_setup_cost = major
+        self.minor_setup_cost = [self.minor_setup_ratio * self.major_setup_cost / self.n_products for i in range(0, self.n_products)]
+
 
     def set_demand_forecast(self, demand_forecast):
         self.demand_forecast = demand_forecast
@@ -90,7 +94,7 @@ class DeterministicModel:
                     if time_period == 0:
                         self.big_m[product_index][time_period][tau_period] = 0
                     else:
-                        self.big_m[product_index][time_period][tau_period] = sum(self.demand_forecast[self.products[product_index]][self.time_periods[time_period + t]] for t in range(0, tau_period)) + self.safety_stock[product_index][time_period][tau_period]
+                        self.big_m[product_index][time_period][tau_period] = sum(self.demand_forecast[self.products[product_index]][self.time_periods[time_period + t]] for t in range(0, tau_period)) #+ self.safety_stock[product_index][time_period][tau_period]
         self.model.update()
 
     def reset_model(self):
