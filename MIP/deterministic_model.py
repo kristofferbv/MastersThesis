@@ -38,8 +38,6 @@ class DeterministicModel:
             self.beta = config["deterministic_model"]["beta"]
         else:
             self.beta = beta
-        print("beta", beta)
-        print("time_periods", n_time_periods)
         # change shortage cost based on formula
         # could make an if sentence if this could be set by the user
 

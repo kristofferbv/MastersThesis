@@ -1,391 +1,466 @@
 import os
-import random
-import sys
 import signal
+import sys
 
+import keras.backend as K
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-from keras import layers, models
-from keras.models import load_model
+from keras import layers
+from keras.layers import Conv1D
+from keras.layers import Layer
+from keras.models import Sequential
 
-from generate_data import generate_seasonal_data_based_on_products
+import generate_data
 
-# Define hyperparameters
-gamma = 0.98  # discount factor
-tau = 0.005  # target network update rate
-actor_lr = 0.001  # learning rate of actor network
-critic_lr = 0.002 # learning rate of critic network
-batch_size = 100  # minibatch size
-num_episodes = 2300
-num_agents = 4  # number of agents
-warm_up_steps = 1000
+std_dev = 1
+# Learning rate for actor-critic models
+critic_lr = 0.003
+actor_lr = 0.00001
+
+critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
+actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
+
+total_episodes = 100
+# Discount factor for future rewards
+gamma = 0.99
+# Used to update target networks
+tau = 0.0005
+
+# To store reward history of each episode
+ep_reward_list = []
+# To store average reward history of last few episodes
+avg_reward_list = []
 
 
-class Actor(models.Model):
-    def __init__(self, action_dim, max_action):
-        super(Actor, self).__init__()
-        self.l1 = layers.Dense(64, activation='selu')
-        self.l2 = layers.Dense(64, activation='selu')
-        self.l3 = layers.Dense(1, activation='sigmoid')
-        self.max_action = max_action
-        # Initialize weights between -3e-5 and 3-e5
-        last_init = tf.random_uniform_initializer(minval=-0.00003, maxval=0.00003)
+class OUActionNoise:
+    def __init__(self, mean, std_deviation, theta=0.1, dt=1e-2, x_initial=None):
+        self.theta = theta
+        self.mean = mean
+        self.std_dev = std_deviation
+        self.dt = dt
+        self.x_initial = x_initial
+        self.reset()
 
-        # Actor will get observation of the agent
-        # not the observation of other agents
-        self.l1 = layers.Dense(256, activation="selu", kernel_initializer="lecun_normal")
-        self.l2 = layers.Dropout(rate=0.5)
-        self.l3 = layers.BatchNormalization()
-        self.l4 = layers.Dense(256, activation="selu", kernel_initializer="lecun_normal")
-        self.l5 = layers.Dropout(rate=0.5)
-        self.l6 = layers.BatchNormalization()
+    def __call__(self):
+        # Formula taken from https://www.wikipedia.org/wiki/Ornstein-Uhlenbeck_process.
+        x = (
+                self.x_prev
+                + self.theta * (self.mean - self.x_prev) * self.dt
+                + self.std_dev * np.sqrt(self.dt) * np.random.normal(size=self.mean.shape)
+        )
+        # Store x into x_prev
+        # Makes next noise dependent on current one
+        self.x_prev = x
+        return x
 
-        # Using tanh activation as action values for
-        # for our environment lies between -1 to +1
-        self.l7 = layers.Dense(1, activation="sigmoid", kernel_initializer=last_init)
+    def reset(self):
+        if self.x_initial is not None:
+            self.x_prev = self.x_initial
+        else:
+            self.x_prev = np.zeros_like(self.mean)
+
+
+class Buffer:
+    def __init__(self, state_shape, action_shape, buffer_capacity=10000000, batch_size=64):
+        # Number of "experiences" to store at max
+        self.buffer_capacity = buffer_capacity
+        # Num of tuples to train on.
+        self.batch_size = batch_size
+        self.state_shape = state_shape
+        self.action_shape = action_shape
+        # Its tells us num of times record() was called.
+        self.buffer_counter = 0
+
+        # Instead of list of tuples as the exp.replay concept go
+        # We use different np.arrays for each tuple element
+        self.state_buffer = np.zeros((self.buffer_capacity, *state_shape))
+        self.action_buffer = np.zeros((self.buffer_capacity, action_shape))
+        self.reward_buffer = np.zeros((self.buffer_capacity, 1))
+        self.next_state_buffer = np.zeros((self.buffer_capacity, *state_shape))
+
+    # Takes (s,a,r,s') obervation tuple as input
+    def record(self, obs_tuple):
+        # Set index to zero if buffer_capacity is exceeded,
+        # replacing old records
+        index = self.buffer_counter % self.buffer_capacity
+
+        self.state_buffer[index] = obs_tuple[0]
+        self.action_buffer[index] = obs_tuple[1]
+        self.reward_buffer[index] = obs_tuple[2]
+        self.next_state_buffer[index] = obs_tuple[3]
+
+        self.buffer_counter += 1
+
+    def reset(self):
+        self.state_buffer = np.zeros((self.buffer_capacity, *self.state_shape))
+        self.action_buffer = np.zeros((self.buffer_capacity, self.action_shape))
+        self.reward_buffer = np.zeros((self.buffer_capacity, 1))
+        self.next_state_buffer = np.zeros((self.buffer_capacity, *self.state_shape))
+
+
+class TransformerBlock(layers.Layer):
+    def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
+        super(TransformerBlock, self).__init__()
+        self.att = layers.MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
+        self.ffn = Sequential(
+            [layers.Dense(ff_dim, activation="relu"), layers.Dense(embed_dim), ]
+        )
+        self.layernorm1 = layers.LayerNormalization()
+        self.layernorm2 = layers.LayerNormalization(epsilon=1e-4)
+        self.dropout1 = layers.Dropout(rate)
+        self.dropout2 = layers.Dropout(rate)
+
+    def call(self, inputs, training):
+        attn_output = self.att(inputs, inputs)
+        attn_output = self.dropout1(attn_output, training=training)
+        out1 = self.layernorm1(inputs + attn_output)
+        ffn_output = self.ffn(out1)
+        ffn_output = self.dropout2(ffn_output, training=training)
+        return self.layernorm2(out1 + ffn_output)
+
+
+class attention(Layer):
+    def __init__(self, **kwargs):
+        super(attention, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.W = self.add_weight(name='attention_weight', shape=(input_shape[-1], 1),
+                                 initializer='random_normal', trainable=True)
+        self.b = self.add_weight(name='attention_bias', shape=(input_shape[1], 1),
+                                 initializer='zeros', trainable=True)
+        super(attention, self).build(input_shape)
+
+    def call(self, x):
+        # Alignment scores. Pass them through tanh function
+        e = K.tanh(K.dot(x, self.W) + self.b)
+        # Remove dimension of size 1
+        e = K.squeeze(e, axis=-1)
+        # Compute the weights
+        alpha = K.softmax(e)
+        # Reshape to tensorFlow format
+        alpha = K.expand_dims(alpha, axis=-1)
+        # Compute the context vector
+        context = x * alpha
+        context = K.sum(context, axis=1)
+        return context
+
+
+class PositionalEncoding(layers.Layer):
+    def __init__(self, sequence_length, num_features, dtype=tf.float32):
+        super(PositionalEncoding, self).__init__()
+        position = np.arange(sequence_length)[:, np.newaxis]
+        div_term = np.exp(np.arange(0, num_features, 2) * -(np.log(10000.0) / num_features))
+        positional_encoding = np.zeros((sequence_length, num_features))
+        positional_encoding[:, 0::2] = np.sin(position * div_term)
+        positional_encoding[:, 1::2] = np.cos(position * div_term)
+        self.positional_encoding = tf.convert_to_tensor(positional_encoding, dtype=dtype)
 
     def call(self, inputs):
-        x = self.l1(inputs)
-        x = self.l2(x)
-        x = self.l3(x)
-        x = self.l4(x)
-        x = self.l5(x)
-        x = self.l6(x)
-        x = self.l7(x)
-        return abs(x)
+        return inputs + self.positional_encoding
 
 
-class Critic(models.Model):
-    def __init__(self):
-        super(Critic, self).__init__()
-        self.l1 = layers.Dense(32, activation='tanh')
-        self.l2 = layers.Dense(32, activation='tanh')
-        self.l3 = layers.Dense(1)
-        self.flatten = layers.Flatten()
-
-        last_init = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
-
-        # State as input, here this state is
-        # observation of all the agents
-        # hence this state will have information
-        # of observation of all the agents
-        self.l1 = layers.Dense(16, activation="selu", kernel_initializer="lecun_normal")
-        self.l2 = layers.BatchNormalization()
-        self.l3 = layers.Dense(32, activation="selu", kernel_initializer="lecun_normal")
-        self.l4 = layers.BatchNormalization()
-        # Action all the agents as input
-        self.l9 = layers.Dense(32, activation="selu", kernel_initializer="lecun_normal")
-        self.l10 = layers.BatchNormalization()
-
-        self.l11 = layers.Dropout(rate=0.5)
-        self.l12 = layers.BatchNormalization()
-        self.l13 = layers.Dense(512, activation="selu", kernel_initializer="lecun_normal")
-        self.l14 = layers.Dropout(rate=0.5)
-        self.l15 = layers.BatchNormalization()
-
-        self.outputs = layers.Dense(1)
-
-    def call(self, state, actions):
-        x = self.l1(state)
-        x = self.l2(x)
-        x = self.l3(x)
-        state_out = self.l4(x)
-        a = self.l9(actions)
-        action_out = self.l10(a)
-        concat = layers.Concatenate()([state_out, action_out])
-        out = self.l11(concat)
-        out = self.l12(out)
-        out = self.l13(out)
-        out = self.l14(out)
-        out = self.l15(out)
-        out = self.outputs(out)
-
-        return tf.reduce_mean(out, axis=1)
-
-
-class Agent:
-    def __init__(self, state_dim, action_dim, max_action, env, discount=0.99, tau=tau):
+class DDPG():
+    def __init__(self, products, state_shape, env, product_categories):
         self.env = env
-        self.num_episodes = num_episodes
-        self.actor = Actor(action_dim, max_action)
-        self.actor_target = Actor(action_dim, max_action)
-        self.actor_optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=actor_lr)
+        self.product_categories = product_categories
+        self.products = products
+        self.state_shape = state_shape
+        self.actor_model = self.get_actor()
+        self.critic_model = self.get_critic()
+        self.std_dev = std_dev
 
-        self.critic = Critic()
-        self.critic_target = Critic()
-        self.critic_optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=critic_lr)
+        self.target_actor = self.get_actor()
+        self.target_critic = self.get_critic()
+        self.buffer = Buffer(state_shape, len(products), 50000, 128)
 
-        self.max_action = max_action
-        self.discount = discount
-        self.tau = tau
+        # Making the weights equal initially
+        self.target_actor.set_weights(self.actor_model.get_weights())
+        self.target_critic.set_weights(self.critic_model.get_weights())
 
-        # self.update_network_parameters(tau=1)  # hard update for initialization
-
-    def learn(self, replay_buffer, agents, agent_num, batch_size):
-        state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
-        state = np.array(state, dtype=np.float32)
-        # Selecting the next action for all agents according to their Target Actors
-
-        next_actions = agents[0].actor_target(next_state)
-        # next_actions = [tf.reshape(a, (-1,)) for a in next_actions]
-        # next_actions = tf.stack(next_actions, axis=1)
-        #
-        #
-        # # Compute the target Q value
-        # next_actions = tf.expand_dims(next_actions, axis=-1)
-        action = tf.expand_dims(action, axis=-1)
-        target_Q = self.critic_target(next_state, next_actions)
-
-        not_done = tf.cast(not_done, tf.float32)
-        not_done = tf.reshape(not_done, (batch_size, 1))
-        reward = reward.astype(np.float32)
-        target_Q = tf.reshape(target_Q, [batch_size, 1])
-        target_Q = reward + (not_done * self.discount * target_Q)
-
-        # Compute critic loss
-        with tf.GradientTape() as tape:
-            current_Q = self.critic(state, action)
-            critic_loss = tf.reduce_mean(tf.square(current_Q - target_Q))
-        gradients = tape.gradient(critic_loss, self.critic.trainable_variables)
-        # gradients, _ = tf.clip_by_global_norm(gradients, 1)  # Apply gradient clipping
-        self.critic_optimizer.apply_gradients(zip(gradients, self.critic.trainable_variables))
-
-        # Compute actor loss
-        # Compute actor loss
-        with tf.GradientTape() as tape:
-            current_actions = agents[0].actor(state)
-            # current_actions = [tf.reshape(a, (-1,)) for a in current_actions]
-            # current_actions = tf.stack(current_actions, axis=1)
-            # current_actions = tf.expand_dims(current_actions, axis=-1)
-            actor_loss = -self.critic(state, current_actions)
-            actor_loss = tf.reduce_mean(actor_loss)
-
-            # Explicitly state that we want to watch the actor's variables
-            tape.watch(self.actor.trainable_variables)
-
-        # Optimize the actor
-        actor_grads = tape.gradient(actor_loss, self.actor.trainable_variables)
-        actor_grads, _ = tf.clip_by_global_norm(actor_grads, 0.1)  # Apply gradient clipping
-        self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
-
-        # Update the frozen target models
-        self.update_target_networks()
-
-
-
-    def update_network_parameters(self, tau=None):
-        if tau is None:
-            tau = self.tau
-
-        weights = []
-        for a, b in zip(self.actor_target.trainable_variables, self.actor.trainable_variables):
-            weights.append(tau * b + (1 - tau) * a)
-        self.actor_target.set_weights(weights)
-
-        weights = []
-        for a, b in zip(self.critic_target.trainable_variables, self.critic.trainable_variables):
-            weights.append(tau * b + (1 - tau) * a)
-        self.critic_target.set_weights(weights)
-
-    def update_target_networks(self, tau=None):
-        if tau is None:
-            tau = self.tau
-        actor_weights = self.actor.weights
-        target_actor_weights = self.actor_target.weights
-        for index in range(len(actor_weights)):
-            target_actor_weights[index] = tau * actor_weights[index] + (1 - tau) * target_actor_weights[index]
-
-        self.actor_target.set_weights(target_actor_weights)
-
-        critic_weights = self.critic.weights
-        target_critic_weights = self.critic_target.weights
-
-        for index in range(len(critic_weights)):
-            target_critic_weights[index] = tau * critic_weights[index] + (1 - tau) * target_critic_weights[index]
-
-        self.critic_target.set_weights(target_critic_weights)
-
-    def select_action(self, state):
-        state = tf.convert_to_tensor([state])
-        return self.actor(state)[0][0]
-
-
-class ReplayBuffer:
-    def __init__(self, max_size=1e6):
-        self.storage = []
-        self.max_size = max_size
-        self.ptr = 0
-
-    def add(self, data):
-        if len(self.storage) == self.max_size:
-            self.storage[int(self.ptr)] = data
-            self.ptr = (self.ptr + 1) % self.max_size
-        else:
-            self.storage.append(data)
-
-    def sample(self, batch_size=batch_size):
-        priorities = np.arange(len(self.storage))  # Use indices as priorities (age-based prioritization)
-        probabilities = priorities / np.sum(priorities)  # Compute probabilities proportional to priorities
-        indices = np.random.choice(len(self.storage), size=batch_size)  # Sample indices with probabilities
-        states, actions, next_states, rewards, dones = [], [], [], [], []
-
-        for index in indices:
-            state, action, next_state, reward, done = self.storage[index]
-            states.append(np.array(state, copy=False))
-            actions.append(np.array(action, copy=False))
-            next_states.append(np.array(next_state, copy=False))
-            rewards.append(np.array(reward, copy=False))
-            dones.append(np.array(done, copy=False))
-
-        return np.array(states), np.array(actions), np.array(next_states), np.array(rewards), np.array(dones)
-
-
-class MultiAgent:
-    def __init__(self, agents, env, real_products):
-        self.products = real_products
-        self.env = env
-        self.num_episodes = num_episodes
-        self.agents = agents
-        self.replay_buffer = ReplayBuffer()
         signal.signal(signal.SIGINT, self.signal_handler)
+
+    # This update target parameters slowly
+    # Based on rate `tau`, which is much less than one.
+    @tf.function
+    def update_target(self, target_weights, weights, tau):
+        for (a, b) in zip(target_weights, weights):
+            a.assign(b * tau + a * (1 - tau))
+
+    def get_actor(self):
+        # Initialize weights between -3e-3 and 3-e3
+        last_init = tf.random_uniform_initializer(minval=-0.001, maxval=0.001)
+
+        inputs = layers.Input(shape=self.state_shape)
+        print(self.state_shape)
+        out = Conv1D(filters=64, kernel_size=3, activation='relu')(inputs)
+        out = layers.Dropout(rate=0.5)(out)
+        out = layers.GRU(units=100, activation='relu', return_sequences=True)(out)
+        out = layers.Dropout(rate=0.5)(out)
+        out = layers.GRU(units=100, activation='relu')(out)
+        # out = layers.Dropout(rate=0.5)(out)
+
+        outputs = layers.Dense(len(self.products), kernel_initializer=last_init)(out)
+
+        # Multiply with action upper bound
+        # outputs = outputs * 100
+        model = tf.keras.Model(inputs, outputs)
+        return model
+
+    def get_critic(self):
+        # State as input
+        state_input = layers.Input(shape=self.state_shape)
+        state_out = layers.Dense(32, activation="relu")(state_input)
+        state_out = layers.Flatten()(state_out)
+        # Action as input
+        action_input = layers.Input(shape=(len(self.products), 1))
+        action_out = layers.Dense(32, activation="relu")(action_input)
+        action_out = layers.Flatten()(action_out)
+
+        # Both are passed through seperate layer before concatenating
+        concat = layers.Concatenate()([state_out, action_out])
+
+        out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(concat)
+        out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(out)
+
+        out = layers.Flatten()(out)
+        outputs = layers.Dense(1)(out)
+        outputs = outputs
+        # Outputs single value for give state-action
+        model = tf.keras.Model([state_input, action_input], outputs)
+
+        return model
+
+    def policy(self, state, noise_object, should_include_noise=True):
+        sampled_actions = tf.squeeze(self.actor_model(state))
+        noise = noise_object()
+        # Adding noise to action
+        if should_include_noise:
+            sampled_actions = sampled_actions.numpy() + noise * 100
+        else:
+            sampled_actions = sampled_actions.numpy()
+        # We make sure action is within bounds
+        legal_action = np.clip(sampled_actions, 0, 100)
+        # discrete_actions =  np.round(legal_action / 2.5).astype(int)
+
+        return [np.squeeze(legal_action)]
+
+        # We compute the loss and update parameters
 
     def signal_handler(self, sig, frame):
         print('Training interrupted. Saving models...')
         self.save_models()
+        self.plot_rewards()
+        print('Models saved and rewards plotted. Exiting...')
         sys.exit(0)
 
-    def train(self):
-        # Main training loop
-        # Warm-up phase
-        state = self.env.reset()
-        # for _ in range(warm_up_steps):
-        #     action = env.action_space.sample()  # Take random action
-        #     next_state, reward, done, *_ = env.step(action)
-        #     replay_buffer.add((state, action, reward, next_state, done))
-        #     state = next_state
-        #     if done:
-        #         state = env.reset()
-
-        # Main training loop
-        running_avg_reward = 0
-        running_std_reward = 1  # Initialize to 1 to avoid division by zero issues
-        start_std_dev = 0.3
-        noise_reduction = start_std_dev / num_episodes
-
-        factor = 0
-
-        for episode in range(num_episodes + 100):
-            noise_std_dev = start_std_dev - episode * noise_reduction
-            generate_seasonal_data_based_on_products(self.products, 500)
-            done = False
-            total_reward = 0
-            state = self.env.reset()
-            samples = []
-            while not done:
-                if episode > 100:
-                    factor *= 0.95
-                    if noise_std_dev <0.5:
-                        noise_std_dev = 0.05
-                    if factor < 0.05:
-                        factor = 0
-                # Select action according to policy
-                if random.random() < factor:
-                    actions = tf.random.uniform(shape=[4], minval=0, maxval=70)
-                else:
-                    random_number = random.uniform(-1, 1)
-                    # actions = [agent.select_action(state[i])[0] + random_number * faktor for i, agent in enumerate(self.agents)]
-                    actions = [np.clip(self.agents[0].select_action(state)[0], 0, 100)]
-                    # Add Gaussian noise to the action
-                    actions = actions + np.random.normal(0, noise_std_dev, size=len(self.products))
-
-                    # Clip the action to make sure it's within the valid range
-                    actions = np.clip(actions, 0, 100)
-
-                # print("actions", actions)
-                # Perform action and get reward
-                next_state, reward, done, *_ = self.env.step(actions)
-                total_reward += sum(reward)
-                #
-                # if (sum(reward)>-1150):
-                #     print("yeaaah", reward)
-                #     reward = [x + 1000 for x in reward]
-                reward = total_reward
-                # running_avg_reward = 0.99 * running_avg_reward + 0.01 * sum(reward) * 2
-                # running_std_reward = np.sqrt(0.99 * running_std_reward ** 2 + 0.01 * (sum(reward) * 2 - running_avg_reward) ** 2)
-                # reward = [-abs((reward - running_avg_reward) / running_std_reward) for reward in reward]
-
-                if (episode > 100):
-                    # Store experience in replay buffer
-                    self.replay_buffer.add((state, actions, next_state, reward, done))
-
-                # Move to next state
-                state = next_state
-
-                # Train agent
-                if episode > 200:
-                    if episode % 300 == 0:
-                        for agent_num in range(len(self.agents)):
-                            self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size=len(self.replay_buffer.storage))
-                    else:
-                        for agent_num in range(len(self.agents[:1])):
-                            self.agents[agent_num].learn(self.replay_buffer, self.agents, agent_num, batch_size=batch_size)
-            if episode > 200 or episode % 10 == 0:
-                print(actions)
-                print(f"Episode {episode + 1}: Total Reward = {total_reward}")
-        self.save_models()
-
-    def test(self, start_time_period=208):
-        # Want to print the environment, costs and actions:
-        self.env.verbose = True
-        self.env.time_period = start_time_period
-        generate_seasonal_data_based_on_products(self.products, 500)
-        self.actors = []
-        # Load the actor networks
-        for i, agent in enumerate(self.agents):
-            loaded_model = load_model(os.path.join('models', f'actor_model_{i}'))
-            agent.actor = loaded_model
-            # agent.actor_target(self.load_models(os.path.join('models', f'actor_target_model_{i}.h5')))
-            # agent.critic(self.load_models(os.path.join('models', f'critic_model_{i}.h5')))
-            # agent.critic_target(self.load_models(os.path.join('models', f'critic_target_model_{i}.h5')))
-
-        done = False
-        total_costs = 0
-
-        self.env.time_period = start_time_period
-
-        sum_rewards = 0
-
-        for episode in range(num_episodes):
-            generate_seasonal_data_based_on_products(self.products, 500)
-            done = False
-            total_reward = 0
-            state = self.env.reset()
-            samples = []
-            count = 0
-            while not done:
-                print(f"Inventory_level at start of period {self.env.current_period}: {self.env.inventory_levels}")
-
-                actions = [np.clip(agent.select_action(state[i])[0], 0, 100) for i, agent in enumerate(self.agents)]
-                count += 1
-                next_state, reward, done, *_ = self.env.step(actions)
-                total_reward += sum(reward)
-                self.replay_buffer.add((state, actions, next_state, reward, done))
-                print(f"Action for time period {self.env.current_period}: {actions}")
-
-                # Move to next state
-                state = next_state
-
-                if done:
-                    sum_rewards += total_reward
-            print("COUNTTT", count)
-        print("Average total costs: ", sum_rewards / num_episodes)
+    def plot_rewards(self):
+        plt.plot(self.avg_reward_list)
+        plt.xlabel('Epoch')
+        plt.ylabel('Reward')
+        plt.title('Costs as a function of epochs')
+        plt.show()
 
     def save_models(self):
         save_dir = 'models'
         os.makedirs(save_dir, exist_ok=True)
         print('Saving models...')
-        for i, agent in enumerate(self.agents):
-            agent.actor.save(os.path.join(save_dir, f'actor_model_{i}'), save_format='tf')
+        self.actor_model.save(f'models/actor_model')
 
+    def learn(self):
+        # Get sampling range
+        record_range = min(self.buffer.buffer_counter, self.buffer.buffer_capacity)
+        if self.buffer.buffer_counter > 1000000:  # and random.random() > 0.9:
+            priorities = np.arange(record_range)  # Use indices as priorities (age-based prioritization)
+            probabilities = priorities / np.sum(priorities)  # Compute probabilities proportional to priorities
+            # Randomly sample indices
+            batch_indices = np.random.choice(record_range, self.buffer.batch_size, p=probabilities)
+        else:
+            batch_indices = np.random.choice(record_range, self.buffer.batch_size)
 
+        # Convert to tensors
+        state_batch = tf.convert_to_tensor(self.buffer.state_buffer[batch_indices])
+        action_batch = tf.convert_to_tensor(self.buffer.action_buffer[batch_indices])
+        reward_batch = tf.convert_to_tensor(self.buffer.reward_buffer[batch_indices])
+        reward_batch = tf.cast(reward_batch, dtype=tf.float32)
+        next_state_batch = tf.convert_to_tensor(self.buffer.next_state_buffer[batch_indices])
 
+        self.update(state_batch, action_batch, reward_batch, next_state_batch)
+
+    # Eager execution is turned on by default in TensorFlow 2. Decorating with tf.function allows
+    # TensorFlow to build a static graph out of the logic and computations in our function.
+    # This provides a large speed up for blocks of code that contain many small TensorFlow operations such as this one.
+    @tf.function
+    def update(
+            self, state_batch, action_batch, reward_batch, next_state_batch,
+    ):
+        # Training and updating Actor & Critic networks.
+        # See Pseudo Code.
+        with tf.GradientTape() as tape:
+            target_actions = self.target_actor(next_state_batch, training=True)
+            y = reward_batch + gamma * self.target_critic(
+                [next_state_batch, target_actions], training=True
+            )
+            critic_value = self.critic_model([state_batch, action_batch], training=True)
+            critic_loss = tf.math.reduce_mean(tf.abs(y - critic_value))
+
+        critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
+        critic_grad, _ = tf.clip_by_global_norm(critic_grad, 1)
+        critic_optimizer.apply_gradients(
+            zip(critic_grad, self.critic_model.trainable_variables)
+        )
+        with tf.GradientTape() as tape:
+            actions = self.actor_model(state_batch, training=True)
+            critic_value = self.critic_model([state_batch, actions], training=True)
+            # Used `-value` as we want to maximize the value given
+            # by the critic for our actions
+            actor_loss = -tf.math.reduce_mean(critic_value)
+        actor_grad = tape.gradient(actor_loss, self.actor_model.trainable_variables)
+        actor_grad, _ = tf.clip_by_global_norm(actor_grad, 0.01)  # Apply gradient clipping
+        actor_optimizer.apply_gradients(
+            zip(actor_grad, self.actor_model.trainable_variables)
+        )
+
+    def train(self, should_plot=True):
+        hei = tf.keras.models.load_model("models/best_one_so_far")
+        hade = tf.keras.models.load_model("models/best_one_so_far")
+        self.actor_model = hei
+        self.target_actor = hade
+
+        # To store reward history of each episode
+        ep_reward_list = []
+        # To store average reward history of last few episodes
+        self.avg_reward_list = []
+        self.env.set_costs(self.products)
+        epsilon = 0.5  # start with full randomness
+        epsilon_min = 0.01  # the lowest level of randomness we want
+        epsilon_decay = 0.995  # how quickly to decrease randomness
+        # Takes about 4 min to train
+
+        for ep in range(total_episodes):
+            if ep > 100:
+                actor_optimizer.learning_rate = 1e-3  # increased learning rate
+            self.ep = ep
+            if (ep > 380):
+                self.env.set_costs(self.products)
+            epsilon = max(epsilon_min, epsilon * epsilon_decay)
+            generated_products = self.generate_products(500)
+
+            self.env.products = generated_products
+            self.env.scaled_products = generated_products
+            prev_state = self.env.reset()
+            self.env.reset_inventory()
+            episodic_reward = 0
+            prev_state = tf.convert_to_tensor([prev_state])
+            prev_state = tf.transpose(prev_state, perm=[0, 2, 1])
+
+            while True:
+                self.std_dev = self.std_dev * 0.999
+                if (self.std_dev < 0.3):
+                    self.std_dev = 0.3
+
+                ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(self.std_dev) * np.ones(1))
+                action = self.policy(prev_state, ou_noise)[0]
+
+                for i in range(len(action)):
+                    if action[i] < 1:
+                        action[i] = 0
+                # if random.random() <0.001:
+                #     action = [0 for i in range(len(self.products))]
+                # Recieve state and reward from environment.
+                state, reward, done, info = self.env.step(action)
+                state = tf.convert_to_tensor([state])
+                # state = tf.reshape(state, [1, 13, -1])
+                state = tf.transpose(state, perm=[0, 2, 1])
+                total_reward = sum(reward)
+                reward = sum(reward)
+                self.buffer.record((prev_state, action, reward, state))
+                episodic_reward += total_reward
+
+                # End this episode when `done` is True
+                self.learn()
+                self.update_target(self.target_critic.variables, self.critic_model.variables, tau)
+                # if ep > 50:
+                self.update_target(self.target_actor.variables, self.actor_model.variables, tau)
+                if ep + 1 % 50 == 0:
+                    print("EP49Ac", action)
+                if done:
+                    print(action)
+                    break
+
+                prev_state = state
+
+            ep_reward_list.append(episodic_reward)
+            self.avg_reward_list.append(episodic_reward)
+
+            # Mean of last 40 episodes
+            avg_reward = np.mean(ep_reward_list[-30:])
+            print("Episode * {} * Avg Reward is ==> {}".format(ep, avg_reward))
+            avg_reward_list.append(avg_reward)
+        self.actor_model.save(f'models/actor_model_ep{ep}_saved_model')
+        if should_plot:
+            # Plotting graph
+            # Episodes versus Avg. Rewards
+            plt.plot(avg_reward_list)
+            plt.xlabel("Episode")
+            plt.ylabel("Avg. Epsiodic Reward")
+            plt.show()
+        self.test(episodes=1)
+
+    def test(self, episodes=10, path=None):
+        # loading model
+        # actor = self.actor_model
+        actor = tf.keras.models.load_model(f"models/best_one_so_far")
+        avg_reward_list = []
+        for episode in range(episodes):
+            print(f"episode: {episode}")
+            self.env.set_costs(self.products)
+
+            episodic_reward = 0
+            generated_products = self.generate_products(500)
+            # self.env.products = generated_products
+            prev_state = self.env.reset()
+            prev_state = tf.transpose(prev_state, perm=[1, 0])
+
+            while True:
+                tf_prev_state = tf.convert_to_tensor([prev_state])
+                # std_dev  = 0.3
+                # ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(std_dev) * np.ones(1))
+                # action = self.policy(tf_prev_state, ou_noise, actor)[0]
+
+                action = tf.squeeze(actor(tf_prev_state, training=False)).numpy()
+                for i in range(len(action)):
+                    if action[i] < 1:
+                        action[i] = 0
+                print(action)
+                state, reward, done, info = self.env.step(action)
+                total_reward = sum(reward)
+                episodic_reward += total_reward
+
+                # End this episode when `done` is True
+                if done:
+                    break
+
+                prev_state = state
+                prev_state = tf.transpose(prev_state, perm=[1, 0])
+                # prev_state = tf.reshape(prev_state, [13, 8])
+
+            avg_reward_list.append(episodic_reward)
+            # Mean of last 40 episodes
+        print("Avg Reward is ==> {}".format(sum(avg_reward_list) / len(avg_reward_list)))
+
+    def generate_products(self, n_periods, seed=None):
+        first_index = 0
+        last_index = 0
+        generated_products = []
+        for category in self.product_categories.keys():
+            number_of_products = self.product_categories[category]
+            last_index += number_of_products
+            if category == "erratic":
+                generated_products += generate_data.generate_seasonal_data_for_erratic_demand(self.products[first_index: last_index], n_periods, seed)
+            elif category == "smooth":
+                generated_products += generate_data.generate_seasonal_data_for_smooth_demand(self.products[first_index:last_index], n_periods, seed)
+            else:
+                generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(self.products[first_index:last_index], n_periods, seed)
+            first_index = last_index
+        return generated_products

@@ -1,16 +1,15 @@
 import copy
-import os
 from abc import ABC
 
 import gym
 import numpy as np
 import pandas as pd
+import statsmodels.api as sm
 from gym import spaces
 from sklearn.preprocessing import StandardScaler
+
 import config_utils
-from MIP.forecasting import sarima, holt_winters_method
-from generate_data import generate_next_week_demand
-import statsmodels.api as sm
+from MIP.forecasting import holt_winters_method
 
 
 class JointReplenishmentEnv(gym.Env, ABC):
@@ -26,7 +25,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         env_config = config["environment"]
         self.verbose = False
         self.products = products
-        self.scaled_products = self.products #self.normalize_demand(products[:])
+        self.scaled_products = self.products  # self.normalize_demand(products[:])
         # starting to learn from first period then moving on
         self.time_period = 208
         self.forecasted = False
@@ -55,18 +54,19 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.forecast = []
         self.forecast2 = {}
 
-
         self.action_space = gym.spaces.Discrete(self.n_action_classes)  # 10 discrete actions from 0 to 9 inclusive
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=( self.n_periods_historical_data + 1 + self.should_include_individual_forecast + self.should_include_total_forecast, len(products)), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(self.n_periods_historical_data + 1 + self.should_include_individual_forecast + self.should_include_total_forecast, len(products)), dtype=np.float32)
         self.forecast = {}
         self.inventory_levels = [0 for _ in self.products]
         self.reset()
 
     def increase_time_period(self, increase):
         self.time_period += increase
+
     def reset_time_period(self):
         self.time_period = 0
-    def set_costs(self, products, mult = 1):
+
+    def set_costs(self, products, mult=1):
         unit_costs = [df.iloc[0]['average_unit_price'] for df in products]
         if mult != 1:
             self.holding_cost = [0.1 * x for x in unit_costs]
@@ -76,14 +76,10 @@ class JointReplenishmentEnv(gym.Env, ABC):
             self.holding_cost = [0.1 * x for x in unit_costs]
             self.minor_setup_cost = [self.minor_setup_ratio * self.major_setup_cost / len(self.products) for i in range(0, len(self.products))]
 
-
         # Calculate shortage costs
         self.shortage_cost = []
         for product_index in range(len(products)):
             self.shortage_cost.append(self.holding_cost[product_index] / (1 / 0.95 - 1))
-
-
-
 
     def reset(self, **kwargs):
         # Reset the environment to the initial state. Setting start period so that we can ensure we have all historical data required for the first state
@@ -96,13 +92,6 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.inventory_levels = [0 for _ in self.products]
 
     def step(self, action):
-        # Need to discretize the actions.
-        # action = [x * self.action_multiplier for x in action]
-        # Apply the replenishment action
-        major_setup_triggered = False
-
-        # action = [round(action / 2) * 2 for action in action]
-
         individual_rewards = []
         count_major_setup_sharing = len([i for i in action if i > 0])
 
@@ -115,17 +104,8 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
         for i, product in enumerate(self.products):
             if action[i] > 0:
-                action_value = 0
-                # for i in range(1, action[i]):
-                    # action_value += self.forecast2[product["product_hash"].iloc[1]][min(53,self.counter + i)]
-                # print(f"forecast for {action[i]} periods: ", action_value)
                 self.inventory_levels[i] += action[i]
-                # Apply only fractional part of major setup costs corresponding to number of products ordering
-                # if count_major_setup_sharing == 1:
-                #     major_cost = self.major_setup_cost / count_major_setup_sharing * 4
-                # else:
                 major_cost = self.major_setup_cost / count_major_setup_sharing
-
                 minor_cost = self.minor_setup_cost[i]
             else:
                 major_cost = 0
@@ -186,14 +166,6 @@ class JointReplenishmentEnv(gym.Env, ABC):
                     print(product["product_hash"].iloc[1])
                     self.forecast[product["product_hash"].iloc[1]], _ = holt_winters_method.forecast(product, start_date, n_time_periods=53)
                 forecast = []
-                stop_index = -1
-                # for a in range(5):
-                #     if self.counter+a <= 53:
-                #         forecast.append(self.forecast[product["product_hash"].iloc[1]][self.counter+a])
-                #     else:
-                #         if stop_index == -1:
-                #             stop_index = a-1
-                #         forecast.append(self.forecast[product["product_hash"].iloc[1]][self.counter+stop_index])
                 forecast = self.forecast[product["product_hash"].iloc[1]][self.counter]
                 if not has_counted:
                     self.counter += 1
@@ -216,14 +188,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
             observation = [np.append(arr, total_forecast) for arr in observation]
         self.forecasted = True
 
-        # new_obs_list = []
-        # for obs in observation:
-        #     # First create a list of the new elements to be added.
-        #     new_elements = [inventory[0] for inventory in observation if not np.array_equal(inventory, obs)]
-        #     # Now concatenate obs and the new elements.
-        #     new_obs = np.concatenate((obs, new_elements))
-        #     new_obs_list.append(new_obs)
-        return np.array(observation) # (inventory, demand)
+        return np.array(observation)  # (inventory, demand)
 
     def normalize_demand(self, products):
 
@@ -247,9 +212,10 @@ class JointReplenishmentEnv(gym.Env, ABC):
             # Convert the normalized numpy array back to Series
             normalized_series = pd.Series(normalized_sales_quantity.flatten(), index=product.index)
             # Add the normalized series to the list
-            # product["sales_quantity"] = normalized_series
+            product["sales_quantity"] = normalized_series
             products_reshaped.append(product)
         return products_reshaped
+
     def scale_demand(self, products):
         products_copy = copy.deepcopy(products)
         products_reshaped = []
@@ -266,6 +232,6 @@ class JointReplenishmentEnv(gym.Env, ABC):
             # Convert the normalized numpy array back to Series
             normalized_series = pd.Series(normalized_sales_quantity.flatten(), index=product.index)
             # Add the normalized series to the list
-            # product["sales_quantity"] = normalized_series
+            product["sales_quantity"] = normalized_series
             products_reshaped.append(product)
         self.scaled_products = products_reshaped

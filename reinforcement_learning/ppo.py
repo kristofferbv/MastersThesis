@@ -110,9 +110,10 @@ def mlp(x, sizes, activation=tf.tanh, output_activation=None):
 
 
 class PPO:
-    def __init__(self, env, products):
+    def __init__(self, env, products, product_categories):
         self.env = env
         self.products = products
+        self.product_categories = product_categories
         # Initialize the environment and get the dimensionality of the observation space and the number of possible actions
         self.observation_dimensions = env.observation_space.shape
         self.num_actions = env.action_space.n ** len(products)
@@ -192,7 +193,7 @@ class PPO:
                     sum_length += episode_length
                     num_episodes += 1
                     observation, episode_return, episode_length = self.env.reset(), 0, 0
-                    self.env.products = generate_seasonal_data_based_on_products(self.products, 500)
+                    self.env.products = self.generate_products(500)
 
             # Get values from the buffer
             (
@@ -232,7 +233,8 @@ class PPO:
         self.plot_rewards()
 
     def test(self, start_time_period):
-        generate_seasonal_data_based_on_products(self.products, 500)
+        products = self.generate_products(500)
+        self.env.products = products
         actor_model_dir = 'models/actor_model.h5'
         # Load the actor network
         self.actor = load_model(actor_model_dir)
@@ -354,5 +356,21 @@ class PPO:
             value_loss = tf.reduce_mean((return_buffer - self.critic(observation_buffer)) ** 2)
         value_grads = tape.gradient(value_loss, self.critic.trainable_variables)
         self.value_optimizer.apply_gradients(zip(value_grads, self.critic.trainable_variables))
+
+    def generate_products(self, n_periods, seed=None):
+        first_index = 0
+        last_index = 0
+        generated_products = []
+        for category in self.product_categories.keys():
+            number_of_products = self.product_categories[category]
+            last_index += number_of_products
+            if category == "erratic":
+                generated_products += generate_data.generate_seasonal_data_for_erratic_demand(self.products[first_index: last_index], n_periods, seed)
+            elif category == "smooth":
+                generated_products += generate_data.generate_seasonal_data_for_smooth_demand(self.products[first_index:last_index], n_periods, seed)
+            else:
+                generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(self.products[first_index:last_index], n_periods, seed)
+            first_index = last_index
+        return generated_products
 
 

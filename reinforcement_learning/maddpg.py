@@ -9,7 +9,7 @@ import tensorflow as tf
 from keras import layers, models
 from keras.models import load_model
 
-from generate_data import generate_seasonal_data_based_on_products
+import generate_data
 
 # Define hyperparameters
 gamma = 0.98  # discount factor
@@ -279,12 +279,13 @@ class ReplayBuffer:
 
 
 class MultiAgent:
-    def __init__(self, agents, env, real_products):
+    def __init__(self, agents, env, real_products, product_categories):
         self.products = real_products
         self.env = env
         self.num_episodes = num_episodes
         self.agents = agents
         self.replay_buffer = ReplayBuffer()
+        self.product_categories = product_categories
         signal.signal(signal.SIGINT, self.signal_handler)
 
 
@@ -318,7 +319,7 @@ class MultiAgent:
             if episode < 50:
                 self.env.reset_inventory()
             noise_std_dev = start_std_dev - episode * noise_reduction
-            products = generate_seasonal_data_based_on_products(self.products, 500)
+            products = self.generate_products(500)
             self.env.scale_demand(products)
             self.env.products = products
             done = False
@@ -390,7 +391,9 @@ class MultiAgent:
         # Want to print the environment, costs and actions:
         self.env.verbose = True
         self.env.time_period = start_time_period
-        generate_seasonal_data_based_on_products(self.products, 500)
+        products = self.generate_products(500)
+        self.env.products = products
+
         self.actors = []
         # Load the actor networks
         for i, agent in enumerate(self.agents):
@@ -409,7 +412,8 @@ class MultiAgent:
         sum_rewards = 0
 
         for episode in range(num_episodes):
-            generate_seasonal_data_based_on_products(self.products, 500)
+            products = self.generate_products(500)
+            self.env.products = products
             done = False
             total_reward = 0
             state = self.env.reset()
@@ -444,3 +448,18 @@ class MultiAgent:
 
 
 
+    def generate_products(self, n_periods, seed=None):
+        first_index = 0
+        last_index = 0
+        generated_products = []
+        for category in self.product_categories.keys():
+            number_of_products = self.product_categories[category]
+            last_index += number_of_products
+            if category == "erratic":
+                generated_products += generate_data.generate_seasonal_data_for_erratic_demand(self.products[first_index: last_index], n_periods, seed)
+            elif category == "smooth":
+                generated_products += generate_data.generate_seasonal_data_for_smooth_demand(self.products[first_index:last_index], n_periods, seed)
+            else:
+                generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(self.products[first_index:last_index], n_periods, seed)
+            first_index = last_index
+        return generated_products

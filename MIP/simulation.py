@@ -16,7 +16,7 @@ from config_utils import load_config
 import generate_data
 
 
-def simulate(real_products, config, beta = None, n_time_periods = None):
+def simulate(real_products, config, beta=None, n_time_periods=None):
     if n_time_periods is None:
         n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
     n_episodes = config["simulation"]["n_episodes"]  # This is the number of times we run a full simulation
@@ -53,21 +53,21 @@ def simulate(real_products, config, beta = None, n_time_periods = None):
     data_to_write = []
 
     generated_products = []
-    current_index = 0
     last_index = 0
+    first_index = 0
     # with open(file_path, "a") as f:
     for category in product_categories.keys():
         number_of_products = product_categories[category]
-        current_index += number_of_products
+        last_index += number_of_products
         if category == "erratic":
-            generated_products += generate_data.generate_seasonal_data_for_erratic_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52, seed)
+            generated_products += generate_data.generate_seasonal_data_for_erratic_demand(real_products[first_index:last_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52, seed)
         elif category == "smooth":
-            generated_products += generate_data.generate_seasonal_data_for_smooth_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52, seed)
+            generated_products += generate_data.generate_seasonal_data_for_smooth_demand(real_products[first_index:last_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52, seed)
 
         else:
-            generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52, seed)
-        last_index = current_index
-    plot_sales_quantity(generated_products)
+            generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(real_products[first_index:last_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52, seed)
+        first_index = last_index
+    # plot_sales_quantity(generated_products)
 
     data_to_write.append("Number of products from each cateogry is:  Erratic: " + str(product_categories["erratic"]) + ", Smooth: " + str(product_categories["smooth"]) + ", Intermittent: " + str(product_categories["intermittent"]) + ", Lumpy: " + str(product_categories["lumpy"]))
 
@@ -97,7 +97,7 @@ def simulate(real_products, config, beta = None, n_time_periods = None):
 
         data_to_write.append(f"Start inventory levels of episode: {episode} are {inventory_levels}")
 
-        costs, inventory_levels, start_date, actions, tau_values, models, avg_run_time_time_step, std_run_time, service_level, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimality_gap, std_optimality_gap = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, config, models=models, inventory_levels=inventory_levels, beta = beta)
+        costs, inventory_levels, start_date, actions, tau_values, models, avg_run_time_time_step, std_run_time, service_level, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimality_gap, std_optimality_gap = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, config, models=models, inventory_levels=inventory_levels, beta=beta)
         print(f"Total costs for episode {episode} was: ", costs)
         total_costs.append(costs)
         list_mean.append(sum(total_costs) / len(total_costs))
@@ -166,24 +166,17 @@ def perform_warm_up(products, start_date, n_time_periods, config):
     return inventory_levels, start_date, models
 
 
-def run_one_episode(start_date, n_time_periods, products, episode_length, config, models=None, inventory_levels=None, beta = None):
-    n_episodes = config["simulation"]["n_episodes"]  # This is the number of times we run a full simulation
-    should_write = config["simulation"]["should_write"]
+def run_one_episode(start_date, n_time_periods, products, episode_length, config, models=None, inventory_levels=None, beta=None):
     product_categories = config["deterministic_model"]["product_categories"]
-    seed = config["main"]["seed"]
     n_products = sum(product_categories.values())
-    n_erratic = product_categories["erratic"]
-    n_smooth = product_categories["smooth"]
-    n_intermittent = product_categories["intermittent"]
-    n_lumpy = product_categories["lumpy"]
-    major_setup_cost = config["deterministic_model"]["joint_setup_cost"]
-    minor_setup_ratio = config["deterministic_model"]["minor_setup_ratio"]
+
     if beta is None:
         beta = config["deterministic_model"]["beta"]
 
     forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
     verbose = config["simulation"]["verbose"]  # number of time periods
     should_set_holding_cost_dynamically = config["simulation"]["should_set_holding_cost_dynamically"]
+    unit_price = None
     if should_set_holding_cost_dynamically:
         unit_price = [df.iloc[0]['average_unit_price'] for df in products]
     if models is None:
@@ -313,19 +306,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
             print("Total setup costs:")
             print(setup_costs)
 
-        deterministic_model = det_mod.DeterministicModel(len(products))
-        deterministic_model.set_demand_forecast(dict_demands)
-        if should_set_holding_cost_dynamically:
-            deterministic_model.set_holding_costs(unit_price)
-        deterministic_model.set_safety_stock(dict_sds)
-        deterministic_model.set_big_m()
-        deterministic_model.model.setParam("OutputFlag", 0)
-        deterministic_model.model.setParam('TimeLimit', 2 * 60)  # set the time limit to 2 minutes for the gurobi model
-        # deterministic_model.model.setParam('MIPGap', 0.01)  # set the MIPGap to be 1%
-
-        deterministic_model.set_inventory_levels(inventory_levels)
-        deterministic_model.set_up_model()
-        deterministic_model.optimize()
+        deterministic_model = run_deterministic_model(n_products= len(products),dict_forecasted_demand=dict_demands, unit_price=unit_price,dict_std_dev_forecasting_error=dict_sds, inventory_levels=inventory_levels, should_set_holding_cost_dynamically=should_set_holding_cost_dynamically )
 
         run_time_time_step = deterministic_model.model.Runtime
         run_time_list.append(run_time_time_step)
@@ -386,11 +367,10 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
 
     service_levels = []
 
-
     for product_index in range(n_products):
         if sum_actual_demand[product_index] == 0:
             service_level = 1
-        else: 
+        else:
             service_level = sum_fulfilled_demand[product_index] / sum_actual_demand[product_index]
         service_levels.append(service_level)
 
@@ -413,3 +393,20 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
     std_forecast_errors = statistics.stdev(forecast_errors.values())
 
     return total_costs, inventory_levels, start_date, actions, orders, models, avg_run_time_time_step, std_run_time, service_levels, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimaliy_gap, std_optimality_gap
+
+
+def run_deterministic_model(n_products, dict_forecasted_demand, unit_price, dict_std_dev_forecasting_error, inventory_levels, should_set_holding_cost_dynamically=True):
+    deterministic_model = det_mod.DeterministicModel(n_products)
+    deterministic_model.set_demand_forecast(dict_forecasted_demand)
+    if should_set_holding_cost_dynamically:
+        deterministic_model.set_holding_costs(unit_price)
+    deterministic_model.set_safety_stock(dict_std_dev_forecasting_error)
+    deterministic_model.set_big_m()
+    deterministic_model.model.setParam("OutputFlag", 0)
+    deterministic_model.model.setParam('TimeLimit', 2 * 60)  # set the time limit to 2 minutes for the gurobi model
+    # deterministic_model.model.setParam('MIPGap', 0.01)  # set the MIPGap to be 1%
+
+    deterministic_model.set_inventory_levels(inventory_levels)
+    deterministic_model.set_up_model()
+    deterministic_model.optimize()
+    return deterministic_model
