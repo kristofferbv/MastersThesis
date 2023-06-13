@@ -328,10 +328,10 @@ class DDPG():
         )
 
     def train(self, should_plot=True):
-        # hei = tf.keras.models.load_model("actor_model")
-        # hade =  tf.keras.models.load_model("actor_model")
-        # self.actor_model = hei
-        # self.target_actor = hade
+        hei = tf.keras.models.load_model("actor_model")
+        hade =  tf.keras.models.load_model("actor_model")
+        self.actor_model = hei
+        self.target_actor = hade
 
 
         # To store reward history of each episode
@@ -405,7 +405,7 @@ class DDPG():
             avg_reward = np.mean(ep_reward_list[-30:])
             print("Episode * {} * Avg Reward is ==> {}".format(ep, avg_reward))
             avg_reward_list.append(avg_reward)
-        # self.actor_model.save(f'actor_model_ep{ep}_saved_model')
+        self.actor_model.save(f'actor_model_ep{ep}_saved_model')
         if should_plot:
             # Plotting graph
             # Episodes versus Avg. Rewards
