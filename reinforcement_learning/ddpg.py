@@ -15,13 +15,13 @@ import generate_data
 
 std_dev = 1
 # Learning rate for actor-critic models
-critic_lr = 0.003
+critic_lr = 0.001
 actor_lr = 0.00001
 
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
-total_episodes = 100
+total_episodes = 300
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
@@ -240,7 +240,7 @@ class DDPG():
         else:
             sampled_actions = sampled_actions.numpy()
         # We make sure action is within bounds
-        legal_action = np.clip(sampled_actions, 0, 100)
+        legal_action = np.clip(sampled_actions, 0, 500)
         # discrete_actions =  np.round(legal_action / 2.5).astype(int)
 
         return [np.squeeze(legal_action)]
@@ -322,8 +322,8 @@ class DDPG():
         )
 
     def train(self, should_plot=True):
-        hei = tf.keras.models.load_model("models/best_one_so_far")
-        hade = tf.keras.models.load_model("models/best_one_so_far")
+        hei = tf.keras.models.load_model("actor_model")
+        hade = tf.keras.models.load_model("actor_model")
         self.actor_model = hei
         self.target_actor = hade
 
@@ -338,8 +338,8 @@ class DDPG():
         # Takes about 4 min to train
 
         for ep in range(total_episodes):
-            if ep > 100:
-                actor_optimizer.learning_rate = 1e-3  # increased learning rate
+            # if ep > 100:
+            #     actor_optimizer.learning_rate = 1e-4  # increased learning rate
             self.ep = ep
             if (ep > 380):
                 self.env.set_costs(self.products)
@@ -363,7 +363,7 @@ class DDPG():
                 action = self.policy(prev_state, ou_noise)[0]
 
                 for i in range(len(action)):
-                    if action[i] < 1:
+                    if action[i] < 5:
                         action[i] = 0
                 # if random.random() <0.001:
                 #     action = [0 for i in range(len(self.products))]

@@ -320,7 +320,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
 
         # Extract the tau values for the first periods
         orders[time_step] = {}
-
+        hei = deterministic_model.model.getVars()
         for var in deterministic_model.model.getVars():
             if var.varName.startswith("ReplenishmentQ"):
                 product_index, current_time = map(int, var.varName.split("[")[1].split("]")[0].split(","))

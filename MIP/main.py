@@ -2,7 +2,7 @@ import random
 import os
 import sys
 
-from MIP import simulate_states
+from MIP import simulate_states, simulate_SS
 
 # Get the path of the current script
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -72,15 +72,15 @@ if __name__ == '__main__':
 
         # plot_sales_quantity(products)
 
-        if should_analyse:  # analysing plotting, decomposing and testing for stationarity
-            plot_sales_quantity(products)
-            get_non_stationary_products(products, should_plot=True, verbose=True)
-            for i, product in enumerate(products):
-                if isinstance(product, pd.DataFrame):
-                    decompose_sales_quantity(product, product["product_hash"].iloc[0])
-                else:
-                    decompose_sales_quantity(product, str(i))
-
+        # if should_analyse:  # analysing plotting, decomposing and testing for stationarity
+        #     plot_sales_quantity(products)
+        #     get_non_stationary_products(products, should_plot=True, verbose=True)
+        #     for i, product in enumerate(products):
+        #         if isinstance(product, pd.DataFrame):
+        #             decompose_sales_quantity(product, product["product_hash"].iloc[0])
+        #         else:
+        #             decompose_sales_quantity(product, str(i))
+        #
         if generate_new_data:
             simulation.simulate(products, config)
         else:
@@ -88,4 +88,4 @@ if __name__ == '__main__':
             simulation_length = config["simulation"]["simulation_length"]
             simulation.run_one_episode(start_date, n_time_periods, simulation_length, products, config)
 
-        # simulate_states.simulate(products)
+        # simulate_SS.simulate(products)

@@ -1,5 +1,6 @@
 import json
 from datetime import timedelta, datetime
+import random
 
 import numpy as np
 import pandas as pd
@@ -9,11 +10,11 @@ import sys
 from sklearn.preprocessing import OneHotEncoder
 
 import deterministic_model as det_mod
+import generate_data
 from MIP.analysis.analyse_data import plot_sales_quantity
 from MIP.forecasting import holt_winters_method
 from MIP.standard_deviation import get_initial_std_dev, get_std_dev
 from config_utils import load_config
-from generate_data import generate_seasonal_data_based_on_products
 
 # Get the path of the current script
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -60,7 +61,7 @@ def simulate(real_products):
         number_of_products = product_categories[category]
         current_index += number_of_products
         if number_of_products > 0:
-            generated_products += generate_seasonal_data_based_on_products(real_products[last_index:current_index], simulation_length * n_time_periods + start_index + 52)
+            generated_products += generate_data.generate_seasonal_data_for_erratic_demand(real_products[last_index:current_index], simulation_length * n_time_periods + start_index + 52)
             last_index = current_index
         # plot_sales_quantity(generated_products)
     start_date = generated_products[0].index[start_index]
@@ -109,7 +110,9 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length,
                 # storing std dev and forecast to use for updating the std deviation of errors in the forecast
                 prev_std_dev[product_index] = dict_sds[product_index][1]
                 prev_forecast[product_index] = dict_demands[product_index][1]
+        major_costs = 100
         deterministic_model = det_mod.DeterministicModel(len(products))
+        deterministic_model.set_costs(major_costs)
         deterministic_model.set_demand_forecast(dict_demands)
         if should_set_holding_cost_dynamically:
             deterministic_model.set_holding_costs(unit_price)
@@ -139,7 +142,7 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length,
                 order_product_value = [0] * 13  # Initialize a list of 13 zeros
                 hei = 1
                 has_set = False
-                for tau_period in range(1,13 - time_step + 1):
+                for tau_period in range(1,13 - time_step + 2):
                     # OrderProduct
                     hei = deterministic_model.model.getVars()
                     if deterministic_model.model.getVarByName(f"OrderProduct[{product_index},{time_step},{tau_period}]").X > threshold:
@@ -159,8 +162,8 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length,
 
                 # Append the state
                 product_states.append([forecasted_date, time_step, hei, month])
-                # Append the state
-                product_states.append([forecasted_date, time_step, hei])
+                # # Append the state
+                # product_states.append([forecasted_date, time_step, hei])
 
                 # Actual demand
                 demand = sum(list(products[product_index].loc[date_time: date_time + pd.DateOffset(weeks=hei), "sales_quantity"]))
