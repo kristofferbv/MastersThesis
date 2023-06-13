@@ -1,3 +1,5 @@
+import pickle
+
 import gurobipy as gp
 from gurobipy import GRB
 from config_utils import load_config
@@ -17,7 +19,6 @@ class DeterministicModel:
             self.n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods
         else:
             self.n_time_periods = n_time_periods
-        print("time_periods", n_time_periods)  # print to see which is used if running a series of varying values for this
         self.n_products = n_products  # number of product types
         self.products = [i for i in range(0, self.n_products)] 
         self.time_periods = [i for i in range(0, self.n_time_periods + 1)]
@@ -52,6 +53,8 @@ class DeterministicModel:
                 self.service_level[product_index][tau_period] = self.service_level[product_index][tau_period - 1] * self.beta
                 # change shortage cost based on formula
         self.shortage_cost = []
+        with open('stacking_model.pkl', 'rb') as file:
+            self.stacking_model = pickle.load(file)
 
         # print("shortage costs")
         # print(self.shortage_cost)
@@ -94,7 +97,7 @@ class DeterministicModel:
                     if time_period == 0:
                         self.big_m[product_index][time_period][tau_period] = 0
                     else:
-                        self.big_m[product_index][time_period][tau_period] = sum(self.demand_forecast[self.products[product_index]][self.time_periods[time_period + t]] for t in range(0, tau_period)) #+ self.safety_stock[product_index][time_period][tau_period]
+                        self.big_m[product_index][time_period][tau_period] = sum(self.demand_forecast[self.products[product_index]][self.time_periods[time_period + t]] for t in range(0, tau_period)) + self.safety_stock[product_index][time_period][tau_period]
         self.model.update()
 
     def reset_model(self):
@@ -140,7 +143,16 @@ class DeterministicModel:
             minimum_inventory_not_ordering = self.model.addConstrs((inventory_level[self.products[p], self.time_periods[i]] >= self.safety_stock[p][i][1]
                                                                     for p in range(self.n_products) for i in range(1, self.n_time_periods + 1)), name="minimumInventoryNotOrdering")
         else:
-            minimum_inventory = self.model.addConstrs((inventory_level[product, time_period] >= 0 for product in self.products for time_period in self.time_periods[1:]), name="minimumInventory")
+            minimum_inventory_ordering = self.model.addConstrs((inventory_level[self.products[p], self.time_periods[i]] >=
+                                                                order_product[self.products[p], self.time_periods[i], self.tau_periods[0]]
+
+                                                                + gp.quicksum(order_product[self.products[p], self.time_periods[i], self.tau_periods[j - 1]] * (
+                                                                                                                                                            gp.quicksum(self.demand_forecast[self.products[p]][self.time_periods[i + t]] for t in range(1, j)))
+                                                                              for j in range(2, self.n_time_periods - i + 2))
+                                                                for p in range(self.n_products) for i in range(1, self.n_time_periods + 1)), name="minimumInventoryOrdering")
+
+            minimum_inventory_not_ordering = self.model.addConstrs((inventory_level[self.products[p], self.time_periods[i]] >= 0
+                                                                    for p in range(self.n_products) for i in range(1, self.n_time_periods + 1)), name="minimumInventoryNotOrdering")
 
         # objective function
         obj = gp.quicksum(self.major_setup_cost * place_order[time_period] for time_period in self.time_periods) + gp.quicksum(self.minor_setup_cost[product] * gp.quicksum(order_product[product, time_period, tau_period] for tau_period in self.tau_periods[:len(self.tau_periods) - time_period + 1]) for product in self.products for time_period in self.time_periods) + gp.quicksum(

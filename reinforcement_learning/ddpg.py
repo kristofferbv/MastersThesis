@@ -15,8 +15,8 @@ import generate_data
 
 std_dev = 1
 # Learning rate for actor-critic models
-critic_lr = 0.001
-actor_lr = 0.00001
+critic_lr = 0.003
+actor_lr = 0.001
 
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
@@ -322,8 +322,8 @@ class DDPG():
         )
 
     def train(self, should_plot=True):
-        hei = tf.keras.models.load_model("actor_model")
-        hade = tf.keras.models.load_model("actor_model")
+        hei = tf.keras.models.load_model("models/actor_model_ep99_saved_model")
+        hade = tf.keras.models.load_model("models/actor_model_ep99_saved_model")
         self.actor_model = hei
         self.target_actor = hade
 
@@ -355,7 +355,7 @@ class DDPG():
             prev_state = tf.transpose(prev_state, perm=[0, 2, 1])
 
             while True:
-                self.std_dev = self.std_dev * 0.999
+                self.std_dev = self.std_dev * 0.99
                 if (self.std_dev < 0.3):
                     self.std_dev = 0.3
 

@@ -205,7 +205,6 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
     gap_list = []
 
     for time_step in range(episode_length):
-        inventory_levels = [0 for i in range(len(products))]
         print(f"Time step {time_step}/{episode_length}")
         start_date = start_date + timedelta(days=7)
 

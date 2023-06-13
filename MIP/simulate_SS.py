@@ -110,7 +110,8 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length,
                 # storing std dev and forecast to use for updating the std deviation of errors in the forecast
                 prev_std_dev[product_index] = dict_sds[product_index][1]
                 prev_forecast[product_index] = dict_demands[product_index][1]
-        major_costs = 100
+        major_costs = random.randint(100,2500)
+        print(major_costs)
         deterministic_model = det_mod.DeterministicModel(len(products))
         deterministic_model.set_costs(major_costs)
         deterministic_model.set_demand_forecast(dict_demands)
@@ -137,31 +138,30 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length,
         for product_index in range(len(products)):
             product_states = []
             product_targets = []
-            for time_step in range(1, 13+1):
+            for time in range(1, 13+1):
                 # Forecast
                 order_product_value = [0] * 13  # Initialize a list of 13 zeros
                 hei = 1
                 has_set = False
-                for tau_period in range(1,13 - time_step + 2):
+                for tau_period in range(1,13 - time + 2):
                     # OrderProduct
-                    hei = deterministic_model.model.getVars()
-                    if deterministic_model.model.getVarByName(f"OrderProduct[{product_index},{time_step},{tau_period}]").X > threshold:
-                        order_product_value[tau_period] = 1
+                    if deterministic_model.model.getVarByName(f"OrderProduct[{product_index},{time},{tau_period}]").X > threshold:
+                        # order_product_value[tau_period] = 1
                         hei = tau_period
                         has_set = True
                 if not has_set:
                     order_product_value[0] = 1
                     hei = 1
 
-                forecasted_date = sum(dict_demands[product_index][time_step: time_step + hei])
+                forecasted_date = sum(dict_demands[product_index][time: time + hei])
                 # DateTime
-                date_time = start_date + pd.DateOffset(weeks=time_step)
+                date_time = start_date + pd.DateOffset(weeks=time)
                 # Month
                 month = date_time.month
                 # one_hot_month = one_hot_encoder.fit_transform(np.array(month).reshape(-1, 1)).tolist()[0]
 
                 # Append the state
-                product_states.append([forecasted_date, time_step, hei, month])
+                product_states.append([forecasted_date, time, hei, month])
                 # # Append the state
                 # product_states.append([forecasted_date, time_step, hei])
 

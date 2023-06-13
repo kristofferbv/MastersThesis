@@ -44,10 +44,10 @@ if __name__ == '__main__':
         r = []
         for i in range(10):
             category_products = retrieve_data.read_products("2016-01-01", "2020-12-30", category)
-            number_of_products = 40
+            number_of_products = 20
             sampled_products = random.sample(category_products, number_of_products)
             if category == "erratic" or category == "smooth":
-                products = generate_seasonal_data_based_on_products(sampled_products, 10000)
+                products = generate_seasonal_data_for_erratic_demand(sampled_products, 10000)
             else:
                 products = generate_seasonal_data_for_intermittent_demand(sampled_products, 10000)
             # products = retrieve_data.read_products_with_hashes("2016-01-10", "2020-12-30", ["569b6782ce5885fc4abf21cfde38f7d7", "92b1f191dfce9fff64b4effd954ccaab", "8ef91aac79542f11dedec4f79265ae3a", "2fa9c91f40d6780fd5b3c219699eb139", "1fb096daa569c811723ce8796722680e", "f7b3622f9eb50cb4eee149127c817c79"])

@@ -9,6 +9,7 @@ from keras.regularizers import l2
 from sklearn.preprocessing import MinMaxScaler
 import statsmodels.api as sm
 import tensorflow as tf
+from keras import layers
 
 def normalize(data):
     data_mean = data.mean(axis=0)
@@ -88,6 +89,17 @@ def forecast(df, date,  n_time_periods, should_plot = True):
     # model.add(Dropout(0.2))
     # model.add(Dense(1))
     # model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
+
+    # model = Sequential([
+    #     layers.GRU(100, activation='relu', return_sequences=True),
+    #     layers.Dropout(0.5),
+    #     # TransformerBlock(embed_dim=100, num_heads=2, ff_dim=100), # embed_dim should match the output dimension of the previous layer
+    #     # layers.Dropout(0.5),
+    #     layers.GRU(100, activation='relu'),
+    #     layers.Dropout(0.5),
+    #     layers.Dense(1)
+    # ])
+
     model = Sequential()
     model.add(Conv1D(filters=64, kernel_size=3, activation='relu', input_shape=(n_steps, 1)))
     model.add(LSTM(128, activation='relu'))
