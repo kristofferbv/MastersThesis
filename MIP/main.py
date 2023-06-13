@@ -1,6 +1,8 @@
 import random
 import os
 import sys
+import warnings
+warnings.filterwarnings("ignore")
 
 # Get the path of the current script
 current_path = os.path.dirname(os.path.abspath(__file__))
