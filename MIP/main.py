@@ -85,13 +85,11 @@ if __name__ == '__main__':
                 else:
                     decompose_sales_quantity(product, str(i))
 
-        n_time_periods = [13,26,52]
-        for i in range(3):
-            if generate_new_data:
-                #print("Products")
-                #print(len(products))
-                simulation.simulate(products, config, n_time_periods = n_time_periods[i])
-            else:
-                start_date = products[0].index[104]
-                simulation_length = config["simulation"]["simulation_length"]
-                simulation.run_one_episode(start_date, n_time_periods, simulation_length, products, config)
+        if generate_new_data:
+            #print("Products")
+            #print(len(products))
+            simulation.simulate(products, config)
+        else:
+            start_date = products[0].index[104]
+            simulation_length = config["simulation"]["simulation_length"]
+            simulation.run_one_episode(start_date, n_time_periods, simulation_length, products, config)
