@@ -60,6 +60,9 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.inventory_levels = [0 for _ in self.products]
         self.reset()
 
+
+
+
     def increase_time_period(self, increase):
         self.time_period += increase
 
@@ -79,7 +82,10 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # Calculate shortage costs
         self.shortage_cost = []
         for product_index in range(len(products)):
-            self.shortage_cost.append(self.holding_cost[product_index] / (1 / 0.95 - 1))
+            self.shortage_cost.append(self.holding_cost[0] / (1 / 0.95 - 1))
+        print(f" actual minor: {self.minor_setup_cost}")
+        print(f" actual major: {self.major_setup_cost}")
+        print(f" holding costs: {self.holding_cost}")
 
     def reset(self, **kwargs):
         # Reset the environment to the initial state. Setting start period so that we can ensure we have all historical data required for the first state
@@ -103,7 +109,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         rewards = []
 
         for i, product in enumerate(self.products):
-            self.verbose = True
+            # self.verbose = True
             if action[i] > 0:
                 self.inventory_levels[i] += action[i]
                 major_cost = self.major_setup_cost / count_major_setup_sharing
@@ -136,6 +142,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
             individual_rewards.append(-total_cost)
         if self.verbose:
             print(f"Demand {self.current_period} {demands}")
+            print(f"Inventory levels: {self.inventory_levels}")
             print(f"shortage {shortage_costs}")
             print(f" minor: {minor_costs}")
             print(f"major: {major_costs}")

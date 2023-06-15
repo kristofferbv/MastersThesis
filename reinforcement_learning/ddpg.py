@@ -324,7 +324,7 @@ class DDPG():
 
     def train(self, should_plot=True, reward_interval=1):
         hei = tf.keras.models.load_model("actor_model")
-        hade = tf.keras.models.load_model("models/actor_model_1")
+        hade = tf.keras.models.load_model("actor_model")
         self.actor_model = hei
         self.target_actor = hade
 
