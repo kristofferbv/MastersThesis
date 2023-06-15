@@ -103,6 +103,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         rewards = []
 
         for i, product in enumerate(self.products):
+            self.verbose = True
             if action[i] > 0:
                 self.inventory_levels[i] += action[i]
                 major_cost = self.major_setup_cost / count_major_setup_sharing

@@ -235,7 +235,7 @@ class PPO:
     def test(self, start_time_period):
         products = self.generate_products(500)
         self.env.products = products
-        actor_model_dir = 'models/actor_model.h5'
+        actor_model_dir = 'models/best_one_so_far.h5'
         # Load the actor network
         self.actor = load_model(actor_model_dir)
 

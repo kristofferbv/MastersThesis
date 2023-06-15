@@ -102,7 +102,7 @@ if __name__ == "__main__":
     method = "ddpg"
     if method == "ppo":
         ppo_model = PPO(env, real_products, product_categories)
-        ppo_model.train_ppo()
+        # ppo_model.train_ppo()
         ppo_model.test(208)
 
     elif method == "maddpg":
@@ -116,5 +116,5 @@ if __name__ == "__main__":
         ma.test()
     if method == "ddpg":
         ddpg = DDPG(real_products, state_shape, env, product_categories)
-        ddpg.train()
+        # ddpg.train()
         ddpg.test()

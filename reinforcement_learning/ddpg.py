@@ -10,7 +10,7 @@ from keras import layers
 from keras.layers import Conv1D
 from keras.layers import Layer
 from keras.models import Sequential
-
+import random
 import generate_data
 
 std_dev = 1
@@ -265,7 +265,8 @@ class DDPG():
         save_dir = 'models'
         os.makedirs(save_dir, exist_ok=True)
         print('Saving models...')
-        self.actor_model.save(f'models/actor_model')
+        self.actor_model.save(f'models/actor_model_1')
+        self.critic_model.save(f'models/critic_model_1')
 
     def learn(self):
         # Get sampling range
@@ -321,9 +322,9 @@ class DDPG():
             zip(actor_grad, self.actor_model.trainable_variables)
         )
 
-    def train(self, should_plot=True):
+    def train(self, should_plot=True, reward_interval=1):
         hei = tf.keras.models.load_model("actor_model")
-        hade = tf.keras.models.load_model("actor_model")
+        hade = tf.keras.models.load_model("models/actor_model_1")
         self.actor_model = hei
         self.target_actor = hade
 
@@ -335,7 +336,6 @@ class DDPG():
         epsilon = 0.5  # start with full randomness
         epsilon_min = 0.01  # the lowest level of randomness we want
         epsilon_decay = 0.995  # how quickly to decrease randomness
-        # Takes about 4 min to train
 
         for ep in range(total_episodes):
             if ep > 20:
@@ -354,6 +354,10 @@ class DDPG():
             prev_state = tf.convert_to_tensor([prev_state])
             prev_state = tf.transpose(prev_state, perm=[0, 2, 1])
 
+            step_count = 0  # Initialize step count
+            episodic_actions = []  # List to store actions during episode
+            episodic_states = []  # List to store states during episode
+
             while True:
                 self.std_dev = self.std_dev * 0.99
                 if (self.std_dev < 0.3):
@@ -365,23 +369,32 @@ class DDPG():
                 for i in range(len(action)):
                     if action[i] < 5:
                         action[i] = 0
-                # if random.random() <0.001:
-                #     action = [0 for i in range(len(self.products))]
+
                 # Recieve state and reward from environment.
                 state, reward, done, info = self.env.step(action)
                 state = tf.convert_to_tensor([state])
-                # state = tf.reshape(state, [1, 13, -1])
                 state = tf.transpose(state, perm=[0, 2, 1])
                 total_reward = sum(reward)
                 reward = sum(reward)
-                self.buffer.record((prev_state, action, reward, state))
                 episodic_reward += total_reward
 
+                episodic_actions.append(action)
+                episodic_states.append(prev_state)
+
+                # Increase step count
+                step_count += 1
+
+                if step_count % reward_interval == 0:
+                    for s, a in zip(episodic_states, episodic_actions):
+                        self.buffer.record((s, a, reward, state))
+                    episodic_states = []  # Reset states list
+                    episodic_actions = []  # Reset actions list
+                    self.learn()
+                    self.update_target(self.target_critic.variables, self.critic_model.variables, tau)
+                    # if ep > 20:
+                    self.update_target(self.target_actor.variables, self.actor_model.variables, tau)
+
                 # End this episode when `done` is True
-                self.learn()
-                self.update_target(self.target_critic.variables, self.critic_model.variables, tau)
-                # if ep > 50:
-                self.update_target(self.target_actor.variables, self.actor_model.variables, tau)
                 if ep + 1 % 50 == 0:
                     print("EP49Ac", action)
                 if done:
@@ -407,7 +420,7 @@ class DDPG():
             plt.show()
         self.test(episodes=1)
 
-    def test(self, episodes=10, path=None):
+    def test(self, episodes=1, path=None):
         # loading model
         # actor = self.actor_model
         actor = tf.keras.models.load_model(f"models/best_one_so_far")
@@ -418,7 +431,7 @@ class DDPG():
 
             episodic_reward = 0
             generated_products = self.generate_products(500)
-            # self.env.products = generated_products
+            self.env.products = generated_products
             prev_state = self.env.reset()
             prev_state = tf.transpose(prev_state, perm=[1, 0])
 
@@ -429,6 +442,7 @@ class DDPG():
                 # action = self.policy(tf_prev_state, ou_noise, actor)[0]
 
                 action = tf.squeeze(actor(tf_prev_state, training=False)).numpy()
+                # action = [random.randint(0,80) for i in range(2)]
                 for i in range(len(action)):
                     if action[i] < 1:
                         action[i] = 0
