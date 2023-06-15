@@ -16,7 +16,7 @@ import generate_data
 std_dev = 1
 # Learning rate for actor-critic models
 critic_lr = 0.003
-actor_lr = 0.001
+actor_lr = 0.00001
 
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
@@ -322,8 +322,8 @@ class DDPG():
         )
 
     def train(self, should_plot=True):
-        hei = tf.keras.models.load_model("models/actor_model_ep99_saved_model")
-        hade = tf.keras.models.load_model("models/actor_model_ep99_saved_model")
+        hei = tf.keras.models.load_model("actor_model")
+        hade = tf.keras.models.load_model("actor_model")
         self.actor_model = hei
         self.target_actor = hade
 
@@ -338,8 +338,8 @@ class DDPG():
         # Takes about 4 min to train
 
         for ep in range(total_episodes):
-            # if ep > 100:
-            #     actor_optimizer.learning_rate = 1e-4  # increased learning rate
+            if ep > 20:
+                actor_optimizer.learning_rate = 1e-4  # increased learning rate
             self.ep = ep
             if (ep > 380):
                 self.env.set_costs(self.products)

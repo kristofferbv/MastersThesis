@@ -70,7 +70,7 @@ if __name__ == '__main__':
             print("len", len(products))
 
 
-        # plot_sales_quantity(products)
+        plot_sales_quantity(products)
 
         # if should_analyse:  # analysing plotting, decomposing and testing for stationarity
         #     plot_sales_quantity(products)
@@ -82,10 +82,10 @@ if __name__ == '__main__':
         #             decompose_sales_quantity(product, str(i))
         #
         # if generate_new_data:
-        simulation.simulate(products, config)
+        # simulation.simulate(products, config)
         # else:
         #     start_date = products[0].index[104]
         #     simulation_length = config["simulation"]["simulation_length"]
         #     simulation.run_one_episode(start_date, n_time_periods, simulation_length, products, config)
 
-        # simulate_SS.simulate(products)
+        simulate_states.simulate(products)
