@@ -17,12 +17,12 @@ from maddpg import *
 from ddpg import *
 from maddpg import *
 
-# Get the directory of the current script
-current_dir = os.path.dirname(os.path.abspath(__file__))
+#Get the path of the current script
+current_path = os.path.dirname(os.path.abspath(__file__))
 
-# Change the working directory to the directory of the current script
-os.chdir(current_dir)
-
+# Append the parent directory of the current path to the system path
+parent_path = os.path.dirname(current_path)
+sys.path.append(parent_path)
 
 def generate_products(products, product_categories, n_periods, seed=None):
     first_index = 0
