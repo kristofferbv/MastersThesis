@@ -1,6 +1,6 @@
 deterministic_model:
-  product_categories: { "erratic": 0, "smooth": 0, "intermittent": 4, "lumpy": 4}
-  n_time_periods: 13
+  product_categories: { "erratic": 2, "smooth": 2, "intermittent": 0, "lumpy": 0}
+  n_time_periods: 8
   joint_setup_cost: 2500
   minor_setup_ratio: 1.2
   service_level: 0.95
@@ -31,7 +31,7 @@ simulation:
   verbose: False
   should_set_holding_cost_dynamically: True
   n_episodes: 5
-  simulation_length: 10
+  simulation_length: 20
   warm_up_length: 10
   should_perform_warm_up: False
   reset_length: 5

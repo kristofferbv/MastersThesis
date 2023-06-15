@@ -85,12 +85,10 @@ if __name__ == '__main__':
                 else:
                     decompose_sales_quantity(product, str(i))
 
-        n_time_periods = [13,26,52]
-        for i in range(3):
+        n_time_periods = [1,0.99,0.98,0.97,0.96,0.95,0.94,0.93,0.92,0.91,0.9]
+        for i in n_time_periods:
             if generate_new_data:
-                #print("Products")
-                #print(len(products))
-                simulation.simulate(products, config, n_time_periods = n_time_periods[i])
+                simulation.simulate(products, config, beta=beta)
             else:
                 start_date = products[0].index[104]
                 simulation_length = config["simulation"]["simulation_length"]
