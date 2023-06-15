@@ -67,11 +67,6 @@ class JointReplenishmentEnv(gym.Env, ABC):
         return self._get_observation()
 
     def step(self, action):
-        # Need to discretize the actions.
-        # action = [x * self.action_multiplier for x in action]
-        # Apply the replenishment action
-        major_setup_triggered = False
-        return_action= action
         individual_rewards = []
         count_major_setup_sharing = len([i for i in action if i > 1])
 
@@ -86,10 +81,6 @@ class JointReplenishmentEnv(gym.Env, ABC):
         for i, product in enumerate(self.products):
             if action[i] > 1:
                 self.inventory_levels[i] += action[i]
-                # Apply only fractional part of major setup costs corresponding to number of products ordering
-                # if count_major_setup_sharing == 1:
-                #     major_cost = self.major_setup_cost / count_major_setup_sharing * 4
-                # else:
                 major_cost = self.major_setup_cost / count_major_setup_sharing
 
                 minor_cost = self.minor_setup_cost[i]

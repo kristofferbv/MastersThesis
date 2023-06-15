@@ -1,3 +1,4 @@
+import pickle
 from datetime import timedelta
 
 import pandas as pd
@@ -16,7 +17,7 @@ from config_utils import load_config
 import generate_data
 
 
-def simulate(real_products, config, beta = None, n_time_periods = None):
+def simulate(real_products, config, beta=None, n_time_periods=None):
     if n_time_periods is None:
         n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
     n_episodes = config["simulation"]["n_episodes"]  # This is the number of times we run a full simulation
@@ -56,16 +57,17 @@ def simulate(real_products, config, beta = None, n_time_periods = None):
     current_index = 0
     last_index = 0
     # with open(file_path, "a") as f:
+    generation_length = (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52
     for category in product_categories.keys():
         number_of_products = product_categories[category]
         current_index += number_of_products
         if category == "erratic":
-            generated_products += generate_data.generate_seasonal_data_for_erratic_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52, seed)
+            generated_products += generate_data.generate_seasonal_data_for_erratic_demand(real_products[last_index:current_index], generation_length, seed)
         elif category == "smooth":
-            generated_products += generate_data.generate_seasonal_data_for_smooth_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52, seed)
+            generated_products += generate_data.generate_seasonal_data_for_smooth_demand(real_products[last_index:current_index], generation_length, seed)
 
         else:
-            generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(real_products[last_index:current_index], (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52, seed)
+            generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(real_products[last_index:current_index], generation_length, seed)
         last_index = current_index
     # plot_sales_quantity(generated_products)
 
@@ -84,10 +86,28 @@ def simulate(real_products, config, beta = None, n_time_periods = None):
 
     inventory_levels = None
     start_date = generated_products[0].index[start_index]
+    end_date = generated_products[0].index[generation_length - 13]
+    all_forecasts = {}
+    all_models = {}
+    all_std_devs = {}
+    date_range = pd.date_range(start=start_date, end=end_date, freq='W')
+
+
+
+    if check_if_os_path_exists(n_products, n_erratic, n_smooth, n_intermittent, n_lumpy, seed):
+        with open(f'forecast_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'rb') as f:
+            all_forecasts = pickle.load(f)
+        with open(f'models_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'rb') as f:
+            all_models = pickle.load(f)
+        with open(f'std_devs_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'rb') as f:
+            all_std_devs = pickle.load(f)
+    else:
+        all_forecasts, all_models, all_std_devs = precalculate_forecasts(date_range, n_time_periods, generated_products, config, n_products, n_erratic, n_smooth, n_intermittent, n_lumpy, seed)
+
     models = {}
     if should_perform_warm_up and warm_up_length > 0:
         print("Warming up")
-        inventory_levels, start_date, models = perform_warm_up(generated_products, start_date, n_time_periods, config)
+        inventory_levels, start_date, models = perform_warm_up(generated_products, start_date, n_time_periods, config, all_forecasts, all_std_devs)
 
     avg_run_time = 0
 
@@ -97,7 +117,7 @@ def simulate(real_products, config, beta = None, n_time_periods = None):
 
         data_to_write.append(f"Start inventory levels of episode: {episode} are {inventory_levels}")
 
-        costs, inventory_levels, start_date, actions, tau_values, models, avg_run_time_time_step, std_run_time, service_level, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimality_gap, std_optimality_gap = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, config, models=models, inventory_levels=inventory_levels, beta = beta)
+        costs, inventory_levels, start_date, actions, tau_values, models, avg_run_time_time_step, std_run_time, service_level, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimality_gap, std_optimality_gap = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, config, all_forecasts, all_std_devs, models=models, inventory_levels=inventory_levels, beta=beta)
         print(f"Total costs for episode {episode} was: ", costs)
         total_costs.append(costs)
         list_mean.append(sum(total_costs) / len(total_costs))
@@ -123,7 +143,7 @@ def simulate(real_products, config, beta = None, n_time_periods = None):
         if reset_length > 0:
             print("Resetting...")
             # resetting
-            costs, inventory_levels, start_date, _, _, models, _, _, _, _, _, _, _, _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, config, models=models, inventory_levels=inventory_levels)
+            costs, inventory_levels, start_date, _, _, models, _, _, _, _, _, _, _, _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, config, all_forecasts, all_std_devs, models=models, inventory_levels=inventory_levels)
 
         avg_run_time = avg_run_time / n_episodes
         if episode > 20 and (stats.sem(total_costs) * 2 * 1.96 < 0.02 * np.mean(total_costs)):
@@ -158,15 +178,15 @@ def simulate(real_products, config, beta = None, n_time_periods = None):
         print(f"Total average costs for all episodes is: {sum(total_costs) / len(total_costs)}")
 
 
-def perform_warm_up(products, start_date, n_time_periods, config):
+def perform_warm_up(products, start_date, n_time_periods, config, all_forecasts, all_std_devs):
     warm_up_length = config["simulation"]["warm_up_length"]  # This is the number of time periods we are using to warm up
     inventory_levels = [0 for i in range(len(products))]
     # for i in range(simulation_length):
-    _, inventory_levels, start_date, _, _, models, _, _, _, _, _, _, _, _ = run_one_episode(start_date, n_time_periods, products, warm_up_length, config, inventory_levels=inventory_levels)
+    _, inventory_levels, start_date, _, _, models, _, _, _, _, _, _, _, _ = run_one_episode(start_date, n_time_periods, products, warm_up_length, config, all_forecasts, all_std_devs, inventory_levels=inventory_levels)
     return inventory_levels, start_date, models
 
 
-def run_one_episode(start_date, n_time_periods, products, episode_length, config, models=None, inventory_levels=None, beta = None):
+def run_one_episode(start_date, n_time_periods, products, episode_length, config, all_forecasts, all_std_devs, models=None, inventory_levels=None, beta=None):
     n_episodes = config["simulation"]["n_episodes"]  # This is the number of times we run a full simulation
     should_write = config["simulation"]["should_write"]
     product_categories = config["deterministic_model"]["product_categories"]
@@ -219,6 +239,8 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
         major_setup_added = False
         # Update inventory levels based on previous actions and actual demand
         actual_demands[time_step] = {}
+        forecasts = all_forecasts[str(start_date.date())]
+        std_devs = all_std_devs[str(start_date.date())]
         for product_index, product in enumerate(products):
             if time_step != 0:
                 if isinstance(product, pd.DataFrame):
@@ -254,16 +276,20 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
 
                 previous_il = inventory_levels[product_index]
                 inventory_levels[product_index] = max(0, previous_il + actions[time_step - 1][product_index] - demand)
+
             if forecasting_method == "holt_winter":
                 if time_step == 0:
+
                     dict_demands[product_index], train = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
                     dict_sds[product_index] = get_initial_std_dev(train, n_time_periods)
+
                     # storing std dev and forecast to use for updating the std deviation of errors in the forecast
                     prev_std_dev[product_index] = dict_sds[product_index][1]
                     prev_forecast[product_index] = dict_demands[product_index][1]
                 else:
                     dict_sds[product_index] = get_std_dev(prev_std_dev[product_index], forecast_errors[product_index], n_time_periods, alpha=0.1)
                     dict_demands[product_index], _ = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
+
                     # storing std dev and forecast to use for updating the std deviation of errors in the forecast
                     prev_std_dev[product_index] = dict_sds[product_index][1]
                     prev_forecast[product_index] = dict_demands[product_index][1]
@@ -312,7 +338,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
             print("Total setup costs:")
             print(setup_costs)
 
-        deterministic_model = det_mod.DeterministicModel(len(products), config, beta = beta,n_time_periods= n_time_periods)
+        deterministic_model = det_mod.DeterministicModel(len(products), config, beta=beta, n_time_periods=n_time_periods)
         deterministic_model.set_demand_forecast(dict_demands)
         if should_set_holding_cost_dynamically:
             deterministic_model.set_holding_costs(unit_price)
@@ -385,11 +411,10 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
 
     service_levels = []
 
-
     for product_index in range(n_products):
         if sum_actual_demand[product_index] == 0:
             service_level = 1
-        else: 
+        else:
             service_level = sum_fulfilled_demand[product_index] / sum_actual_demand[product_index]
         service_levels.append(service_level)
 
@@ -412,3 +437,71 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
     std_forecast_errors = statistics.stdev(forecast_errors.values())
 
     return total_costs, inventory_levels, start_date, actions, orders, models, avg_run_time_time_step, std_run_time, service_levels, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimaliy_gap, std_optimality_gap
+
+
+def precalculate_forecasts(date_range, n_time_periods, products, config, n_products, n_erratic, n_smooth, n_intermittent, n_lumpy, seed):
+    forecasting_method = config["simulation"]["forecasting_method"]
+    all_forecasts = {}
+    all_models = {}
+    all_std_devs = {}
+    count = 0
+    prev_std_dev = {}
+    prev_forecast = {}
+    for date in date_range:
+        forecasts = {}
+        models = {}
+        std_devs = {}
+        forecast_errors = {}
+
+        for product_index, product in enumerate(products):
+
+            if forecasting_method == "holt_winter":
+
+                if count == 0:
+                    forecasts[product_index], train = holt_winters_method.forecast(product, date, n_time_periods=n_time_periods)
+                    std_devs[product_index] = get_initial_std_dev(train, n_time_periods)
+                    prev_std_dev[product_index] = std_devs[product_index][1]
+                    prev_forecast[product_index] = forecasts[product_index][1]
+                else:
+                    demand = products[product_index].loc[date, "sales_quantity"]
+                    forecast_errors[product_index] = abs(demand - prev_forecast[product_index])
+                    forecasts[product_index], train = holt_winters_method.forecast(product, date, n_time_periods=n_time_periods)
+                    std_devs[product_index] = get_std_dev(prev_std_dev[product_index], forecast_errors[product_index], n_time_periods, alpha=0.1)
+                    prev_std_dev[product_index] = std_devs[product_index][1]
+                    prev_forecast[product_index] = forecasts[product_index][1]
+
+            elif forecasting_method == "sarima":
+                if count == 0:
+                    forecasts[product_index], train = sarima.forecast(product, date, n_time_periods=n_time_periods)
+                    std_devs[product_index] = get_initial_std_dev(train, n_time_periods)
+                    prev_std_dev[product_index] = std_devs[product_index][1]
+                    prev_forecast[product_index] = forecasts[product_index][1]
+                else:
+                    demand = products[product_index].loc[date, "sales_quantity"]
+                    forecast_errors[product_index] = abs(demand - prev_forecast[product_index])
+                    forecasts[product_index], train = sarima.forecast(product, date, n_time_periods=n_time_periods)
+                    std_devs[product_index] = get_std_dev(prev_std_dev[product_index], forecast_errors[product_index], n_time_periods, alpha=0.1)
+            else:
+                raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
+        count += 1
+
+        all_forecasts[str(date.date())] = forecasts
+        all_models[str(date.date())] = models
+        all_std_devs[str(date.date())] = std_devs
+
+    with open(f'forecast_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'wb') as f:
+        pickle.dump(all_forecasts, f)
+    with open(f'models_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'wb') as f:
+        pickle.dump(all_models, f)
+    with open(f'std_devs_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'wb') as f:
+        pickle.dump(all_std_devs, f)
+
+    return all_forecasts, all_models, all_std_devs
+
+
+def check_if_os_path_exists(n_products, n_erratic, n_smooth, n_intermittent, n_lumpy, seed):
+    if os.path.exists(f'forecast_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl') and \
+            os.path.exists(f'models_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl') and \
+            os.path.exists(f'std_devs_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl'):
+        return True
+    return False
