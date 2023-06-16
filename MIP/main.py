@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
         for category in product_categories.keys():
             category_products = retrieve_data.read_products("2017-01-01", "2020-12-30", category)
-            category_products = [product for product in category_products if product["sales_quantity"].mean() <= 150]
+            category_products = [product for product in category_products if product["sales_quantity"].max() <= 150]
             category_products.sort(key=lambda product: product["sales_quantity"].mean())
 
             number_of_products = product_categories[category]
