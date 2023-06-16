@@ -3,6 +3,7 @@ import os
 import sys
 import warnings
 warnings.filterwarnings("ignore")
+
 # Get the path of the current script
 current_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -56,7 +57,7 @@ if __name__ == '__main__':
 
         for category in product_categories.keys():
             category_products = retrieve_data.read_products("2017-01-01", "2020-12-30", category)
-            category_products = [product for product in category_products if product["sales_quantity"].mean() <= 150]
+            category_products = [product for product in category_products if product["sales_quantity"].max() <= 150]
             category_products.sort(key=lambda product: product["sales_quantity"].mean())
 
             number_of_products = product_categories[category]
@@ -85,11 +86,20 @@ if __name__ == '__main__':
                 else:
                     decompose_sales_quantity(product, str(i))
 
-        if generate_new_data:
-            #print("Products")
-            #print(len(products))
-            simulation.simulate(products, config)
-        else:
-            start_date = products[0].index[104]
-            simulation_length = config["simulation"]["simulation_length"]
-            simulation.run_one_episode(start_date, n_time_periods, simulation_length, products, config)
+
+        beta_value = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
+
+        best_beta = beta_value[0]
+        current_total_costs_best_beta = None
+        for i in beta_values:
+            beta = i
+            if generate_new_data:
+                #print("Products")
+                #print(len(products))
+                total_costs_best_beta, current_best_beta = simulation.simulate(products, config, beta= beta, total_costs_best_beta=current_total_costs_best_beta)
+                current_total_costs_best_beta = total_costs_best_beta
+                best_beta = current_best_beta
+            else:
+                start_date = products[0].index[104]
+                simulation_length = config["simulation"]["simulation_length"]
+                simulation.run_one_episode(start_date, n_time_periods, simulation_length, products, config)

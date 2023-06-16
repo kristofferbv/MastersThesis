@@ -111,6 +111,27 @@ def simulate(real_products, config, beta=None, n_time_periods=None):
 
     avg_run_time = 0
 
+
+    # Lists to store total costs for the previously used beta
+    total_costs_best_beta = #read list with prevoius costs here? or take in with simulate
+
+    # Check the stopping criterion
+    if episode > 20 and len(total_costs_beta1) > 0 and len(total_costs_beta2) > 0:
+        # Calculate the variance of the difference
+        var_diff = np.var(total_costs_beta1) / len(total_costs_beta1) + np.var(total_costs_beta2) / len(total_costs_beta2)
+
+        # Calculate the standard error of the difference
+        sem_diff = np.sqrt(var_diff)
+
+        # Calculate the confidence interval
+        conf_interval = stats.t.interval(0.95, df=min(len(total_costs_beta1), len(total_costs_beta2))-1, loc=np.mean(total_costs_beta1) - np.mean(total_costs_beta2), scale=sem_diff)
+
+        # Check if the confidence interval does not include zero
+        if conf_interval[0] > 0 or conf_interval[1] < 0:
+            print(f"Beta value {beta_value1} is significantly better than beta value {beta_value2}")
+            break
+
+
     for episode in range(n_episodes):
         # simulate and sample costs
         print(f"Running simulation episode {episode}")
@@ -146,15 +167,33 @@ def simulate(real_products, config, beta=None, n_time_periods=None):
             costs, inventory_levels, start_date, _, _, models, _, _, _, _, _, _, _, _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, config, all_forecasts, all_std_devs, models=models, inventory_levels=inventory_levels)
 
         avg_run_time = avg_run_time / n_episodes
+
+        # check first stopping criterion
         if episode > 20 and (stats.sem(total_costs) * 2 * 1.96 < 0.02 * np.mean(total_costs)):
             print(f"Stopping early after {episode} episodes")
             break
+
+        # check second stopping criterion
+        if episode > 20 and  is not None:
+            # Calculate the variance of the difference
+            var_diff = np.var(total_costs_beta1) / len(total_costs_beta1) + np.var(total_costs_beta2) / len(total_costs_beta2)
+
+            # Calculate the standard error of the difference
+            sem_diff = np.sqrt(var_diff)
+
+            # Calculate the confidence interval
+            conf_interval = stats.t.interval(0.95, df=min(len(total_costs_beta1), len(total_costs_beta2))-1, loc=np.mean(total_costs_beta1) - np.mean(total_costs_beta2), scale=sem_diff)
+
+            # Check if the confidence interval does not include zero
+            if conf_interval[0] > 0 or conf_interval[1] < 0: 
+                print(f"Beta value {beta_value1} is significantly better than beta value {beta_value2}")
+                breakpoint
 
     if should_write:
         data_to_write.append(f"Total costs for each period are: {total_costs}")
         # data_to_write.append(f"Total average costs for all episodes is: {sum(total_costs) / len(total_costs)}")
         data_to_write.append(f'List of mean costs for each period: {list_mean}')
-        data_to_write.append(f'List of standard deviation of costs for each period: {list_sem}')
+        data_to_write.append(f'List of standard error of mean of total costs for each period: {list_sem}')
         data_to_write.append(f"Service levels are: {service_levels}")
         # data_to_write.append(f"Actual demands are: {actual_demand_list}")
 
