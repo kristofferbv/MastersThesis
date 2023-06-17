@@ -87,17 +87,19 @@ if __name__ == '__main__':
                     decompose_sales_quantity(product, str(i))
 
 
-        beta_value = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
+        beta_values = [1, 0.995, 0.99, 0.985, 0.98,0.975, 0.97,0.965, 0.96, 0.955, 0.95, 0.9, 0.85, 0.8]
+        
 
-        best_beta = beta_value[0]
-        current_total_costs_best_beta = None
+        best_beta = beta_values[0]
+        total_costs_best_beta = None
+        #total_costs_best_beta = None
         for i in beta_values:
             beta = i
             if generate_new_data:
                 #print("Products")
                 #print(len(products))
-                total_costs_best_beta, current_best_beta = simulation.simulate(products, config, beta= beta, total_costs_best_beta=current_total_costs_best_beta)
-                current_total_costs_best_beta = total_costs_best_beta
+                current_total_costs_best_beta, current_best_beta = simulation.simulate(products, config, beta= beta, total_costs_best_beta=total_costs_best_beta, best_beta=best_beta)
+                total_costs_best_beta = current_total_costs_best_beta
                 best_beta = current_best_beta
             else:
                 start_date = products[0].index[104]

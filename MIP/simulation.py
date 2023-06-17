@@ -17,7 +17,7 @@ from config_utils import load_config
 import generate_data
 
 
-def simulate(real_products, config, beta=None, n_time_periods=None):
+def simulate(real_products, config, beta=None, n_time_periods=None, total_costs_best_beta=None, best_beta=None):
     if n_time_periods is None:
         n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
     n_episodes = config["simulation"]["n_episodes"]  # This is the number of times we run a full simulation
@@ -41,6 +41,9 @@ def simulate(real_products, config, beta=None, n_time_periods=None):
     minor_setup_ratio = config["deterministic_model"]["minor_setup_ratio"]
     if beta is None:
         beta = config["deterministic_model"]["beta"]
+
+    if best_beta is None:
+        best_beta = beta
 
     output_folder = "results"
     output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
@@ -112,24 +115,8 @@ def simulate(real_products, config, beta=None, n_time_periods=None):
     avg_run_time = 0
 
 
-    # Lists to store total costs for the previously used beta
-    total_costs_best_beta = #read list with prevoius costs here? or take in with simulate
-
-    # Check the stopping criterion
-    if episode > 20 and len(total_costs_beta1) > 0 and len(total_costs_beta2) > 0:
-        # Calculate the variance of the difference
-        var_diff = np.var(total_costs_beta1) / len(total_costs_beta1) + np.var(total_costs_beta2) / len(total_costs_beta2)
-
-        # Calculate the standard error of the difference
-        sem_diff = np.sqrt(var_diff)
-
-        # Calculate the confidence interval
-        conf_interval = stats.t.interval(0.95, df=min(len(total_costs_beta1), len(total_costs_beta2))-1, loc=np.mean(total_costs_beta1) - np.mean(total_costs_beta2), scale=sem_diff)
-
-        # Check if the confidence interval does not include zero
-        if conf_interval[0] > 0 or conf_interval[1] < 0:
-            print(f"Beta value {beta_value1} is significantly better than beta value {beta_value2}")
-            break
+    
+    
 
 
     for episode in range(n_episodes):
@@ -168,13 +155,62 @@ def simulate(real_products, config, beta=None, n_time_periods=None):
 
         avg_run_time = avg_run_time / n_episodes
 
+        '''
         # check first stopping criterion
         if episode > 20 and (stats.sem(total_costs) * 2 * 1.96 < 0.02 * np.mean(total_costs)):
             print(f"Stopping early after {episode} episodes")
             break
+        '''
+        # Check the stopping criterion
+        if episode > 20 and len(total_costs) > 0 and total_costs_best_beta is not None:
 
-        # check second stopping criterion
-        if episode > 20 and  is not None:
+            # Calculate differences
+            diffs = np.array(total_costs) - np.array(total_costs_best_beta[:len(total_costs)])
+
+            # Calculate mean of the differences
+            mean_diff = np.mean(diffs)
+
+            # Calculate standard error of the differences
+            se_diff = stats.sem(diffs)
+
+            # Define confidence interval (90% in this case)
+            ci = 0.90
+
+            # Degrees of freedom
+            df = len(diffs) - 1
+
+            # Calculate the confidence interval
+            ci_low, ci_high = stats.t.interval(ci, df, loc=mean_diff, scale=se_diff)
+
+            print(f"Confidence interval is: [{ci_low}, {ci_high}]")
+            data_to_write.append(f"Confidence interval is: [{ci_low}, {ci_high}]")
+
+            # Check if confidence interval contains zero
+            if ci_low > 0:
+                print(f"Beta value {best_beta} is significantly better than beta value {beta}")
+                data_to_write.append(f"Beta value {best_beta} is significantly better than beta value {beta}")
+                break
+            elif ci_high < 0:
+                print(f"Beta value {beta} is significantly better than beta value {best_beta}")
+                data_to_write.append(f"Beta value {beta} is significantly better than beta value {best_beta}")
+                best_beta = beta
+                total_costs_best_beta = total_costs
+                break
+            elif episode == n_episodes-1:
+                mean_beta = np.mean(total_costs)
+                mean_best_beta = np.mean(total_costs_best_beta)
+
+                if mean_beta < mean_best_beta:
+                    best_beta = beta
+                    total_costs_best_beta = total_costs
+                    print(f"No beta value is significantly better than the other, but Beta value {beta} has a lower mean value {best_beta}")
+                    data_to_write.append(f"No beta value is significantly better than the other, but Beta value {beta} has a lower mean value {best_beta}")
+                else:
+                    print(f"No beta value is significantly better than the other, but Beta value {best_beta} has a lower mean value {beta}")
+                    data_to_write.append(f"No beta value is significantly better than the other, but Beta value {best_beta} has a lower mean value {beta}")
+                    
+
+            '''
             # Calculate the variance of the difference
             var_diff = np.var(total_costs_beta1) / len(total_costs_beta1) + np.var(total_costs_beta2) / len(total_costs_beta2)
 
@@ -185,9 +221,11 @@ def simulate(real_products, config, beta=None, n_time_periods=None):
             conf_interval = stats.t.interval(0.95, df=min(len(total_costs_beta1), len(total_costs_beta2))-1, loc=np.mean(total_costs_beta1) - np.mean(total_costs_beta2), scale=sem_diff)
 
             # Check if the confidence interval does not include zero
-            if conf_interval[0] > 0 or conf_interval[1] < 0: 
+            if conf_interval[0] > 0 or conf_interval[1] < 0:
                 print(f"Beta value {beta_value1} is significantly better than beta value {beta_value2}")
-                breakpoint
+                break
+            '''
+            
 
     if should_write:
         data_to_write.append(f"Total costs for each period are: {total_costs}")
@@ -215,6 +253,13 @@ def simulate(real_products, config, beta=None, n_time_periods=None):
         f.close()
 
         print(f"Total average costs for all episodes is: {sum(total_costs) / len(total_costs)}")
+        print(f"Best beta value is {best_beta}")
+
+        if total_costs_best_beta is None:
+            total_costs_best_beta = total_costs
+
+        
+        return total_costs_best_beta, best_beta
 
 
 def perform_warm_up(products, start_date, n_time_periods, config, all_forecasts, all_std_devs):
