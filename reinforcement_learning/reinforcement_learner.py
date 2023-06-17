@@ -53,6 +53,7 @@ if __name__ == "__main__":
     should_analyse = config["main"]["should_analyse"]
     use_stationary_data = False  # config["main"]["stationary_products"]
     generate_new_data = config["main"]["generate_new_data"]
+
     n_products = sum(product_categories.values())
     # retrieve_data.categorize_products("sales_orders.csv", "w", True)
 
@@ -87,7 +88,7 @@ if __name__ == "__main__":
 
     real_products = products
 
-    # plot_sales_quantity(real_products)
+    plot_sales_quantity(real_products)
     # real_products = retrieve_data.read_products_with_hashes("2016-01-10", "2020-12-30", ["569b6782ce5885fc4abf21cfde38f7d7", "92b1f191dfce9fff64b4effd954ccaab", "8ef91aac79542f11dedec4f79265ae3a", "2fa9c91f40d6780fd5b3c219699eb139", "1fb096daa569c811723ce8796722680e", "f7b3622f9eb50cb4eee149127c817c79"])[:4]
     generate_products = generate_products(products=real_products, product_categories=product_categories, n_periods=500, seed=seed)
     # Set up the environment
@@ -100,21 +101,21 @@ if __name__ == "__main__":
     action_shape = env.action_space.n
     #
     method = "ddpg"
-    if method == "ppo":
-        ppo_model = PPO(env, real_products, product_categories)
-        # ppo_model.train_ppo()
-        ppo_model.test(208)
-
-    elif method == "maddpg":
-        agents = []
-        print("state", state_shape)
-        print("action", action_shape)
-        for product in products:
-            agents.append(Agent((state_shape, len(products)), action_shape, 100, env, discount=0.99, tau=0.005))
-        ma = MultiAgent(agents, env, real_products, product_categories)
-        ma.train()
-        ma.test()
+    # if method == "ppo":
+    #     ppo_model = PPO(env, real_products, product_categories)
+    #     # ppo_model.train_ppo()
+    #     ppo_model.test(208)
+    #
+    # elif method == "maddpg":
+    #     agents = []
+    #     print("state", state_shape)
+    #     print("action", action_shape)
+    #     for product in products:
+    #         agents.append(Agent((state_shape, len(products)), action_shape, 100, env, discount=0.99, tau=0.005))
+    #     ma = MultiAgent(agents, env, real_products, product_categories)
+    #     ma.train()
+    #     ma.test()
     if method == "ddpg":
         ddpg = DDPG(real_products, state_shape, env, product_categories)
-        ddpg.train()
+        # ddpg.train()
         ddpg.test()

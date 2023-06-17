@@ -23,6 +23,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         config = config_utils.load_config("config.yml")
         rl_config = config["rl_model"]
         env_config = config["environment"]
+        self.should_reset_time_at_each_episode = env_config["should_reset_at_each_episode"]
         self.verbose = False
         self.products = products
         self.scaled_products = self.products  # self.normalize_demand(products[:])
@@ -58,9 +59,13 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.observation_space = spaces.Box(low=0, high=np.inf, shape=(self.n_periods_historical_data + 1 + self.should_include_individual_forecast + self.should_include_total_forecast, len(products)), dtype=np.float32)
         self.forecast = {}
         self.inventory_levels = [0 for _ in self.products]
+        self.current_period = max(self.rolling_window, self.n_periods_historical_data) + self.time_period
+        self.steps = 0
         self.reset()
 
 
+    def reset_current_period(self):
+        self.current_period = max(self.rolling_window, self.n_periods_historical_data) + self.time_period
 
 
     def increase_time_period(self, increase):
@@ -83,21 +88,24 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.shortage_cost = []
         for product_index in range(len(products)):
             self.shortage_cost.append(self.holding_cost[0] / (1 / 0.95 - 1))
-        print(f" actual minor: {self.minor_setup_cost}")
-        print(f" actual major: {self.major_setup_cost}")
-        print(f" holding costs: {self.holding_cost}")
+
 
     def reset(self, **kwargs):
         # Reset the environment to the initial state. Setting start period so that we can ensure we have all historical data required for the first state
-        self.current_period = max(self.rolling_window, self.n_periods_historical_data) + self.time_period
+        # self.current_period = max(self.rolling_window, self.n_periods_historical_data) + self.time_period
         # self.inventory_levels = [0 for _ in self.products]
-        self.counter = 0
+        if self.should_reset_time_at_each_episode:
+            self.current_period = max(self.rolling_window, self.n_periods_historical_data) + self.time_period
+
+        # self.counter = 0
+        self.steps = 0
         return self._get_observation()
 
     def reset_inventory(self):
         self.inventory_levels = [0 for _ in self.products]
 
     def step(self, action):
+        self.steps += 1
         individual_rewards = []
         count_major_setup_sharing = len([i for i in action if i > 0])
 
@@ -152,7 +160,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
         # Update the current period
         self.current_period += 1
-        done = self.current_period == self.n_periods + max(self.rolling_window, self.n_periods_historical_data) + self.time_period
+        done = self.steps == 52 #self.current_period == self.n_periods + max(self.rolling_window, self.n_periods_historical_data) + self.time_period
         return self._get_observation(), individual_rewards, done, {}
 
     def _get_observation(self):

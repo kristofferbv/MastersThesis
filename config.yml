@@ -40,3 +40,4 @@ environment:
   order_quantity_per_discrete_class: 5
   should_include_individual_forecast: False
   should_include_total_forecast: False
+  should_reset_at_each_episode: False

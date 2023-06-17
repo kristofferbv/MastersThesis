@@ -11,6 +11,8 @@ from keras.layers import Conv1D
 from keras.layers import Layer
 from keras.models import Sequential
 import random
+
+import config_utils
 import generate_data
 
 std_dev = 1
@@ -21,7 +23,7 @@ actor_lr = 0.00001
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
-total_episodes = 300
+total_episodes = 1000
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
@@ -169,6 +171,9 @@ class DDPG():
         self.actor_model = self.get_actor()
         self.critic_model = self.get_critic()
         self.std_dev = std_dev
+
+        config = config_utils.load_config("config.yml")
+        self.should_reset_time_at_each_episode = config["environment"]["should_reset_at_each_episode"]
 
         self.target_actor = self.get_actor()
         self.target_critic = self.get_critic()
@@ -323,8 +328,8 @@ class DDPG():
         )
 
     def train(self, should_plot=True, reward_interval=1):
-        hei = tf.keras.models.load_model("actor_model")
-        hade = tf.keras.models.load_model("actor_model")
+        hei = tf.keras.models.load_model("actor_model_1")
+        hade = tf.keras.models.load_model("actor_model_1")
         self.actor_model = hei
         self.target_actor = hade
 
@@ -336,6 +341,8 @@ class DDPG():
         epsilon = 0.5  # start with full randomness
         epsilon_min = 0.01  # the lowest level of randomness we want
         epsilon_decay = 0.995  # how quickly to decrease randomness
+        generated_products = self.generate_products(5000)
+        self.env.products = generated_products
 
         for ep in range(total_episodes):
             if ep > 20:
@@ -344,12 +351,18 @@ class DDPG():
             if (ep > 380):
                 self.env.set_costs(self.products)
             epsilon = max(epsilon_min, epsilon * epsilon_decay)
-            generated_products = self.generate_products(500)
-
-            self.env.products = generated_products
-            self.env.scaled_products = generated_products
+            if self.should_reset_time_at_each_episode:
+                generated_products = self.generate_products(500)
+                self.env.products = generated_products
+                self.env.scaled_products = generated_products
+            else:
+                if self.env.current_period < 4999:
+                    self.env.reset_current_period()
+                    generated_products = self.generate_products(5000)
+                    self.env.products = generated_products
+                    self.env.scaled_products = generated_products
             prev_state = self.env.reset()
-            self.env.reset_inventory()
+            # self.env.reset_inventory()
             episodic_reward = 0
             prev_state = tf.convert_to_tensor([prev_state])
             prev_state = tf.transpose(prev_state, perm=[0, 2, 1])
@@ -411,6 +424,8 @@ class DDPG():
             print("Episode * {} * Avg Reward is ==> {}".format(ep, avg_reward))
             avg_reward_list.append(avg_reward)
         self.actor_model.save(f'models/actor_model_ep{ep}_saved_model')
+        self.critic_model.save(f'models/critic_model_ep{ep}_saved_model')
+
         if should_plot:
             # Plotting graph
             # Episodes versus Avg. Rewards
@@ -422,16 +437,22 @@ class DDPG():
 
     def test(self, episodes=1, path=None):
         # loading model
-        # actor = self.actor_model
-        actor = tf.keras.models.load_model(f"models/best_one_so_far")
+        # actor = self.actor_model_training
+        actor = tf.keras.models.load_model(f'models/beating_MIP')
+        generated_products = self.generate_products(6000,0)
+        self.env.products = generated_products
+        self.env.scaled_products = generated_products
+
         avg_reward_list = []
         for episode in range(episodes):
             print(f"episode: {episode}")
             self.env.set_costs(self.products)
+            if self.should_reset_time_at_each_episode:
+                generated_products = self.generate_products(500)
+                self.env.products = generated_products
+                self.env.scaled_products = generated_products
 
             episodic_reward = 0
-            generated_products = self.generate_products(500)
-            self.env.products = generated_products
             prev_state = self.env.reset()
             prev_state = tf.transpose(prev_state, perm=[1, 0])
 
