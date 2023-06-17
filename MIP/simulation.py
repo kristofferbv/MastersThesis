@@ -483,6 +483,7 @@ def precalculate_forecasts(date_range, n_time_periods, products, config, n_produ
                     std_devs[product_index] = get_std_dev(prev_std_dev[product_index], forecast_errors[product_index], n_time_periods, alpha=0.1)
             else:
                 raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
+        print(count)
         count += 1
 
         all_forecasts[str(date.date())] = forecasts

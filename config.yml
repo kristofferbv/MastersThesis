@@ -1,5 +1,5 @@
 deterministic_model:
-  product_categories: { "erratic": 0, "smooth": 0, "intermittent": 4, "lumpy": 0}
+  product_categories: { "erratic": 4, "smooth": 0, "intermittent": 0, "lumpy": 0}
   n_time_periods: 13
   joint_setup_cost: 2500
   minor_setup_ratio: 1.2
@@ -30,8 +30,8 @@ simulation:
   forecasting_method: "holt_winter"
   verbose: False
   should_set_holding_cost_dynamically: True
-  n_episodes: 100
-  simulation_length: 52
+  n_episodes: 20
+  simulation_length: 26
   warm_up_length: 52
   should_perform_warm_up: False
   reset_length: 13

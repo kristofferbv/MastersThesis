@@ -86,7 +86,7 @@ if __name__ == '__main__':
                 else:
                     decompose_sales_quantity(product, str(i))
 
-        n_time_periods = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
+        n_time_periods = [0.00, 0.001, 0.002, 0.003, 0.004, 0.005, 0.015, 0.025]
         for i in n_time_periods:
             beta = i
             if generate_new_data:
