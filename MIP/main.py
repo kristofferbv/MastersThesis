@@ -87,7 +87,7 @@ if __name__ == '__main__':
                     decompose_sales_quantity(product, str(i))
 
 
-        beta_values = [1, 0.995, 0.99, 0.985, 0.98,0.975, 0.97,0.965, 0.96, 0.955, 0.95, 0.9, 0.85, 0.8]
+        beta_values = [1, 0.995, 0.99, 0.985, 0.98, 0.975, 0.97, 0.965, 0.96]
         
 
         best_beta = beta_values[0]
