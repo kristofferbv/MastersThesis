@@ -105,7 +105,7 @@ model = XGBRegressor(n_estimators=500, max_depth=10, learning_rate=0.0001, objec
 #
 # # # Train the model
 # model.fit(states, targets, epochs=1000, validation_split=0.2)
-# Define the base models
+# Define the base models_ep_2
 level0 = list()
 level0.append(('xgb', XGBRegressor()))
 level0.append(('lgbm', LGBMRegressor()))

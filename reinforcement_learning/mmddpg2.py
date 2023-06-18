@@ -198,7 +198,7 @@ class Agent:
         actor_grads, _ = tf.clip_by_global_norm(actor_grads, 0.1)  # Apply gradient clipping
         self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
 
-        # Update the frozen target models
+        # Update the frozen target models_ep_2
         self.update_target_networks()
 
     @tf.function
@@ -335,7 +335,7 @@ class MultiAgent:
 
 
     def signal_handler(self, sig, frame):
-        print('Training interrupted. Saving models...')
+        print('Training interrupted. Saving models_ep_2...')
         self.save_models()
         sys.exit(0)
 
@@ -415,11 +415,11 @@ class MultiAgent:
         self.actors = []
         # Load the actor networks
         for i, agent in enumerate(self.agents):
-            loaded_model = load_model(os.path.join('models', f'actor_model_{i}'))
+            loaded_model = load_model(os.path.join('models_ep_2', f'actor_model_{i}'))
             agent.actor = loaded_model
-            # agent.actor_target(self.load_models(os.path.join('models', f'actor_target_model_{i}.h5')))
-            # agent.critic(self.load_models(os.path.join('models', f'critic_model_{i}.h5')))
-            # agent.critic_target(self.load_models(os.path.join('models', f'critic_target_model_{i}.h5')))
+            # agent.actor_target(self.load_models(os.path.join('models_ep_2', f'actor_target_model_{i}.h5')))
+            # agent.critic(self.load_models(os.path.join('models_ep_2', f'critic_model_{i}.h5')))
+            # agent.critic_target(self.load_models(os.path.join('models_ep_2', f'critic_target_model_{i}.h5')))
 
 
         done = False
@@ -457,9 +457,9 @@ class MultiAgent:
 
 
     def save_models(self):
-        save_dir = 'models'
+        save_dir = 'models_ep_2'
         os.makedirs(save_dir, exist_ok=True)
-        print('Saving models...')
+        print('Saving models_ep_2...')
         for i, agent in enumerate(self.agents):
             agent.actor.save(os.path.join(save_dir, f'actor_model_{i}'), save_format='tf')
 

@@ -121,7 +121,7 @@ class Agent:
         # actor_grads, _ = tf.clip_by_global_norm(actor_grads, 5)  # Apply gradient clipping
         self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
 
-        # Update the frozen target models
+        # Update the frozen target models_ep_2
         self.update_target_networks()
 
     @tf.function
@@ -260,14 +260,14 @@ class MultiAgent:
                 print(f"Episode {episode + 1}: Total Reward = {total_reward}")
 
     def save_models(self):
-        print('... saving models ...')
+        print('... saving models_ep_2 ...')
         self.actor.save_weights('actor.h5')
         self.actor_target.save_weights('target_actor.h5')
         self.critic.save_weights('critic.h5')
         self.critic_target.save_weights('target_critic.h5')
 
     def load_models(self):
-        print('... loading models ...')
+        print('... loading models_ep_2 ...')
         self.actor.load_weights('actor.h5')
         self.actor_target.load_weights('target_actor.h5')
         self.critic.load_weights('critic.h5')
