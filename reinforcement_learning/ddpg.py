@@ -12,8 +12,14 @@ from keras.layers import Layer
 from keras.models import Sequential
 import random
 
+from scipy import stats
+
 import config_utils
 import generate_data
+import matplotlib as mpl
+
+import matplotlib.font_manager
+plt.rcParams["font.family"] = "CMU Concrete"
 
 std_dev = 1
 # Learning rate for actor-critic models
@@ -260,18 +266,23 @@ class DDPG():
         sys.exit(0)
 
     def plot_rewards(self):
-        plt.plot(self.avg_reward_list)
-        plt.xlabel('Epoch')
-        plt.ylabel('Reward')
+        # You need to have the CMU Concrete font installed on your system for this to work
+        mpl.rc('font', family='CMU Concrete')
+
+        plt.plot(np.abs(self.avg_reward_list))
+        plt.xlabel('Episodes')
+        plt.ylabel('Costs (NOK)')
         plt.title('Costs as a function of epochs')
+
+        plt.savefig('plot.png', dpi=300)
         plt.show()
 
     def save_models(self):
         save_dir = 'models'
         os.makedirs(save_dir, exist_ok=True)
         print('Saving models...')
-        self.actor_model.save(f'models/actor_model_1')
-        self.critic_model.save(f'models/critic_model_1')
+        self.actor_model.save(f'models/actor_model_2')
+        self.critic_model.save(f'models/critic_model_2')
 
     def learn(self):
         # Get sampling range
@@ -435,13 +446,14 @@ class DDPG():
             plt.show()
         self.test(episodes=1)
 
-    def test(self, episodes=1, path=None):
+    def test(self, episodes=1000, path=None):
         # loading model
         # actor = self.actor_model_training
         actor = tf.keras.models.load_model(f'models/beating_MIP')
         generated_products = self.generate_products(6000,0)
         self.env.products = generated_products
         self.env.scaled_products = generated_products
+        achieved_service_level = {}
 
         avg_reward_list = []
         for episode in range(episodes):
@@ -451,7 +463,11 @@ class DDPG():
                 generated_products = self.generate_products(500)
                 self.env.products = generated_products
                 self.env.scaled_products = generated_products
-
+            elif self.env.current_period < 4999:
+                self.env.reset_current_period()
+                generated_products = self.generate_products(5000)
+                self.env.products = generated_products
+                self.env.scaled_products = generated_products
             episodic_reward = 0
             prev_state = self.env.reset()
             prev_state = tf.transpose(prev_state, perm=[1, 0])
@@ -465,10 +481,14 @@ class DDPG():
                 action = tf.squeeze(actor(tf_prev_state, training=False)).numpy()
                 # action = [random.randint(0,80) for i in range(2)]
                 for i in range(len(action)):
-                    if action[i] < 1:
+                    if action[i] < 10:
                         action[i] = 0
-                print(action)
+                # print(action)
                 state, reward, done, info = self.env.step(action)
+                for i in range(len(self.products)):
+                    if i not in achieved_service_level.keys():
+                        achieved_service_level[i] = []
+                    achieved_service_level[i].append(self.env.achieved_service_level[i])
                 total_reward = sum(reward)
                 episodic_reward += total_reward
 
@@ -479,10 +499,17 @@ class DDPG():
                 prev_state = state
                 prev_state = tf.transpose(prev_state, perm=[1, 0])
                 # prev_state = tf.reshape(prev_state, [13, 8])
+            if episodes!=0:
+                avg_reward_list.append(episodic_reward)
+        se = stats.sem(avg_reward_list)
+        confidence = 0.95
+        ci = se * stats.t.ppf((1 + confidence) / 2., len(avg_reward_list) - 1)
 
-            avg_reward_list.append(episodic_reward)
             # Mean of last 40 episodes
-        print("Avg Reward is ==> {}".format(sum(avg_reward_list) / len(avg_reward_list)))
+        print("Avg Reward is ==> {}".format(sum(avg_reward_list) / len(avg_reward_list)) + " with a 95 % confidence interval of +/- " + str(ci))
+        for i in range(len(self.products)):
+            print("achieved service level: " + str(np.mean(achieved_service_level[i])))
+
 
     def generate_products(self, n_periods, seed=None):
         first_index = 0

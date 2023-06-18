@@ -12,7 +12,7 @@ from sklearn.preprocessing import OneHotEncoder
 import deterministic_model as det_mod
 import generate_data
 from MIP.analysis.analyse_data import plot_sales_quantity
-from MIP.forecasting import holt_winters_method
+from MIP.forecasting_methods import holt_winters_method
 from MIP.standard_deviation import get_initial_std_dev, get_std_dev
 from config_utils import load_config
 

@@ -5,7 +5,7 @@ import os
 import sys
 import deterministic_model as det_mod
 from MIP.analysis.analyse_data import plot_sales_quantity
-from MIP.forecasting import holt_winters_method
+from MIP.forecasting_methods import holt_winters_method
 from config_utils import load_config
 from generate_data import generate_seasonal_data_for_erratic_demand
 

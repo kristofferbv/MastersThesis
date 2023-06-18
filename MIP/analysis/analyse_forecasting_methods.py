@@ -3,11 +3,13 @@ import os
 import sys
 
 from MIP.analysis.analyse_data import plot_sales_quantity
-from MIP.forecasting import sarima, holt_winters_method, crostons_method, recurrent_neural_network, benchmark_avg
+from MIP.forecasting_methods import sarima, holt_winters_method, crostons_method, recurrent_neural_network, benchmark_avg
 
 import retrieve_data
 from config_utils import load_config
 from generate_data import *
+from scipy import stats
+
 
 # Get the directory of the current script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -68,20 +70,20 @@ if __name__ == '__main__':
                     print(f"Average MSE holt_winter = {sum(h_mses) / len(h_mses)}")
                     print(f"Std dev MSE holt_winter = {np.std(h_mses)}")
                     print(f"Average MAE holt_winter = {sum(h_maes) / len(h_maes)}")
-                    # c_mae, c_mse, c_rmse = crostons_method.forecast_analysis(product, start_date, verbose=False, n_time_periods=26, shouldShowPlot=False)
-                    # c_mses.append(c_mse)
-                    # c_maes.append(c_mae)
-                    # c_rmses.append(c_rmse)
+                    c_mae, c_mse, c_rmse = crostons_method.forecast_analysis(product, start_date, verbose=False, n_time_periods=26, shouldShowPlot=False)
+                    c_mses.append(c_mse)
+                    c_maes.append(c_mae)
+                    c_rmses.append(c_rmse)
 
                     r = recurrent_neural_network.forecast(product,start_date, n_time_periods=26)
-                    # s_mae, s_mse, s_rmse = sarima.forecast_analyse(product, start_date, n_time_periods=26)
-                    # s_mses.append(s_mse)
-                    # s_maes.append(s_mae)
-                    # s_rmses.append(s_rmse)
-                    # b_mae, b_mse, b_rmse = benchmark_avg.forecast_analysis(product, start_date, n_time_periods=26)
-                    # b_mses.append(b_mse)
-                    # b_maes.append(b_mae)
-                    # b_rmses.append(b_rmse)
+                    s_mae, s_mse, s_rmse = sarima.forecast_analyse(product, start_date, n_time_periods=26)
+                    s_mses.append(s_mse)
+                    s_maes.append(s_mae)
+                    s_rmses.append(s_rmse)
+                    b_mae, b_mse, b_rmse = benchmark_avg.forecast_analysis(product, start_date, n_time_periods=26)
+                    b_mses.append(b_mse)
+                    b_maes.append(b_mae)
+                    b_rmses.append(b_rmse)
 
         # print()
         # print("***************************************")

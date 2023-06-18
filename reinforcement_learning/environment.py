@@ -9,7 +9,7 @@ from gym import spaces
 from sklearn.preprocessing import StandardScaler
 
 import config_utils
-from MIP.forecasting import holt_winters_method
+from MIP.forecasting_methods import holt_winters_method
 
 
 class JointReplenishmentEnv(gym.Env, ABC):
@@ -62,6 +62,8 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.current_period = max(self.rolling_window, self.n_periods_historical_data) + self.time_period
         self.steps = 0
         self.reset()
+        self.fulfilled_demand = {}
+        self.achieved_service_level = {}
 
 
     def reset_current_period(self):
@@ -87,7 +89,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # Calculate shortage costs
         self.shortage_cost = []
         for product_index in range(len(products)):
-            self.shortage_cost.append(self.holding_cost[0] / (1 / 0.95 - 1))
+            self.shortage_cost.append(self.holding_cost[product_index] / (1 / 0.95 - 1))
 
 
     def reset(self, **kwargs):
@@ -115,6 +117,10 @@ class JointReplenishmentEnv(gym.Env, ABC):
         holding_costs = []
         shortage_costs = []
         rewards = []
+        self.fulfilled_demand = {}
+        self.achieved_service_level = {}
+
+
 
         for i, product in enumerate(self.products):
             # self.verbose = True
@@ -134,7 +140,14 @@ class JointReplenishmentEnv(gym.Env, ABC):
             except:
                 print(self.current_period)
             shortage_cost = abs(min((self.inventory_levels[i] - demand), 0)) * self.shortage_cost[i]
+            self.fulfilled_demand[i] = min(self.inventory_levels[i], demand)
+            if demand != 0:
+                self.achieved_service_level[i] = self.fulfilled_demand[i] / demand
+            else:
+                self.achieved_service_level[i] = 1
+
             self.inventory_levels[i] = max(self.inventory_levels[i] - demand, 0)
+
             holding_cost = self.inventory_levels[i] * self.holding_cost[i]
             # Calculate the total cost
             total_cost = minor_cost + major_cost + shortage_cost + holding_cost
