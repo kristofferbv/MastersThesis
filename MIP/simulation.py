@@ -190,17 +190,16 @@ def simulate(real_products, config, beta=None, n_time_periods=None, total_costs_
                 print(f"Beta value {best_beta} is significantly better than beta value {beta}")
                 data_to_write.append(f"Beta value {best_beta} is significantly better than beta value {beta}")
                 break
-            elif ci_high < 0:
-                print(f"Beta value {beta} is significantly better than beta value {best_beta}")
-                data_to_write.append(f"Beta value {beta} is significantly better than beta value {best_beta}")
-                best_beta = beta
-                total_costs_best_beta = total_costs
-                break
             elif episode == n_episodes-1:
                 mean_beta = np.mean(total_costs)
                 mean_best_beta = np.mean(total_costs_best_beta)
+                if ci_high < 0:
+                    print(f"Beta value {beta} is significantly better than beta value {best_beta}")
+                    data_to_write.append(f"Beta value {beta} is significantly better than beta value {best_beta}")
+                    best_beta = beta
+                    total_costs_best_beta = total_costs
 
-                if mean_beta < mean_best_beta:
+                elif mean_beta < mean_best_beta:
                     best_beta = beta
                     total_costs_best_beta = total_costs
                     print(f"No beta value is significantly better than the other, but Beta value {beta} has a lower mean value {best_beta}")
