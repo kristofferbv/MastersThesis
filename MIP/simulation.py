@@ -98,12 +98,14 @@ def simulate(real_products, config, beta=None, n_time_periods=None, total_costs_
 
 
     if check_if_os_path_exists(n_products, n_erratic, n_smooth, n_intermittent, n_lumpy, seed):
-        with open(f'forecasts/forecast_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'rb') as f:
+        with open(f'forecast_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'rb') as f:
             all_forecasts = pickle.load(f)
-        with open(f'std_devs/std_devs_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'rb') as f:
+        with open(f'models_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'rb') as f:
+            all_models = pickle.load(f)
+        with open(f'std_devs_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'rb') as f:
             all_std_devs = pickle.load(f)
     else:
-        all_forecasts, all_models, all_std_devs = precalculate_forecasts(date_range, n_time_periods, generated_products, config, n_products, n_erratic, n_smooth, n_intermittent, n_lumpy, seed, generation_length)
+        all_forecasts, all_models, all_std_devs = precalculate_forecasts(date_range, n_time_periods, generated_products, config, n_products, n_erratic, n_smooth, n_intermittent, n_lumpy, seed)
 
     models = {}
     if should_perform_warm_up and warm_up_length > 0:
@@ -315,8 +317,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
 
     for time_step in range(episode_length):
         print(f"Time step {time_step}/{episode_length}")
-        if time_step != 0:
-            start_date = start_date + timedelta(days=7)
+        start_date = start_date + timedelta(days=7)
 
         period_costs = 0
         major_setup_added = False
@@ -331,6 +332,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
                 else:
                     demand = products[product_index].loc[start_date]
                 forecast_errors[product_index] = abs(demand - prev_forecast[product_index])
+
                 actual_demands[time_step][product_index] = demand
 
                 # used to calculate the service level
@@ -359,10 +361,40 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
                 previous_il = inventory_levels[product_index]
                 inventory_levels[product_index] = max(0, previous_il + actions[time_step - 1][product_index] - demand)
 
-            dict_demands[product_index] = forecasts[product_index]
-            dict_sds[product_index] = std_devs[product_index]
-            prev_std_dev[product_index] = dict_sds[product_index][1]
-            prev_forecast[product_index] = dict_demands[product_index][1]
+            if forecasting_method == "holt_winter":
+                if time_step == 0:
+
+                    dict_demands[product_index], train = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
+                    dict_sds[product_index] = get_initial_std_dev(train, n_time_periods)
+
+                    # storing std dev and forecast to use for updating the std deviation of errors in the forecast
+                    prev_std_dev[product_index] = dict_sds[product_index][1]
+                    prev_forecast[product_index] = dict_demands[product_index][1]
+                else:
+                    dict_sds[product_index] = get_std_dev(prev_std_dev[product_index], forecast_errors[product_index], n_time_periods, alpha=0.1)
+                    dict_demands[product_index], _ = holt_winters_method.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
+
+                    # storing std dev and forecast to use for updating the std deviation of errors in the forecast
+                    prev_std_dev[product_index] = dict_sds[product_index][1]
+                    prev_forecast[product_index] = dict_demands[product_index][1]
+
+            elif forecasting_method == "sarima":
+                if time_step == 0:
+                    # fitting the model
+                    dict_demands[product_index], models[product_index], train = sarima.forecast(products[product_index], start_date, n_time_periods=n_time_periods)
+                    dict_sds[product_index] = get_initial_std_dev(train, n_time_periods)
+                    # storing std dev and forecast to use for updating the std deviation of errors in the forecast
+                    prev_std_dev[product_index] = dict_sds[product_index][1]
+                    prev_forecast[product_index] = dict_demands[product_index][1]
+                else:
+                    dict_sds[product_index] = get_std_dev(prev_std_dev[product_index], forecast_errors[product_index], n_time_periods, alpha=0.1)
+                    dict_demands[product_index], _, _ = sarima.forecast(products[product_index], start_date, model=models[product_index], n_time_periods=n_time_periods)
+                    # storing std dev and forecast to use for updating the std deviation of errors in the forecast
+                    prev_std_dev[product_index] = dict_sds[product_index][1]
+                    prev_forecast[product_index] = dict_demands[product_index][1]
+
+            else:
+                raise ValueError(f"Forecasting method must be either 'sarima' or 'holt_winter', but is: {forecasting_method}")
 
         total_costs += period_costs
         if verbose:
@@ -491,7 +523,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
     return total_costs, inventory_levels, start_date, actions, orders, models, avg_run_time_time_step, std_run_time, service_levels, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimaliy_gap, std_optimality_gap
 
 
-def precalculate_forecasts(date_range, n_time_periods, products, config, n_products, n_erratic, n_smooth, n_intermittent, n_lumpy, seed, generation_length):
+def precalculate_forecasts(date_range, n_time_periods, products, config, n_products, n_erratic, n_smooth, n_intermittent, n_lumpy, seed):
     forecasting_method = config["simulation"]["forecasting_method"]
     all_forecasts = {}
     all_models = {}
@@ -504,7 +536,6 @@ def precalculate_forecasts(date_range, n_time_periods, products, config, n_produ
         models = {}
         std_devs = {}
         forecast_errors = {}
-        print(f"count: {count}/{generation_length}")
 
         for product_index, product in enumerate(products):
 
@@ -542,16 +573,19 @@ def precalculate_forecasts(date_range, n_time_periods, products, config, n_produ
         all_models[str(date.date())] = models
         all_std_devs[str(date.date())] = std_devs
 
-    with open(f'forecasts/forecast_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'wb') as f:
+    with open(f'forecast_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'wb') as f:
         pickle.dump(all_forecasts, f)
-    with open(f'std_devs/std_devs_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'wb') as f:
+    with open(f'models_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'wb') as f:
+        pickle.dump(all_models, f)
+    with open(f'std_devs_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'wb') as f:
         pickle.dump(all_std_devs, f)
 
     return all_forecasts, all_models, all_std_devs
 
 
 def check_if_os_path_exists(n_products, n_erratic, n_smooth, n_intermittent, n_lumpy, seed):
-    if os.path.exists(f'forecasts/forecast_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl') and \
-            os.path.exists(f'std_devs/std_devs_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl'):
+    if os.path.exists(f'forecast_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl') and \
+            os.path.exists(f'models_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl') and \
+            os.path.exists(f'std_devs_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl'):
         return True
     return False
