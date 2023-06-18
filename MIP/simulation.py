@@ -471,3 +471,5 @@ def check_if_os_path_exists(n_products, n_erratic, n_smooth, n_intermittent, n_l
             os.path.exists(f'std_devs/std_devs_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl'):
         return True
     return False
+
+#heisann
