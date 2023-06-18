@@ -11,7 +11,7 @@ from scipy import stats
 
 import deterministic_model as det_mod
 from MIP.analysis.analyse_data import plot_sales_quantity
-from MIP.forecasting import holt_winters_method, sarima
+from MIP.forecasting_methods import holt_winters_method, sarima
 from MIP.standard_deviation import get_initial_std_dev, get_std_dev
 from config_utils import load_config
 import generate_data
