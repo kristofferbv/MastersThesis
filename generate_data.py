@@ -47,6 +47,7 @@ def plot_data(df):
     plt.legend()
     plt.show()
 
+
 def generate_seasonal_data_for_smooth_demand(products, num_periods, seed=None, period=52):
     products_list = []
     if seed is not None:
@@ -85,7 +86,6 @@ def generate_seasonal_data_for_smooth_demand(products, num_periods, seed=None, p
         products_list.append(product)
 
     return products_list
-
 
 
 def generate_seasonal_data_for_erratic_demand(products, num_periods, seed=None, period=52):
@@ -132,7 +132,8 @@ def generate_seasonal_data_for_erratic_demand(products, num_periods, seed=None, 
 
     return products_list
 
-def generate_seasonal_data_for_intermittent_demand(products, num_periods, p_demand = 0.5, seed = None):
+
+def generate_seasonal_data_for_intermittent_demand(products, num_periods, p_demand=0.5, seed=None):
     products_list = []
     if seed is not None:
         np.random.seed(seed)
@@ -142,7 +143,7 @@ def generate_seasonal_data_for_intermittent_demand(products, num_periods, p_dema
         # Decompose the series to get the seasonal and trend component
         res = sm.tsa.seasonal_decompose(product["sales_quantity"], model='additive', period=52)
         num_repetitions = int(np.ceil(num_periods / len(product["sales_quantity"])))
-        p_demand = np.mean(product["sales_quantity"]>0)
+        p_demand = np.mean(product["sales_quantity"] > 0)
 
         # Fill NaN values in the trend and seasonal components
         trend_filled = res.trend.fillna(method='ffill').fillna(method='bfill')
@@ -168,7 +169,6 @@ def generate_seasonal_data_for_intermittent_demand(products, num_periods, p_dema
         data += np.where(demand_occurrences == 1, noise.ravel(), 0)
         data = np.round(data).astype(int)
 
-
         new_index = pd.date_range(product["sales_quantity"].index[0], periods=num_periods, freq='W')
         product = product.reindex(new_index)
 
@@ -179,8 +179,7 @@ def generate_seasonal_data_for_intermittent_demand(products, num_periods, p_dema
     return products_list
 
 
-
-def generate_seasonal_data_for_intermittent_demand(products, num_periods, p_demand = 0.5, seed = None):
+def generate_seasonal_data_for_intermittent_demand(products, num_periods, p_demand=0.5, seed=None):
     products_list = []
     if seed is not None:
         np.random.seed(seed)
@@ -190,7 +189,7 @@ def generate_seasonal_data_for_intermittent_demand(products, num_periods, p_dema
         # Decompose the series to get the seasonal and trend component
         res = sm.tsa.seasonal_decompose(product["sales_quantity"], model='additive', period=52)
         num_repetitions = int(np.ceil(num_periods / len(product["sales_quantity"])))
-        p_demand = np.mean(product["sales_quantity"]>0)
+        p_demand = np.mean(product["sales_quantity"] > 0)
 
         # Fill NaN values in the trend and seasonal components
         trend_filled = res.trend.fillna(method='ffill').fillna(method='bfill')
@@ -221,7 +220,6 @@ def generate_seasonal_data_for_intermittent_demand(products, num_periods, p_dema
         # Combine demand occurrences and sizes to generate demand data
         data += np.where(demand_occurrences == 1, noise.ravel(), 0)
         data = np.round(data).astype(int)
-
 
         new_index = pd.date_range(product["sales_quantity"].index[0], periods=num_periods, freq='W')
         product = product.reindex(new_index)

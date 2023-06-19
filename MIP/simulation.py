@@ -65,7 +65,7 @@ def simulate(real_products, config, beta=None, n_time_periods=None, total_costs_
         number_of_products = product_categories[category]
         current_index += number_of_products
         if category == "erratic":
-            generated_products += generate_data.generate_seasonal_data_for_erratic_demand(real_products[last_index:current_index], generation_length, seed)
+            generated_products += generate_data.generate_seasonal_data_for_erratic_demand(real_products[last_index:current_index], generation_length, seed=seed)
         elif category == "smooth":
             generated_products += generate_data.generate_seasonal_data_for_smooth_demand(real_products[last_index:current_index], generation_length, seed)
 
@@ -281,6 +281,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
     minor_setup_ratio = config["deterministic_model"]["minor_setup_ratio"]
     if beta is None:
         beta = config["deterministic_model"]["beta"]
+    print("beta: ", beta)
 
     forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
     verbose = config["simulation"]["verbose"]  # number of time periods
@@ -358,10 +359,15 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
                 previous_il = inventory_levels[product_index]
                 inventory_levels[product_index] = max(0, previous_il + actions[time_step - 1][product_index] - demand)
 
-            dict_demands[product_index] = forecasts[product_index]
+
             dict_sds[product_index] = std_devs[product_index]
+            dict_demands[product_index] = forecasts[product_index]
+
+            # storing std dev and forecast to use for updating the std deviation of errors in the forecast
             prev_std_dev[product_index] = dict_sds[product_index][1]
             prev_forecast[product_index] = dict_demands[product_index][1]
+
+
 
         total_costs += period_costs
         if verbose:
