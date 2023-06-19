@@ -103,6 +103,40 @@ def categorize_products(file_name, time_interval, should_write_to_file):
             erratic_demand.to_csv("data/erratic_weeks.csv")
     return intermittent_demand, lumpy_demand, smooth_demand, erratic_demand
 
+def read_products_with_hashes_2(start_date, end_date, product_hashes, category = "erratic", frequency = "weeks"):
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # construct the path to the file
+    file_path = os.path.join(current_dir, f"data/{category}_{frequency}.csv")
+    df = pd.read_csv(file_path)
+    df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])
+    # Filter out the weeks outside the specified date range
+    df = df[(df['requested_delivery_date'] >= start_date) & (df['requested_delivery_date'] <= end_date)]
+    # Filter the DataFrame using the provided product_hashes
+    df = df[df["product_hash"].isin(product_hashes)]
+
+    # Group by product_hash and requested_delivery_date (week) and sum the sales_quantity
+    df = df.groupby(["product_hash", pd.Grouper(key="requested_delivery_date", freq="w")]).agg({"sales_quantity": "sum", "unit_price": "mean"})
+    # Calculate the average unit_price for each product_hash
+    df['average_unit_price'] = df.groupby('product_hash')['unit_price'].transform('mean')
+
+    # If you want to keep only the new average_unit_price column and drop the original unit_price column
+    df = df.drop(columns=['unit_price'])
+
+    df = df.reset_index()
+
+
+    products = []
+    for product_hash in product_hashes:
+        product_df = df.loc[df['product_hash'] == product_hash]
+        product_df = product_df.set_index("requested_delivery_date")
+        # Resample with weekly frequency and fill missing weeks with 0
+        product_df = product_df.resample("W").asfreq(fill_value=0)
+
+        products.append(product_df)
+
+    return products
 
 
 
@@ -111,7 +145,7 @@ def read_products_with_hashes(start_date, end_date, product_hashes):
     end_date = pd.to_datetime(end_date)
     current_dir = os.path.dirname(os.path.abspath(__file__))
     # construct the path to the file
-    file_path = os.path.join(current_dir, "data/erratic_weeks.csv")
+    file_path = os.path.join(current_dir, f"data/erratic_weeks.csv")
     df = pd.read_csv(file_path, index_col=0)
     df['requested_delivery_date'] = pd.to_datetime(df['requested_delivery_date'])
 
@@ -133,10 +167,10 @@ def read_products_with_hashes(start_date, end_date, product_hashes):
 
     products = []
     for product_hash in product_hashes:
-        product_df = df.loc[df['product_hash'] == product_hash]
-        product_df = product_df.set_index("requested_delivery_date")
+        product_df = df[df['product_hash'] == product_hash].set_index('requested_delivery_date')
         # Resample with weekly frequency and fill missing weeks with 0
         product_df = product_df.resample("W").asfreq(fill_value=0)
+        products.append(product_df)
 
         products.append(product_df)
 
