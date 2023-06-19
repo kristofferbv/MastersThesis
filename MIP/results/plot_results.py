@@ -8,7 +8,7 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 
-folders = ["constant-beta0-0-0-4-seed2", "constant-beta0-0-4-0-seed2", "constant-beta0-4-0-0-seed0", "constant-beta4-0-0-0-seed2"]  # the list of folders
+folders = ["con-beta0-0-0-4-seed0", "con-beta0-0-0-4-seed2", "con-beta0-0-4-0-seed2", "con-beta0-0-4-0-seed0", "con-beta0-4-0-0-seed0", "con-beta0-4-0-0-seed2", "con-beta4-0-0-0-seed0", "con-beta4-0-0-0-seed2"]  # the list of folders
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -17,7 +17,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 for folder in folders:
     # extract the product types from the folder name
     numbers_part, seed_part = folder.split('-seed')
-    erratic, smooth, intermittent, lumpy = map(int, numbers_part.split('constant-beta')[1].split('-'))
+    erratic, smooth, intermittent, lumpy = map(int, numbers_part.split('con-beta')[1].split('-'))
 
     folder_path = os.path.join(os.path.dirname(__file__), folder)
     
