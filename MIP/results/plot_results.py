@@ -8,7 +8,7 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 
-folders = ["lin-beta0-0-0-4-seed2", "lin-beta0-0-4-0-seed2", "lin-beta0-4-0-0-seed2", "lin-beta4-0-0-0-seed2"]  # the list of folders
+folders = ["lin-beta0-0-0-4-seed2", "lin-beta0-0-0-4-seed0", "lin-beta0-0-4-0-seed2","lin-beta0-0-4-0-seed0", "lin-beta0-4-0-0-seed2", "lin-beta0-4-0-0-seed0", "lin-beta4-0-0-0-seed2", "lin-beta4-0-0-0-seed0"]  # the list of folders
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
