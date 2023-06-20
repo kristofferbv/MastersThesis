@@ -107,7 +107,7 @@ if __name__ == "__main__":
     #     ppo_model.test(208)
     #
     # elif method == "maddpg":
-    #     agents = []
+    #     agents =
     #     print("state", state_shape)
     #     print("action", action_shape)
     #     for product in products:
@@ -117,5 +117,5 @@ if __name__ == "__main__":
     #     ma.test()
     if method == "ddpg":
         ddpg = DDPG(real_products, state_shape, env, product_categories)
-        # ddpg.train()
+        ddpg.train()
         ddpg.test()

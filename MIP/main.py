@@ -2,6 +2,9 @@ import random
 import os
 import sys
 import warnings
+
+from MIP import simulate_states
+
 warnings.filterwarnings("ignore")
 # Get the path of the current script
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -56,7 +59,7 @@ if __name__ == '__main__':
 
         for category in product_categories.keys():
             category_products = retrieve_data.read_products("2017-01-01", "2020-12-30", category)
-            category_products = [product for product in category_products if product["sales_quantity"].max() <= 150]
+            category_products = [product for product in category_products if product["sales_quantity"].mean() <= 150]
             category_products.sort(key=lambda product: product["sales_quantity"].mean())
 
             number_of_products = product_categories[category]
@@ -88,7 +91,9 @@ if __name__ == '__main__':
         if generate_new_data:
             #print("Products")
             #print(len(products))
-            simulation.simulate(products, config)
+            # simulation.simulate(products, config)
+            simulate_states.simulate(products)
+
         else:
             start_date = products[0].index[104]
             simulation_length = config["simulation"]["simulation_length"]

@@ -23,17 +23,17 @@ plt.rcParams["font.family"] = "CMU Concrete"
 
 std_dev = 1
 # Learning rate for actor-critic models
-critic_lr = 0.003
-actor_lr = 0.00001
+critic_lr = 0.001
+actor_lr = 0.0001
 
-critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
-actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
+critic_optimizer = tf.keras.optimizers.Adam(critic_lr, clipvalue=0.5)
+actor_optimizer = tf.keras.optimizers.Adam(actor_lr, clipvalue=0.5)
 
 total_episodes = 1000
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
-tau = 0.0005
+tau = 0.001
 
 # To store reward history of each episode
 ep_reward_list = []
@@ -221,18 +221,18 @@ class DDPG():
     def get_critic(self):
         # State as input
         state_input = layers.Input(shape=self.state_shape)
-        state_out = layers.Dense(32, activation="relu")(state_input)
+        state_out = layers.Dense(64, activation="relu")(state_input)
         state_out = layers.Flatten()(state_out)
         # Action as input
         action_input = layers.Input(shape=(len(self.products), 1))
-        action_out = layers.Dense(32, activation="relu")(action_input)
+        action_out = layers.Dense(64, activation="relu")(action_input)
         action_out = layers.Flatten()(action_out)
 
         # Both are passed through seperate layer before concatenating
         concat = layers.Concatenate()([state_out, action_out])
 
-        out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(concat)
-        out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(out)
+        out = layers.Dense(64, activation="relu", kernel_initializer="lecun_normal")(concat)
+        out = layers.Dense(64, activation="relu", kernel_initializer="lecun_normal")(out)
 
         out = layers.Flatten()(out)
         outputs = layers.Dense(1)(out)
@@ -274,15 +274,15 @@ class DDPG():
         plt.ylabel('Costs (NOK)')
         plt.title('Costs as a function of epochs')
 
-        plt.savefig('plot.png', dpi=300)
+        plt.savefig('best_agent_er2.png', dpi=300)
         plt.show()
 
     def save_models(self):
         save_dir = 'models'
         os.makedirs(save_dir, exist_ok=True)
         print('Saving models...')
-        self.actor_model.save(f'models/actor_model_2')
-        self.critic_model.save(f'models/critic_model_2')
+        self.actor_model.save(f'models_ep_4/actor_model_2')
+        self.critic_model.save(f'models_ep_4/critic_model_2')
 
     def learn(self):
         # Get sampling range
@@ -322,7 +322,7 @@ class DDPG():
             critic_loss = tf.math.reduce_mean(tf.abs(y - critic_value))
 
         critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
-        critic_grad, _ = tf.clip_by_global_norm(critic_grad, 1)
+        # critic_grad, _ = tf.clip_by_global_norm(critic_grad, 1)
         critic_optimizer.apply_gradients(
             zip(critic_grad, self.critic_model.trainable_variables)
         )
@@ -333,14 +333,14 @@ class DDPG():
             # by the critic for our actions
             actor_loss = -tf.math.reduce_mean(critic_value)
         actor_grad = tape.gradient(actor_loss, self.actor_model.trainable_variables)
-        actor_grad, _ = tf.clip_by_global_norm(actor_grad, 0.01)  # Apply gradient clipping
+        # actor_grad, _ = tf.clip_by_global_norm(actor_grad, 0.01)  # Apply gradient clipping
         actor_optimizer.apply_gradients(
             zip(actor_grad, self.actor_model.trainable_variables)
         )
 
     def train(self, should_plot=True, reward_interval=1):
-        hei = tf.keras.models.load_model("actor_model_1")
-        hade = tf.keras.models.load_model("actor_model_1")
+        hei = tf.keras.models.load_model("models_ep_4/actor_model")
+        hade = tf.keras.models.load_model("models_ep_4/actor_model")
         self.actor_model = hei
         self.target_actor = hade
 
@@ -446,10 +446,10 @@ class DDPG():
             plt.show()
         self.test(episodes=1)
 
-    def test(self, episodes=1000, path=None):
+    def test(self, episodes=10, path=None):
         # loading model
         # actor = self.actor_model_training
-        actor = tf.keras.models.load_model(f'models/beating_MIP')
+        actor = tf.keras.models.load_model(f'models_ep_4/actor_model_23')
         generated_products = self.generate_products(6000,0)
         self.env.products = generated_products
         self.env.scaled_products = generated_products
