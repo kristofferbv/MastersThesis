@@ -25,7 +25,7 @@ simulation:
   verbose: False
   should_set_holding_cost_dynamically: True
   n_episodes: 2
-  simulation_length: 900
+  simulation_length: 52
   warm_up_length: 10
   should_perform_warm_up: False
   reset_length: 0

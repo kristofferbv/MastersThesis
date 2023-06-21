@@ -12,8 +12,8 @@ List of mean costs for each period: [109542.16907299815, 103519.73871881358]
 List of standard deviation of costs for each period: [6022.430354184572]
 Service levels are: {0: [0.9058207654654906, 0.9238718240660501], 1: [0.9729637822174291, 0.9707965512383937]}
 Standard deviations of costs: 8517.002685335225
-The average time to run the model in Gurobi is: 0.0021491096569941593
-The standard deviations of run time in Gurobi for each epiode is : [0.001177149713674358, 0.001006695432455683]
+The average time to run the model in Gurobi is: 0.0020875781774520874
+The standard deviations of run time in Gurobi for each epiode is : [0.0011773140028241455, 0.0010242839475235008]
 The average optimality gap in Gurobi for each episode is: [0.0, 5.0551388220798605e-08]
 The standard deviations of optimality gap in Gurobi for each epiode is : [0.0, 3.645312445519514e-07]
 The average forecasting errors are : [1.119552782178511, 2.8929182483359424]

@@ -93,8 +93,8 @@ if __name__ == '__main__':
         if generate_new_data:
             #print("Products")
             #print(len(products))
-            # simulation.simulate(products, config)
-            simulate_states.simulate(products)
+            simulation.simulate(products, config)
+            # simulate_states.simulate(products)
 
         else:
             start_date = products[0].index[104]

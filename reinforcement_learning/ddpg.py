@@ -25,8 +25,8 @@ plt.rcParams["font.family"] = "CMU Concrete"
 
 std_dev = 1
 # Learning rate for actor-critic models
-critic_lr = 0.001
-actor_lr = 0.00001
+critic_lr = 0.003
+actor_lr = 0.0000
 
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr, clipvalue=0.5)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr, clipvalue=0.5)
@@ -35,7 +35,7 @@ total_episodes = 1000
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
-tau = 0.0005
+tau = 0.005
 
 # To store reward history of each episode
 ep_reward_list = []
@@ -265,7 +265,7 @@ class DDPG():
         noise = noise_object()
         # Adding noise to action
         if should_include_noise:
-            sampled_actions = sampled_actions.numpy() + noise * 100
+            sampled_actions = sampled_actions.numpy() + noise * 50
         else:
             sampled_actions = sampled_actions.numpy()
         # We make sure action is within bounds
@@ -378,8 +378,8 @@ class DDPG():
         self.env.products = generated_products
 
         for ep in range(total_episodes):
-            if ep > 20:
-                actor_optimizer.learning_rate =0.0001 # increased learning rate
+            if ep > 30:
+                actor_optimizer.learning_rate =0.00001 # increased learning rate
             self.ep = ep
             if (ep > 380):
                 self.env.set_costs(self.products)
@@ -446,6 +446,8 @@ class DDPG():
                 if done:
                     print(action)
                     break
+            for i in range(len(self.products)):
+                print(self.env.achieved_service_level[i])
 
                 prev_state = state
 
@@ -510,10 +512,17 @@ class DDPG():
                 time_step_count += 1  # Increment the time step count
 
                 for i, quantity in enumerate(action):
+
                     if quantity < 5:
-                        action[i] = 0
+                        quantity = 0
+                        action[i] = quantity
                         episode_zero_order_counts[i] += 1
-                    episode_order_sums[i] += quantity
+                    # if i == 0:
+                    #     action[i] += 1.1 * action[i]
+                    # else:
+                    #     action[i] += action[i]
+                    episode_order_sums[i] += quantity #* 0.2
+
                 print(action)
 
                 state, reward, done, info = self.env.step(action)
