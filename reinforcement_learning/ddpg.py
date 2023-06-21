@@ -1,6 +1,7 @@
 import os
 import signal
 import sys
+from collections import defaultdict
 
 import keras.backend as K
 import matplotlib.pyplot as plt
@@ -19,12 +20,13 @@ import generate_data
 import matplotlib as mpl
 
 import matplotlib.font_manager
+
 plt.rcParams["font.family"] = "CMU Concrete"
 
 std_dev = 1
 # Learning rate for actor-critic models
 critic_lr = 0.001
-actor_lr = 0.0001
+actor_lr = 0.00001
 
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr, clipvalue=0.5)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr, clipvalue=0.5)
@@ -33,7 +35,7 @@ total_episodes = 1000
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
-tau = 0.001
+tau = 0.0005
 
 # To store reward history of each episode
 ep_reward_list = []
@@ -169,7 +171,7 @@ class PositionalEncoding(layers.Layer):
 
 
 class DDPG():
-    def __init__(self, products, state_shape, env, product_categories):
+    def __init__(self, products, state_shape, env, product_categories, lr):
         self.env = env
         self.product_categories = product_categories
         self.products = products
@@ -177,6 +179,7 @@ class DDPG():
         self.actor_model = self.get_actor()
         self.critic_model = self.get_critic()
         self.std_dev = std_dev
+        self.lr = lr
 
         config = config_utils.load_config("config.yml")
         self.should_reset_time_at_each_episode = config["environment"]["should_reset_at_each_episode"]
@@ -199,40 +202,55 @@ class DDPG():
             a.assign(b * tau + a * (1 - tau))
 
     def get_actor(self):
-        # Initialize weights between -3e-3 and 3-e3
-        last_init = tf.random_uniform_initializer(minval=-0.001, maxval=0.001)
-
-        inputs = layers.Input(shape=self.state_shape)
-        print(self.state_shape)
-        out = Conv1D(filters=64, kernel_size=3, activation='relu')(inputs)
-        out = layers.Dropout(rate=0.5)(out)
-        out = layers.GRU(units=100, activation='relu', return_sequences=True)(out)
-        out = layers.Dropout(rate=0.5)(out)
-        out = layers.GRU(units=100, activation='relu')(out)
+        model = Sequential([
+            layers.GRU(200, activation='relu', return_sequences=True, input_shape=self.state_shape),
+            layers.Dropout(0.5),
+            # layers.GRU(n_neurons, activation='relu', return_sequences=True, input_shape=(n_features, n_products)),
+            # layers.Dropout(0.5),
+            # TransformerBlock(embed_dim=100, num_heads=2, ff_dim=100), # embed_dim should match the output dimension of the previous layer
+            # layers.Dropout(0.5),
+            layers.GRU(200, activation='relu'),
+            layers.Dropout(0.5),
+            layers.Dense(len(self.products))
+        ])
+        # # Initialize weights between -3e-3 and 3-e3
+        # last_init = tf.random_uniform_initializer(minval=-0.001, maxval=0.001)
+        #
+        # inputs = layers.Input(shape=self.state_shape)
+        # print(self.state_shape)
+        # out = Conv1D(filters=64, kernel_size=3, activation='relu')(inputs)
         # out = layers.Dropout(rate=0.5)(out)
-
-        outputs = layers.Dense(len(self.products), kernel_initializer=last_init)(out)
-
-        # Multiply with action upper bound
-        # outputs = outputs * 100
-        model = tf.keras.Model(inputs, outputs)
+        # out = layers.GRU(units=100, activation='relu', return_sequences=True)(out)
+        # out = layers.Dropout(rate=0.5)(out)
+        # out = layers.GRU(units=100, activation='relu')(out)
+        # # out = layers.Dropout(rate=0.5)(out)
+        #
+        # outputs = layers.Dense(len(self.products), kernel_initializer=last_init)(out)
+        #
+        # # Multiply with action upper bound
+        # # outputs = outputs * 100
+        # model = tf.keras.Model(inputs, outputs)
         return model
 
     def get_critic(self):
         # State as input
         state_input = layers.Input(shape=self.state_shape)
-        state_out = layers.Dense(64, activation="relu")(state_input)
+        state_out = layers.Dense(32, activation="relu")(state_input)
+        state_out = layers.Dropout(0.5)(state_out)
         state_out = layers.Flatten()(state_out)
         # Action as input
         action_input = layers.Input(shape=(len(self.products), 1))
-        action_out = layers.Dense(64, activation="relu")(action_input)
+        action_out = layers.Dense(32, activation="relu")(action_input)
+        action_out = layers.Dropout(0.5)(action_out)
         action_out = layers.Flatten()(action_out)
 
         # Both are passed through seperate layer before concatenating
         concat = layers.Concatenate()([state_out, action_out])
 
-        out = layers.Dense(64, activation="relu", kernel_initializer="lecun_normal")(concat)
-        out = layers.Dense(64, activation="relu", kernel_initializer="lecun_normal")(out)
+        out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(concat)
+        out = layers.Dropout(0.5)(out)
+        out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(out)
+        out = layers.Dropout(0.5)(out)
 
         out = layers.Flatten()(out)
         outputs = layers.Dense(1)(out)
@@ -272,10 +290,12 @@ class DDPG():
         plt.plot(np.abs(self.avg_reward_list))
         plt.xlabel('Episodes')
         plt.ylabel('Costs (NOK)')
-        plt.title('Costs as a function of epochs')
+        plt.title('Costs as a function of episodes')
 
         plt.savefig('best_agent_er2.png', dpi=300)
         plt.show()
+        with open('avg_rewards_' + str(self.lr) + '.txt', 'w') as f:
+            f.write(repr(self.avg_reward_list))
 
     def save_models(self):
         save_dir = 'models'
@@ -338,9 +358,11 @@ class DDPG():
             zip(actor_grad, self.actor_model.trainable_variables)
         )
 
-    def train(self, should_plot=True, reward_interval=1):
-        hei = tf.keras.models.load_model("models_ep_4/actor_model")
-        hade = tf.keras.models.load_model("models_ep_4/actor_model")
+    def train(self, should_plot=True, reward_interval=3):
+        # actor_optimizer.learning_rate = self.lr  # increased learning rate
+        #
+        hei = tf.keras.models.load_model("models_sm_2/actor_model")
+        hade = tf.keras.models.load_model("models_sm_2/actor_model")
         self.actor_model = hei
         self.target_actor = hade
 
@@ -357,7 +379,7 @@ class DDPG():
 
         for ep in range(total_episodes):
             if ep > 20:
-                actor_optimizer.learning_rate = 1e-4  # increased learning rate
+                actor_optimizer.learning_rate =0.0001 # increased learning rate
             self.ep = ep
             if (ep > 380):
                 self.env.set_costs(self.products)
@@ -401,7 +423,7 @@ class DDPG():
                 total_reward = sum(reward)
                 reward = sum(reward)
                 episodic_reward += total_reward
-
+                # print(action)
                 episodic_actions.append(action)
                 episodic_states.append(prev_state)
 
@@ -444,21 +466,30 @@ class DDPG():
             plt.xlabel("Episode")
             plt.ylabel("Avg. Epsiodic Reward")
             plt.show()
-        self.test(episodes=1)
+        with open('avg_rewards_' + str(self.lr) + '.txt', 'w') as f:
+            f.write(repr(self.avg_reward_list))
+        # self.test(episodes=1)
 
     def test(self, episodes=10, path=None):
-        # loading model
-        # actor = self.actor_model_training
-        actor = tf.keras.models.load_model(f'models_ep_4/actor_model_23')
-        generated_products = self.generate_products(6000,0)
+        actor = tf.keras.models.load_model(f'models_ep_4/actor_model_2')
+        generated_products = self.generate_products(6000, 0)
         self.env.products = generated_products
         self.env.scaled_products = generated_products
         achieved_service_level = {}
 
         avg_reward_list = []
+        product_order_sums = defaultdict(float)
+        product_zero_order_counts = defaultdict(int)
+        product_order_counts = defaultdict(int)
+
         for episode in range(episodes):
             print(f"episode: {episode}")
             self.env.set_costs(self.products)
+
+            episode_order_sums = defaultdict(float)
+            episode_zero_order_counts = defaultdict(int)
+            time_step_count = 0  # Time step counter for each episode
+
             if self.should_reset_time_at_each_episode:
                 generated_products = self.generate_products(500)
                 self.env.products = generated_products
@@ -468,22 +499,23 @@ class DDPG():
                 generated_products = self.generate_products(5000)
                 self.env.products = generated_products
                 self.env.scaled_products = generated_products
+
             episodic_reward = 0
             prev_state = self.env.reset()
             prev_state = tf.transpose(prev_state, perm=[1, 0])
 
             while True:
                 tf_prev_state = tf.convert_to_tensor([prev_state])
-                # std_dev  = 0.3
-                # ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(std_dev) * np.ones(1))
-                # action = self.policy(tf_prev_state, ou_noise, actor)[0]
-
                 action = tf.squeeze(actor(tf_prev_state, training=False)).numpy()
-                # action = [random.randint(0,80) for i in range(2)]
-                for i in range(len(action)):
-                    if action[i] < 10:
+                time_step_count += 1  # Increment the time step count
+
+                for i, quantity in enumerate(action):
+                    if quantity < 5:
                         action[i] = 0
-                # print(action)
+                        episode_zero_order_counts[i] += 1
+                    episode_order_sums[i] += quantity
+                print(action)
+
                 state, reward, done, info = self.env.step(action)
                 for i in range(len(self.products)):
                     if i not in achieved_service_level.keys():
@@ -492,24 +524,37 @@ class DDPG():
                 total_reward = sum(reward)
                 episodic_reward += total_reward
 
-                # End this episode when `done` is True
                 if done:
                     break
 
                 prev_state = state
                 prev_state = tf.transpose(prev_state, perm=[1, 0])
-                # prev_state = tf.reshape(prev_state, [13, 8])
-            if episodes!=0:
-                avg_reward_list.append(episodic_reward)
+
+            avg_reward_list.append(episodic_reward)
+
+            for product in range(len(self.env.products)):
+                if product in episode_order_sums:
+                    product_order_sums[product] += episode_order_sums[product] / time_step_count
+                    product_order_counts[product] += 1
+                if product in episode_zero_order_counts:
+                    product_zero_order_counts[product] += episode_zero_order_counts[product]
+
+        for product in range(len(self.env.products)):
+            if product in product_order_sums:
+                avg_order_quantity = product_order_sums[product] / product_order_counts[product]
+                print(f"Average order quantity for product {product}: {avg_order_quantity}")
+            if product in product_zero_order_counts:
+                avg_zero_orders = product_zero_order_counts[product] / episodes
+                print(f"Average non-order count for product {product}: {avg_zero_orders}")
+
         se = stats.sem(avg_reward_list)
         confidence = 0.95
         ci = se * stats.t.ppf((1 + confidence) / 2., len(avg_reward_list) - 1)
-
-            # Mean of last 40 episodes
         print("Avg Reward is ==> {}".format(sum(avg_reward_list) / len(avg_reward_list)) + " with a 95 % confidence interval of +/- " + str(ci))
         for i in range(len(self.products)):
             print("achieved service level: " + str(np.mean(achieved_service_level[i])))
 
+        return product_order_sums, product_zero_order_counts, achieved_service_level
 
     def generate_products(self, n_periods, seed=None):
         first_index = 0

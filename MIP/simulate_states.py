@@ -78,6 +78,9 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length,
     dict_demands = {}
     dict_actions = {}
     dict_historic_demands = {}
+    # os.remove("results/demand1.txt")
+    # os.remove("results/actions1.txt")
+    # os.remove("results/inventory1.txt")
     for time_step in range(episode_length):
         if time_step == 0:
             for product_index, product in enumerate(products):

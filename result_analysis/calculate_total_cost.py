@@ -49,3 +49,52 @@ def get_mean_service_levels(filename):
     return mean_service_levels
 
 print(get_mean_service_levels('simulation_output_p2_er2_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta1_seed0.txt'))
+
+import re
+import ast
+import collections
+
+# Open your text file
+with open('simulation_output_p2_er2_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta1_seed0.txt', "r") as file:
+    lines = file.readlines()
+
+# Initialize dictionaries to hold the sums, counts and zero_counts for each episode
+episode_sums = collections.defaultdict(lambda: collections.defaultdict(int))
+episode_counts = collections.defaultdict(lambda: collections.defaultdict(int))
+episode_zero_counts = collections.defaultdict(lambda: collections.defaultdict(int))
+
+# Process each line
+for line in lines:
+    # Use regular expressions to find the episode number and the dictionary of actions
+    match = re.match(r"Actions for episode (\d+) are: (.*)", line)
+    if match:
+        episode = int(match.group(1))
+        actions_str = match.group(2)
+
+        # Convert the string of actions into a Python dictionary
+        actions = ast.literal_eval(actions_str)
+
+        # Iterate through each action, summing up the values
+        for action, values in actions.items():
+            for key, value in values.items():
+                episode_sums[episode][key] += value
+                episode_counts[episode][key] += 1
+                if value == 0:
+                    episode_zero_counts[episode][key] += 1
+
+# Now calculate averages per episode and then overall average, and print the results
+total_avg_sums = collections.defaultdict(int)
+total_avg_counts = collections.defaultdict(int)
+total_zero_counts = collections.defaultdict(int)
+
+for episode, sums in episode_sums.items():
+    for key, sum_value in sums.items():
+        avg = sum_value / episode_counts[episode][key]
+        total_avg_sums[key] += avg
+        total_avg_counts[key] += 1
+        total_zero_counts[key] += episode_zero_counts[episode][key]
+
+for key, sum_value in total_avg_sums.items():
+    overall_avg = sum_value / total_avg_counts[key]
+    avg_zero_counts = total_zero_counts[key] / len(episode_sums.items())
+    print(f"For action {key}, average order quantity over all episodes: {overall_avg}, number of non-orders: {avg_zero_counts}")

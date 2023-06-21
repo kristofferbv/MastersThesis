@@ -84,13 +84,13 @@ class JointReplenishmentEnv(gym.Env, ABC):
 
         else:
             self.holding_cost = [0.1 * x for x in unit_costs]
-            self.minor_setup_cost = [0.5 * self.minor_setup_ratio * self.major_setup_cost / len(self.products) for i in range(0, len(self.products))]
+            self.minor_setup_cost = [self.minor_setup_ratio * self.major_setup_cost / len(self.products) for i in range(0, len(self.products))]
 
         # Calculate shortage costs
         self.shortage_cost = []
         for product_index in range(len(products)):
             print(self.holding_cost[product_index])
-            self.shortage_cost.append(self.holding_cost[product_index] / (1 / 0.95 - 1))
+            self.shortage_cost.append(40 / (1 / 0.95 - 1))
 
 
     def reset(self, **kwargs):

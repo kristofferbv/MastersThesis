@@ -1,5 +1,5 @@
 deterministic_model:
-  product_categories: { "erratic": 0, "smooth": 4, "intermittent": 0, "lumpy": 0}
+  product_categories: { "erratic": 0, "smooth": 2, "intermittent": 0, "lumpy": 0}
   n_time_periods: 13
   joint_setup_cost: 2500
   minor_setup_ratio: 1.2
@@ -7,7 +7,7 @@ deterministic_model:
   should_include_safety_stock: False
   beta: 1
 rl_model:
-  product_categories: { "erratic": 0, "smooth": 4, "intermittent": 0, "lumpy": 0 }
+  product_categories: { "erratic": 0, "smooth": 2, "intermittent": 0, "lumpy": 0 }
   n_time_periods: 13
   joint_setup_cost: 2500
   minor_setup_ratio: 1.2
@@ -19,7 +19,7 @@ main:
   should_analyse: False
   stationary_products: True
   generate_new_data: True
-  seed: 2
+  seed: 1
 simulation:
   forecasting_method: "holt_winter"
   verbose: False

@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
         for category in product_categories.keys():
             category_products = retrieve_data.read_products("2017-01-01", "2020-12-30", category)
-            category_products = [product for product in category_products if product["sales_quantity"].mean() <= 150]
+            category_products = [product for product in category_products if product["sales_quantity"].max() <= 150]
             category_products.sort(key=lambda product: product["sales_quantity"].mean())
 
             number_of_products = product_categories[category]
@@ -68,7 +68,9 @@ if __name__ == '__main__':
                 # Make sure the number of products required does not exceed the number of available products
                 number_of_products = min(number_of_products, len(category_products))
 
-                products += random.sample(category_products, number_of_products)
+                # products += random.sample(category_products, number_of_products)
+                products += category_products[-2:]
+
             print("len", len(products))
 
         # products = retrieve_data.read_products_with_hashes("2016-01-10", "2020-12-30", ["569b6782ce5885fc4abf21cfde38f7d7", "92b1f191dfce9fff64b4effd954ccaab", "8ef91aac79542f11dedec4f79265ae3a", "2fa9c91f40d6780fd5b3c219699eb139", "1fb096daa569c811723ce8796722680e", "f7b3622f9eb50cb4eee149127c817c79"])

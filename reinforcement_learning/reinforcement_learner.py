@@ -83,7 +83,9 @@ if __name__ == "__main__":
             # Make sure the number of products required does not exceed the number of available products
             number_of_products = min(number_of_products, len(category_products))
 
-            products += random.sample(category_products, number_of_products)
+            # products += random.sample(category_products, number_of_products)
+            products += category_products[-2:]
+
         print("len", len(products))
 
     real_products = products
@@ -116,6 +118,8 @@ if __name__ == "__main__":
     #     ma.train()
     #     ma.test()
     if method == "ddpg":
-        ddpg = DDPG(real_products, state_shape, env, product_categories)
+        # lrs = [0.01, 0.001, 0.0001,  0.00001]
+        # for lr in lrs:
+        ddpg = DDPG(real_products, state_shape, env, product_categories, 0.0001)
         ddpg.train()
         ddpg.test()
