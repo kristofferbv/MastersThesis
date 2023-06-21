@@ -8,7 +8,7 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 
-folders = ["exp-beta0-0-0-4-seed2", "exp-beta0-0-0-4-seed0" , "exp-beta0-0-4-0-seed2", "exp-beta0-0-4-0-seed0" , "exp-beta0-4-0-0-seed2", "exp-beta0-4-0-0-seed0", "exp-beta4-0-0-0-seed2", "exp-beta4-0-0-0-seed0", "exp-beta2-2-2-2-seed2", "exp-beta2-2-2-2-seed0"]   # the list of folders
+folders = ["lin-beta0-0-0-4-seed2",  "lin-beta0-0-4-0-seed2", "lin-beta0-4-0-0-seed2",  "lin-beta4-0-0-0-seed2"]   # the list of folders
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -17,7 +17,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 for folder in folders:
     # extract the product types from the folder name
     numbers_part, seed_part = folder.split('-seed')
-    erratic, smooth, intermittent, lumpy = map(int, numbers_part.split('exp-beta')[1].split('-'))
+    erratic, smooth, intermittent, lumpy = map(int, numbers_part.split('-beta')[1].split('-'))
 
     folder_path = os.path.join(os.path.dirname(__file__), folder)
     
@@ -52,12 +52,10 @@ for folder in folders:
 
     # create a scatter plot for costs
     plt.figure(figsize=(10, 6))
-    plt.scatter(betas, costs, c=times_norm, cmap='RdYlGn_r')
-    plt.title(f'Mean Costs for Different Beta Values\nErratic: {erratic}, Smooth: {smooth}, Intermittent: {intermittent}, Lumpy: {lumpy}')
+    plt.scatter(betas, costs)
+    plt.title(f'Mean Total Costs for Different Beta Values\nErratic: {erratic}, Smooth: {smooth}, Intermittent: {intermittent}, Lumpy: {lumpy}')
     plt.xlabel('Beta Value')
-    plt.ylabel('Last Mean Cost')
-    cbar = plt.colorbar()
-    cbar.set_label('Normalized Average Run Time')
+    plt.ylabel('Mean Total Costs')
     plt.grid()
     plt.show()
 
