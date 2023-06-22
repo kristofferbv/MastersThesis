@@ -240,21 +240,17 @@ class DDPG():
         # State as input
         state_input = layers.Input(shape=self.state_shape)
         state_out = layers.Dense(32, activation="relu")(state_input)
-        state_out = layers.Dropout(0.5)(state_out)
         state_out = layers.Flatten()(state_out)
         # Action as input
         action_input = layers.Input(shape=(len(self.products), 1))
         action_out = layers.Dense(32, activation="relu")(action_input)
-        action_out = layers.Dropout(0.5)(action_out)
         action_out = layers.Flatten()(action_out)
 
         # Both are passed through seperate layer before concatenating
         concat = layers.Concatenate()([state_out, action_out])
 
         out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(concat)
-        out = layers.Dropout(0.5)(out)
         out = layers.Dense(32, activation="relu", kernel_initializer="lecun_normal")(out)
-        out = layers.Dropout(0.5)(out)
 
         out = layers.Flatten()(out)
         outputs = layers.Dense(1)(out)
@@ -365,8 +361,8 @@ class DDPG():
     def train(self, should_plot=True, reward_interval=1):
         # actor_optimizer.learning_rate = self.lr  # increased learning rate
         #
-        hei = tf.keras.models.load_model("models_ep_2/actor_model_training")
-        hade = tf.keras.models.load_model("models_ep_2/actor_model_training")
+        hei = tf.keras.models.load_model("actor_model_training")
+        hade = tf.keras.models.load_model("actor_model_training")
         self.actor_model = hei
         self.target_actor = hade
 
