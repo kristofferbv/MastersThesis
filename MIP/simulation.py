@@ -46,7 +46,7 @@ def simulate(real_products, config, beta=None, n_time_periods=None, total_costs_
         best_beta = beta
 
     output_folder = "results"
-    output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
+    output_file = f"costs_simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
     file_path = os.path.join(output_folder, output_file)
 
     if os.path.exists(file_path):
