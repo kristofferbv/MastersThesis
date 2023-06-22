@@ -152,6 +152,8 @@ class JointReplenishmentEnv(gym.Env, ABC):
             holding_cost = self.inventory_levels[i] * self.holding_cost[i]
             # Calculate the total cost
             total_cost = minor_cost + major_cost + shortage_cost + holding_cost
+            # if self.achieved_service_level[i]<0.5:
+            # total_cost += (1-self.achieved_service_level[i])* 500
             if self.verbose:
                 shortage_costs.append(shortage_cost)
                 minor_costs.append(minor_cost)

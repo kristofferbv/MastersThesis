@@ -121,5 +121,5 @@ if __name__ == "__main__":
         # lrs = [0.01, 0.001, 0.0001,  0.00001]
         # for lr in lrs:
         ddpg = DDPG(real_products, state_shape, env, product_categories, 0.0001)
-        ddpg.train()
+        # ddpg.train()
         ddpg.test()

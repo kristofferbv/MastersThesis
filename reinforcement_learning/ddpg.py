@@ -31,7 +31,7 @@ actor_lr = 0.0000
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr, clipvalue=0.5)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr, clipvalue=0.5)
 
-total_episodes = 1000
+total_episodes = 100
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
@@ -376,6 +376,7 @@ class DDPG():
         epsilon_decay = 0.995  # how quickly to decrease randomness
         generated_products = self.generate_products(5000)
         self.env.products = generated_products
+        self.env.scaled_products = generated_products
 
         for ep in range(total_episodes):
             if ep > 30:
@@ -446,10 +447,10 @@ class DDPG():
                 if done:
                     print(action)
                     break
-            for i in range(len(self.products)):
-                print(self.env.achieved_service_level[i])
 
                 prev_state = state
+            for i in range(len(self.products)):
+                print(self.env.achieved_service_level[i])
 
             ep_reward_list.append(episodic_reward)
             self.avg_reward_list.append(episodic_reward)
@@ -470,11 +471,11 @@ class DDPG():
             plt.show()
         with open('avg_rewards_' + str(self.lr) + '.txt', 'w') as f:
             f.write(repr(self.avg_reward_list))
-        # self.test(episodes=1)
+        self.test(episodes=1)
 
     def test(self, episodes=10, path=None):
         actor = tf.keras.models.load_model(f'models_ep_4/actor_model_2')
-        generated_products = self.generate_products(6000, 0)
+        generated_products = self.generate_products(6000,0)
         self.env.products = generated_products
         self.env.scaled_products = generated_products
         achieved_service_level = {}
@@ -483,11 +484,12 @@ class DDPG():
         product_order_sums = defaultdict(float)
         product_zero_order_counts = defaultdict(int)
         product_order_counts = defaultdict(int)
+        episode_counts = {}
 
         for episode in range(episodes):
             print(f"episode: {episode}")
             self.env.set_costs(self.products)
-
+            episode_counts[episode] = {}
             episode_order_sums = defaultdict(float)
             episode_zero_order_counts = defaultdict(int)
             time_step_count = 0  # Time step counter for each episode
@@ -517,13 +519,20 @@ class DDPG():
                         quantity = 0
                         action[i] = quantity
                         episode_zero_order_counts[i] += 1
+
+                    else:
+                        if i not in episode_counts[episode].keys():
+                            episode_counts[episode][i] = 1
+                        else:
+                            episode_counts[episode][i] += 1
+                        episode_order_sums[i] += quantity
                     # if i == 0:
                     #     action[i] += 1.1 * action[i]
                     # else:
                     #     action[i] += action[i]
-                    episode_order_sums[i] += quantity #* 0.2
+                    # episode_order_sums[i] += quantity #* 0.2
 
-                print(action)
+                # print(action)
 
                 state, reward, done, info = self.env.step(action)
                 for i in range(len(self.products)):
@@ -543,7 +552,7 @@ class DDPG():
 
             for product in range(len(self.env.products)):
                 if product in episode_order_sums:
-                    product_order_sums[product] += episode_order_sums[product] / time_step_count
+                    product_order_sums[product] += episode_order_sums[product] / episode_counts[episode][product]
                     product_order_counts[product] += 1
                 if product in episode_zero_order_counts:
                     product_zero_order_counts[product] += episode_zero_order_counts[product]

@@ -5,7 +5,9 @@ import ast
 
 
 # Read the file
-with open('simulation_output_p2_er2_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta1_seed0.txt', 'r') as f:
+file_path = 'simulation_output_p2_er0_sm2_in0_lu0_t13_ep100_S2500_r1.2_beta0.085_seed1.txt'
+# file_path = 'simulation_output_p2_er2_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta0.05_seed0.txt'
+with open(file_path, 'r') as f:
     content = f.read()
 match = re.search(r'Total costs for each period are: \[(.*?)\]', content)
 
@@ -48,14 +50,14 @@ def get_mean_service_levels(filename):
 
     return mean_service_levels
 
-print(get_mean_service_levels('simulation_output_p2_er2_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta1_seed0.txt'))
+print(get_mean_service_levels(file_path))
 
 import re
 import ast
 import collections
 
 # Open your text file
-with open('simulation_output_p2_er2_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta1_seed0.txt', "r") as file:
+with open(file_path, "r") as file:
     lines = file.readlines()
 
 # Initialize dictionaries to hold the sums, counts and zero_counts for each episode
@@ -77,10 +79,11 @@ for line in lines:
         # Iterate through each action, summing up the values
         for action, values in actions.items():
             for key, value in values.items():
-                episode_sums[episode][key] += value
-                episode_counts[episode][key] += 1
                 if value == 0:
                     episode_zero_counts[episode][key] += 1
+                else:
+                    episode_sums[episode][key] += value
+                    episode_counts[episode][key] += 1
 
 # Now calculate averages per episode and then overall average, and print the results
 total_avg_sums = collections.defaultdict(int)
