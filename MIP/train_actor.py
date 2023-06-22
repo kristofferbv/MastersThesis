@@ -166,7 +166,7 @@ class TransformerBlock(layers.Layer):
 # Set some hyperparameters
 n_products = 2
 n_features = 14
-n_neurons = 200 # Number of neurons in the hidden layer, can be adjusted
+n_neurons = 100 # Number of neurons in the hidden layer, can be adjusted
 
 # Define the model
 # input_data = np.transpose(input_data, (0,2,1))

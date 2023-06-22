@@ -65,9 +65,18 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.fulfilled_demand = {}
         self.achieved_service_level = {}
 
+        self.real_holding_costs = 0
+        self.real_shortage_costs = 0
+        self.real_setup_costs = 0
 
+    def get_costs(self):
+        return self.real_holding_costs, self.real_shortage_cots, self.real_setup_costs
     def reset_current_period(self):
         self.current_period = max(self.rolling_window, self.n_periods_historical_data) + self.time_period
+    def reset_costs(self):
+        self.real_holding_costs = 0
+        self.real_shortage_costs = 0
+        self.real_setup_costs = 0
 
 
     def increase_time_period(self, increase):
@@ -90,7 +99,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.shortage_cost = []
         for product_index in range(len(products)):
             print(self.holding_cost[product_index])
-            self.shortage_cost.append(self.holding_cost[product_index] / (1 / 0.95 - 1))
+            self.shortage_cost.append(self.holding_cost[0] / (1 / 0.95 - 1))
 
 
     def reset(self, **kwargs):
@@ -120,6 +129,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         rewards = []
         self.fulfilled_demand = {}
         self.achieved_service_level = {}
+
 
 
 
@@ -153,14 +163,16 @@ class JointReplenishmentEnv(gym.Env, ABC):
             # Calculate the total cost
             total_cost = minor_cost + major_cost + shortage_cost + holding_cost
             # if self.achieved_service_level[i]<0.5:
-            # total_cost += (1-self.achieved_service_level[i])* 500
-            if self.verbose:
-                shortage_costs.append(shortage_cost)
-                minor_costs.append(minor_cost)
-                major_costs.append(major_cost)
-                holding_costs.append(holding_cost)
-                demands.append(demand)
-                rewards.append(total_cost)
+            # total_cost += min(0,(0.9 -self.achieved_service_level[i])) * 5000
+            # if self.inventory_levels[i] < 5 and self.steps > 1:
+            #     total_cost += 100
+
+            shortage_costs.append(shortage_cost)
+            minor_costs.append(minor_cost)
+            major_costs.append(major_cost)
+            holding_costs.append(holding_cost)
+            demands.append(demand)
+            rewards.append(total_cost)
 
             # Calculate individual reward for this product
             individual_rewards.append(-total_cost)
@@ -173,8 +185,11 @@ class JointReplenishmentEnv(gym.Env, ABC):
             print(f"holding{holding_costs}")
             print(f"costs: {rewards}")
             print(f"TOTAL: {sum(individual_rewards)}")
-
+        self.real_setup_costs += sum(minor_costs + major_costs)
+        self.real_shortage_costs += sum(shortage_costs)
+        self.real_holding_costs += sum(holding_costs)
         # Update the current period
+
         self.current_period += 1
         done = self.steps == 52 #self.current_period == self.n_periods + max(self.rolling_window, self.n_periods_historical_data) + self.time_period
         return self._get_observation(), individual_rewards, done, {}

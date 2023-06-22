@@ -26,16 +26,16 @@ plt.rcParams["font.family"] = "CMU Concrete"
 std_dev = 1
 # Learning rate for actor-critic models
 critic_lr = 0.003
-actor_lr = 0.0000
+actor_lr = 0.00001
 
-critic_optimizer = tf.keras.optimizers.Adam(critic_lr, clipvalue=0.5)
-actor_optimizer = tf.keras.optimizers.Adam(actor_lr, clipvalue=0.5)
+critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
+actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
-total_episodes = 100
+total_episodes = 300
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
-tau = 0.005
+tau = 0.0005
 
 # To store reward history of each episode
 ep_reward_list = []
@@ -194,12 +194,16 @@ class DDPG():
 
         signal.signal(signal.SIGINT, self.signal_handler)
 
+
+
     # This update target parameters slowly
     # Based on rate `tau`, which is much less than one.
     @tf.function
     def update_target(self, target_weights, weights, tau):
         for (a, b) in zip(target_weights, weights):
             a.assign(b * tau + a * (1 - tau))
+
+
 
     def get_actor(self):
         model = Sequential([
@@ -265,7 +269,7 @@ class DDPG():
         noise = noise_object()
         # Adding noise to action
         if should_include_noise:
-            sampled_actions = sampled_actions.numpy() + noise * 50
+            sampled_actions = sampled_actions.numpy() + noise * 100
         else:
             sampled_actions = sampled_actions.numpy()
         # We make sure action is within bounds
@@ -342,7 +346,7 @@ class DDPG():
             critic_loss = tf.math.reduce_mean(tf.abs(y - critic_value))
 
         critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
-        # critic_grad, _ = tf.clip_by_global_norm(critic_grad, 1)
+        critic_grad, _ = tf.clip_by_global_norm(critic_grad, 1)
         critic_optimizer.apply_gradients(
             zip(critic_grad, self.critic_model.trainable_variables)
         )
@@ -353,16 +357,16 @@ class DDPG():
             # by the critic for our actions
             actor_loss = -tf.math.reduce_mean(critic_value)
         actor_grad = tape.gradient(actor_loss, self.actor_model.trainable_variables)
-        # actor_grad, _ = tf.clip_by_global_norm(actor_grad, 0.01)  # Apply gradient clipping
+        actor_grad, _ = tf.clip_by_global_norm(actor_grad, 0.01)  # Apply gradient clipping
         actor_optimizer.apply_gradients(
             zip(actor_grad, self.actor_model.trainable_variables)
         )
 
-    def train(self, should_plot=True, reward_interval=3):
+    def train(self, should_plot=True, reward_interval=1):
         # actor_optimizer.learning_rate = self.lr  # increased learning rate
         #
-        hei = tf.keras.models.load_model("models_sm_2/actor_model")
-        hade = tf.keras.models.load_model("models_sm_2/actor_model")
+        hei = tf.keras.models.load_model("models_ep_2/actor_model_training")
+        hade = tf.keras.models.load_model("models_ep_2/actor_model_training")
         self.actor_model = hei
         self.target_actor = hade
 
@@ -376,11 +380,14 @@ class DDPG():
         epsilon_decay = 0.995  # how quickly to decrease randomness
         generated_products = self.generate_products(5000)
         self.env.products = generated_products
-        self.env.scaled_products = generated_products
+        # self.env.scaled_products = generated_products
+        achieved_service_level = {}
+        achieved_service_level[0] = []
+        achieved_service_level[1] = []
 
         for ep in range(total_episodes):
-            if ep > 30:
-                actor_optimizer.learning_rate =0.00001 # increased learning rate
+            if ep > 20:
+                actor_optimizer.learning_rate =0.0001 # increased learning rate
             self.ep = ep
             if (ep > 380):
                 self.env.set_costs(self.products)
@@ -440,7 +447,8 @@ class DDPG():
                     self.update_target(self.target_critic.variables, self.critic_model.variables, tau)
                     # if ep > 20:
                     self.update_target(self.target_actor.variables, self.actor_model.variables, tau)
-
+                for i in range(2):
+                    achieved_service_level[i].append(self.env.achieved_service_level[i])
                 # End this episode when `done` is True
                 if ep + 1 % 50 == 0:
                     print("EP49Ac", action)
@@ -450,7 +458,7 @@ class DDPG():
 
                 prev_state = state
             for i in range(len(self.products)):
-                print(self.env.achieved_service_level[i])
+                print(sum(achieved_service_level[i])/len(achieved_service_level[i]))
 
             ep_reward_list.append(episodic_reward)
             self.avg_reward_list.append(episodic_reward)
@@ -485,7 +493,9 @@ class DDPG():
         product_zero_order_counts = defaultdict(int)
         product_order_counts = defaultdict(int)
         episode_counts = {}
-
+        shortage_costs = []
+        holding_costs = []
+        setup_costs = []
         for episode in range(episodes):
             print(f"episode: {episode}")
             self.env.set_costs(self.products)
@@ -531,8 +541,9 @@ class DDPG():
                     # else:
                     #     action[i] += action[i]
                     # episode_order_sums[i] += quantity #* 0.2
+                    # action = action * 1.5
 
-                # print(action)
+                print(action)
 
                 state, reward, done, info = self.env.step(action)
                 for i in range(len(self.products)):
@@ -542,7 +553,12 @@ class DDPG():
                 total_reward = sum(reward)
                 episodic_reward += total_reward
 
+
                 if done:
+                    shortage_costs.append(self.env.real_shortage_costs)
+                    holding_costs.append(self.env.real_holding_costs)
+                    setup_costs.append(self.env.real_setup_costs)
+                    self.env.reset_costs()
                     break
 
                 prev_state = state
@@ -569,6 +585,9 @@ class DDPG():
         confidence = 0.95
         ci = se * stats.t.ppf((1 + confidence) / 2., len(avg_reward_list) - 1)
         print("Avg Reward is ==> {}".format(sum(avg_reward_list) / len(avg_reward_list)) + " with a 95 % confidence interval of +/- " + str(ci))
+        print(f"shortage is ==> {sum(shortage_costs)/len(shortage_costs)} ")
+        print(f"holding is ==> {sum(holding_costs)/len(holding_costs)} ")
+        print(f"setup is ==> {sum(setup_costs)/len(setup_costs)} ")
         for i in range(len(self.products)):
             print("achieved service level: " + str(np.mean(achieved_service_level[i])))
 

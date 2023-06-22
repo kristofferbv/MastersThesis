@@ -59,7 +59,7 @@ def get_non_stationary_products(products, start_date=None, should_plot=False, ve
     return stationary_products
 
 
-def plot_sales_quantity(products, start_date=None):
+def plot_sales_quantity(products, start_date=None, should_includ_hash = True):
     n = len(products)
     fig, axes = plt.subplots(nrows=n, sharex=True, figsize=(10, n * 3))
     if isinstance(products[0], pd.DataFrame):
@@ -79,7 +79,10 @@ def plot_sales_quantity(products, start_date=None):
             if start_date != None:
                 df = df.loc[df.index >= start_date]["sales_quantity"]
             label_name = str(i)
-            df.plot(ax=ax, label=label_name)
+            if should_includ_hash:
+                df.plot(ax=ax, label=label_name)
+            else:
+                df.plot(ax=ax)
 
         ax.set_ylabel('sales quantity')
         ax.legend()

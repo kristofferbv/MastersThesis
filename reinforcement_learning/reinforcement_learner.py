@@ -83,14 +83,14 @@ if __name__ == "__main__":
             # Make sure the number of products required does not exceed the number of available products
             number_of_products = min(number_of_products, len(category_products))
 
-            # products += random.sample(category_products, number_of_products)
-            products += category_products[-2:]
+            products += random.sample(category_products, number_of_products)
+            # products += category_products[-2:]
 
         print("len", len(products))
 
     real_products = products
 
-    plot_sales_quantity(real_products)
+    plot_sales_quantity(real_products, should_includ_hash=False)
     # real_products = retrieve_data.read_products_with_hashes("2016-01-10", "2020-12-30", ["569b6782ce5885fc4abf21cfde38f7d7", "92b1f191dfce9fff64b4effd954ccaab", "8ef91aac79542f11dedec4f79265ae3a", "2fa9c91f40d6780fd5b3c219699eb139", "1fb096daa569c811723ce8796722680e", "f7b3622f9eb50cb4eee149127c817c79"])[:4]
     generate_products = generate_products(products=real_products, product_categories=product_categories, n_periods=500, seed=seed)
     # Set up the environment
@@ -118,8 +118,8 @@ if __name__ == "__main__":
     #     ma.train()
     #     ma.test()
     if method == "ddpg":
-        # lrs = [0.01, 0.001, 0.0001,  0.00001]
+        lrs = [0.01, 0.001, 0.0001,  0.00001]
         # for lr in lrs:
         ddpg = DDPG(real_products, state_shape, env, product_categories, 0.0001)
-        # ddpg.train()
+        ddpg.train()
         ddpg.test()

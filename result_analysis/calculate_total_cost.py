@@ -3,9 +3,9 @@ import numpy as np
 from scipy import stats
 import ast
 
-
+file_path = 'simulation_output_p2_er0_sm0_in2_lu0_t13_ep10_S2500_r1.2_beta1_seed0.txt'
 # Read the file
-file_path = 'simulation_output_p2_er0_sm2_in0_lu0_t13_ep100_S2500_r1.2_beta0.085_seed1.txt'
+# file_path = 'simulation_output_p2_er0_sm2_in0_lu0_t13_ep100_S2500_r1.2_beta0.085_seed1.txt'
 # file_path = 'simulation_output_p2_er2_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta0.05_seed0.txt'
 with open(file_path, 'r') as f:
     content = f.read()
