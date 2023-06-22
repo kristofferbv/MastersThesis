@@ -60,18 +60,10 @@ def simulate(real_products, config, beta=None, n_time_periods=None, total_costs_
     current_index = 0
     last_index = 0
     # with open(file_path, "a") as f:
-    generation_length = (simulation_length + reset_length) * n_episodes + (warm_up_length * should_perform_warm_up) + start_index + n_time_periods + 52
-    for category in product_categories.keys():
-        number_of_products = product_categories[category]
-        current_index += number_of_products
-        if category == "erratic":
-            generated_products += generate_data.generate_seasonal_data_for_erratic_demand(real_products[last_index:current_index], generation_length, seed=seed)
-        elif category == "smooth":
-            generated_products += generate_data.generate_seasonal_data_for_smooth_demand(real_products[last_index:current_index], generation_length, seed)
+    generation_length = 8000
 
-        else:
-            generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(real_products[last_index:current_index], generation_length, seed)
-        last_index = current_index
+    generated_products = generate_products_from_categories(product_categories, real_products, generation_length, seed)
+
     # plot_sales_quantity(generated_products)
 
     data_to_write.append("Number of products from each cateogry is:  Erratic: " + str(product_categories["erratic"]) + ", Smooth: " + str(product_categories["smooth"]) + ", Intermittent: " + str(product_categories["intermittent"]) + ", Lumpy: " + str(product_categories["lumpy"]))
@@ -98,7 +90,7 @@ def simulate(real_products, config, beta=None, n_time_periods=None, total_costs_
     all_models = {}
     all_std_devs = {}
     date_range = pd.date_range(start=start_date, end=end_date, freq='W')
-
+    end_date = generated_products[0].index[generation_length - 115]
 
 
     if check_if_os_path_exists(n_products, n_erratic, n_smooth, n_intermittent, n_lumpy, seed):
@@ -116,18 +108,19 @@ def simulate(real_products, config, beta=None, n_time_periods=None, total_costs_
 
     avg_run_time = 0
 
-
-    
-    
-
-
     for episode in range(n_episodes):
         # simulate and sample costs
         print(f"Running simulation episode {episode}")
 
         data_to_write.append(f"Start inventory levels of episode: {episode} are {inventory_levels}")
+        if start_date > end_date:
+            seed += 1
+            generated_products = generate_products_from_categories(product_categories, real_products, generation_length, seed)
+            print("Updating forecasts...")
+            all_forecasts, all_models, all_std_devs = precalculate_forecasts(date_range, n_time_periods, generated_products, config, n_products, n_erratic, n_smooth, n_intermittent, n_lumpy, seed, generation_length)
 
         costs, inventory_levels, start_date, actions, tau_values, models, avg_run_time_time_step, std_run_time, service_level, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimality_gap, std_optimality_gap, holding_cost, shortage_cost, setup_cost = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, config, all_forecasts, all_std_devs, models=models, inventory_levels=inventory_levels, beta=beta)
+
         print(f"Total costs for episode {episode} was: ", costs)
         total_costs.append(costs)
         holding_costs.append(holding_cost)
@@ -156,7 +149,7 @@ def simulate(real_products, config, beta=None, n_time_periods=None, total_costs_
         if reset_length > 0:
             print("Resetting...")
             # resetting
-            costs, inventory_levels, start_date, _, _, models, _, _, _, _, _, _, _, _, _,_,_ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, config, all_forecasts, all_std_devs, models=models, inventory_levels=inventory_levels)
+            costs, inventory_levels, start_date, _, _, models, _, _, _, _, _, _, _, _, _, _, _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, config, all_forecasts, all_std_devs, models=models, inventory_levels=inventory_levels)
 
         avg_run_time = avg_run_time / n_episodes
 
@@ -195,7 +188,7 @@ def simulate(real_products, config, beta=None, n_time_periods=None, total_costs_
                 print(f"Beta value {best_beta} is significantly better than beta value {beta}")
                 data_to_write.append(f"Beta value {best_beta} is significantly better than beta value {beta}")
                 break
-            elif episode == n_episodes-1:
+            elif episode == n_episodes - 1:
                 mean_beta = np.mean(total_costs)
                 mean_best_beta = np.mean(total_costs_best_beta)
                 if ci_high < 0:
@@ -212,7 +205,6 @@ def simulate(real_products, config, beta=None, n_time_periods=None, total_costs_
                 else:
                     print(f"No beta value is significantly better than the other, but Beta value {best_beta} has a lower mean value {beta}")
                     data_to_write.append(f"No beta value is significantly better than the other, but Beta value {best_beta} has a lower mean value {beta}")
-                    
 
             '''
             # Calculate the variance of the difference
@@ -229,7 +221,6 @@ def simulate(real_products, config, beta=None, n_time_periods=None, total_costs_
                 print(f"Beta value {beta_value1} is significantly better than beta value {beta_value2}")
                 break
             '''
-            
 
     if should_write:
         data_to_write.append(f"Total costs for each period are: {total_costs}")
@@ -266,7 +257,6 @@ def simulate(real_products, config, beta=None, n_time_periods=None, total_costs_
         if total_costs_best_beta is None:
             total_costs_best_beta = total_costs
 
-        
         return total_costs_best_beta, best_beta
 
 
@@ -369,15 +359,12 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
                 previous_il = inventory_levels[product_index]
                 inventory_levels[product_index] = max(0, previous_il + actions[time_step - 1][product_index] - demand)
 
-
             dict_sds[product_index] = std_devs[product_index]
             dict_demands[product_index] = forecasts[product_index]
 
             # storing std dev and forecast to use for updating the std deviation of errors in the forecast
             prev_std_dev[product_index] = dict_sds[product_index][1]
             prev_forecast[product_index] = dict_demands[product_index][1]
-
-
 
         total_costs += period_costs
 
@@ -572,4 +559,22 @@ def check_if_os_path_exists(n_products, n_erratic, n_smooth, n_intermittent, n_l
         return True
     return False
 
-#heisann
+
+# heisann
+
+def generate_products_from_categories(product_categories, real_products, generation_length, seed):
+    current_index = 0
+    last_index = 0
+    generated_products = []
+    for category in product_categories.keys():
+        number_of_products = product_categories[category]
+        current_index += number_of_products
+        if category == "erratic":
+            generated_products += generate_data.generate_seasonal_data_for_erratic_demand(real_products[last_index:current_index], generation_length, seed=seed)
+        elif category == "smooth":
+            generated_products += generate_data.generate_seasonal_data_for_smooth_demand(real_products[last_index:current_index], generation_length, seed)
+
+        else:
+            generated_products += generate_data.generate_seasonal_data_for_intermittent_demand(real_products[last_index:current_index], generation_length, seed)
+        last_index = current_index
+    return generated_products
