@@ -4,6 +4,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import statistics
 
+from matplotlib import font_manager
+font_manager._rebuild()
+
+plt.rcParams['font.family'] = 'CMU Concrete'
+
+
 product_combination = "0-0-4-0"  # modify as needed
 methods = ["exp-beta", "con-beta", "lin-beta"]
 results = {}

@@ -3,6 +3,12 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 
+from matplotlib import font_manager
+font_manager._rebuild()
+
+plt.rcParams['font.family'] = 'CMU Concrete'
+
+
 folders = ["exp-beta0-0-0-4-seed2", "exp-beta0-0-0-4-seed0", "exp-beta0-0-4-0-seed2", "exp-beta0-0-4-0-seed0",
            "exp-beta0-4-0-0-seed2", "exp-beta0-4-0-0-seed0", "exp-beta4-0-0-0-seed2", "exp-beta4-0-0-0-seed0",
            "exp-beta2-2-2-2-seed2", "exp-beta2-2-2-2-seed0"]  # the list of folders
