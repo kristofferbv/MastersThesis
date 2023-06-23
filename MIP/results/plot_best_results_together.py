@@ -8,7 +8,6 @@ from matplotlib import font_manager
 font_manager._rebuild()
 
 plt.rcParams['font.family'] = 'CMU Concrete'
-'''
 
 product_combination = "0-0-4-0"  # modify as needed
 methods = ["exp", "con", "lin"]
@@ -122,3 +121,4 @@ plt.ylabel('Average Total Cost')
 plt.grid()
 plt.legend(title='Product combinations')
 plt.show()
+'''
