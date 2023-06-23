@@ -275,8 +275,9 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
 
                 previous_il = inventory_levels[product_index]
                 inventory_levels[product_index] = max(0, previous_il + actions[time_step - 1][product_index] - demand)
-
+            zero_data = pd.Series([0])
             sales_quantity_data = products[product_index].loc[start_date + pd.DateOffset(weeks=1):start_date + pd.DateOffset(weeks=n_time_periods + 1), "sales_quantity"]
+            sales_quantity_data = pd.concat([zero_data, sales_quantity_data]).reset_index(drop=True)
             dict_demands[product_index] = sales_quantity_data
             prev_forecast[product_index] = dict_demands[product_index][1]
         total_costs += period_costs
