@@ -2,9 +2,16 @@ import re
 import numpy as np
 from scipy import stats
 import ast
+#stochasstic vs MIP comparison:
+# file_path = 'simulation_output_p4_er1_sm1_in1_lu1_t13_ep100_S2500_r1.2_beta1_seed0.txt'
 
-file_path = 'simulation_output_p2_er0_sm0_in2_lu0_t13_ep10_S2500_r1.2_beta1_seed0.txt'
-# Read the file
+# file_path = '4_4_4_4_deterministic_seed_2.txt'
+file_path = '1_1_1_1_deterministic_seed_0.txt'
+
+
+
+# The MIP vs RL comparison:
+# file_path = 'simulation_output_p2_er0_sm0_in2_lu0_t13_ep10_S2500_r1.2_beta1_seed0.txt'
 # file_path = 'simulation_output_p2_er0_sm2_in0_lu0_t13_ep100_S2500_r1.2_beta0.085_seed1.txt'
 # file_path = 'simulation_output_p2_er2_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta0.05_seed0.txt'
 with open(file_path, 'r') as f:
