@@ -11,6 +11,7 @@ from keras import layers
 from keras.layers import Conv1D
 from keras.layers import Layer
 from keras.models import Sequential
+from keras import backend as K
 import random
 
 from scipy import stats
@@ -31,7 +32,7 @@ actor_lr = 0.00001
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
-total_episodes = 300
+total_episodes = 3
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
@@ -172,6 +173,9 @@ class PositionalEncoding(layers.Layer):
 
 class DDPG():
     def __init__(self, products, state_shape, env, product_categories, lr):
+        K.clear_session()
+        tf.compat.v1.reset_default_graph()
+
         self.env = env
         self.product_categories = product_categories
         self.products = products
@@ -180,7 +184,6 @@ class DDPG():
         self.critic_model = self.get_critic()
         self.std_dev = std_dev
         self.lr = lr
-
         config = config_utils.load_config("config.yml")
         self.should_reset_time_at_each_episode = config["environment"]["should_reset_at_each_episode"]
 
@@ -361,6 +364,8 @@ class DDPG():
     def train(self, should_plot=True, reward_interval=1):
         # actor_optimizer.learning_rate = self.lr  # increased learning rate
         #
+        actor_optimizer.learning_rate = self.lr
+
         hei = tf.keras.models.load_model("actor_model_training")
         hade = tf.keras.models.load_model("actor_model_training")
         self.actor_model = hei
@@ -382,8 +387,8 @@ class DDPG():
         achieved_service_level[1] = []
 
         for ep in range(total_episodes):
-            if ep > 20:
-                actor_optimizer.learning_rate =0.0001 # increased learning rate
+            # if ep > 20:
+            #     actor_optimizer.learning_rate =0.0001 # increased learning rate
             self.ep = ep
             if (ep > 380):
                 self.env.set_costs(self.products)
@@ -463,8 +468,8 @@ class DDPG():
             avg_reward = np.mean(ep_reward_list[-30:])
             print("Episode * {} * Avg Reward is ==> {}".format(ep, avg_reward))
             avg_reward_list.append(avg_reward)
-        self.actor_model.save(f'models/actor_model_ep{ep}_saved_model')
-        self.critic_model.save(f'models/critic_model_ep{ep}_saved_model')
+        # self.actor_model.save(f'models/actor_model_ep{ep}_saved_model')
+        # self.critic_model.save(f'models/critic_model_ep{ep}_saved_model')
 
         if should_plot:
             # Plotting graph
