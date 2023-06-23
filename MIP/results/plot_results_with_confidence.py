@@ -2,6 +2,8 @@ import os
 import re
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.stats as stats
+
 
 import os
 import re
@@ -20,6 +22,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 
+
 for folder in folders:
     # extract the product types from the folder name
     numbers_part, seed_part = folder.split('-seed')
@@ -27,7 +30,7 @@ for folder in folders:
 
     folder_path = os.path.join(os.path.dirname(__file__), folder)
     
-    beta_costs_times = []
+    beta_costs_conf_intervals = []
 
     for filename in os.listdir(folder_path):
         if filename.startswith('simulation_output'):
@@ -38,39 +41,31 @@ for folder in folders:
 
                 with open(os.path.join(folder_path, filename), 'r') as file:
                     file_contents = file.read()
-                    # find the list of mean costs and average run times in the file contents
+                    # find the list of total costs and mean costs in the file contents
+                    match_total_costs = re.search(r'Total costs for each period are: \[(.*?)\]', file_contents)
                     match_costs = re.search(r'List of mean costs for each period: \[(.*?)\]', file_contents)
-                    match_time = re.search(r'The average time to run the model in Gurobi is: (\d\.\d+)', file_contents)
-                    if match_costs and match_time:
+                    if match_total_costs and match_costs:
+                        total_costs = list(map(float, match_total_costs.group(1).split(', ')))
                         costs = match_costs.group(1).split(', ')
                         last_cost = float(costs[-1])  # take the last cost
-                        avg_time = float(match_time.group(1))  # get the average run time
-                        beta_costs_times.append((beta, last_cost, avg_time))
+                        
+                        mean_total_cost = np.mean(total_costs)
+                        total_cost_conf_interval = stats.t.interval(alpha=0.95, df=len(total_costs)-1, loc=mean_total_cost, scale=stats.sem(total_costs))  # calculate the 95% confidence interval
+
+                        beta_costs_conf_intervals.append((beta, last_cost, total_cost_conf_interval))
 
     # sort by beta value
-    beta_costs_times.sort(key=lambda x: x[0])
+    beta_costs_conf_intervals.sort(key=lambda x: x[0])
 
     # unzip the list of tuples into three lists
-    betas, costs, times = zip(*beta_costs_times)
+    betas, costs, conf_intervals = zip(*beta_costs_conf_intervals)
+    cost_lower, cost_upper = zip(*conf_intervals)
 
-    # normalize times to range [0, 1] for color mapping
-    times_norm = [(t - min(times)) / (max(times) - min(times)) for t in times]
-
-    # create a scatter plot for costs
+    # create a scatter plot for costs with 95% confidence interval error bars
     plt.figure(figsize=(10, 6))
-    plt.scatter(betas, costs)
+    plt.errorbar(betas, costs, yerr=[cost_upper-np.array(costs), np.array(costs)-cost_lower], fmt='o')  # add error bars for the confidence intervals
     plt.title(f'Mean Total Costs for Different Beta Values\nErratic: {erratic}, Smooth: {smooth}, Intermittent: {intermittent}, Lumpy: {lumpy}')
     plt.xlabel('Beta Value')
     plt.ylabel('Mean Total Costs')
-    plt.grid()
-    plt.show()
-
-    # create a plot for average run times
-    plt.figure(figsize=(10, 6))
-    plt.plot(betas, times, marker='o')
-    plt.title(f'Average Run Time for Different Beta Values\nErratic: {erratic}, Smooth: {smooth}, Intermittent: {intermittent}, Lumpy: {lumpy}')
-    plt.xlabel('Beta Value')
-    plt.ylabel('Average Run Time')
-    plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))  # use scientific notation for y-axis
     plt.grid()
     plt.show()

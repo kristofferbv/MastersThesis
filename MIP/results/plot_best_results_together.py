@@ -8,14 +8,14 @@ from matplotlib import font_manager
 font_manager._rebuild()
 
 plt.rcParams['font.family'] = 'CMU Concrete'
-
+'''
 
 product_combination = "0-0-4-0"  # modify as needed
-methods = ["exp-beta", "con-beta", "lin-beta"]
+methods = ["exp", "con", "lin"]
 results = {}
 
 for method in methods:
-    folder = f"{method}{product_combination}-seed2"
+    folder = f"{method}-beta{product_combination}-seed2"
     
     folder_path = os.path.join(os.path.dirname(__file__), folder)
 
@@ -29,6 +29,7 @@ for method in methods:
 
                 with open(os.path.join(folder_path, filename), 'r') as file:
                     file_contents = file.read()
+                    
                     match_costs = re.search(r'Total costs for each period are: \[(.*?)\]', file_contents)
                     if match_costs:
                         costs = match_costs.group(1).split(', ')
@@ -40,22 +41,26 @@ for method in methods:
 
     # Find beta with lowest average total cost and save the costs list
     lowest_beta = min(beta_total_costs, key=lambda beta: statistics.mean(beta_total_costs[beta]))
-    results[method] = beta_total_costs[lowest_beta]
+    results[method] = (lowest_beta, beta_total_costs[lowest_beta])
 
 # Create boxplot
 plt.figure(figsize=(10, 6))
 
-data = [results[method] for method in methods]
+data = [results[method][1] for method in methods]
 custom_blue = (0.25, 0.5, 1)  # RGB tuple representing a color in between 'blue' and 'lightblue'
-bp = plt.boxplot(data, labels=methods, patch_artist=True, medianprops={'color': 'black'},
+labels = [f'{method}, {results[method][0]}' for method in methods]  # Combine method and best beta value
+
+bp = plt.boxplot(data, labels=labels, patch_artist=True, medianprops={'color': 'black'},
                  boxprops={'facecolor': custom_blue, 'edgecolor': custom_blue},
                  whiskerprops={'color': custom_blue}, capprops={'color': custom_blue},
                  flierprops={'markeredgecolor': custom_blue})
 
 plt.title(f'Boxplot of total costs for best beta for product combination {product_combination}')
-plt.xlabel('Method')
+plt.xlabel('Method, Best Value')  # Update x-axis label
 plt.ylabel('Total Cost')
+
 plt.show()
+
 
 '''
 import os
@@ -64,14 +69,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import statistics
 
-product_combinations = ["beta0-0-0-4", "beta0-0-4-0", "beta0-4-0-0", "beta4-0-0-0"]
+product_combinations = ["beta0-0-0-4-seed0", "beta0-0-0-4-seed2"]
 methods = ["exp", "con", "lin"]
 results = {}
 
 for combo in product_combinations:
     results[combo] = {}
     for method in methods:
-        folder = f"{method}-{combo}-seed2"
+        folder = f"{method}-{combo}"
         
         folder_path = os.path.join(os.path.dirname(__file__), folder)
 
@@ -117,5 +122,3 @@ plt.ylabel('Average Total Cost')
 plt.grid()
 plt.legend(title='Product combinations')
 plt.show()
-
-'''
