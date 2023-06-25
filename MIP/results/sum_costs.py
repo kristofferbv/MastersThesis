@@ -12,7 +12,7 @@ plt.rcParams['font.family'] = 'CMU Concrete'
 def compute_average(lst):
     return sum(lst) / len(lst) if lst else None
 
-folders = ["costs_exp-beta4-0-0-0"]
+folders = ["costs_con-beta4-0-0-0"]
 
 for folder in folders:
     # extract the product types from the folder name
@@ -33,7 +33,7 @@ for folder in folders:
                 with open(os.path.join(folder_path, filename), 'r') as file:
                     file_contents = file.read()
                     # find the list of holding costs in the file contents
-                    match_costs = re.search(r'Shortage costs for each period are: \[(.*?)\]', file_contents)
+                    match_costs = re.search(r'Holding costs for each period are: \[(.*?)\]', file_contents)
                     if match_costs:
                         costs = [float(cost) for cost in match_costs.group(1).split(', ')]
                         avg_cost = np.mean(costs)  # calculate the average cost
@@ -49,9 +49,9 @@ for folder in folders:
         # create a line plot for costs
         plt.figure(figsize=(10, 6))
         plt.plot(betas, costs, marker='o')   # use 'o' to mark the data points
-        plt.title(f'Average Shortage Costs for Different Beta Values\nErratic: {erratic}, Smooth: {smooth}, Intermittent: {intermittent}, Lumpy: {lumpy}')
-        plt.xlabel('Beta Value')
-        plt.ylabel('Average Shortage Cost')
+        plt.title(f'Average Holding Costs for Different Constant Values\nErratic: {erratic}, Smooth: {smooth}, Intermittent: {intermittent}, Lumpy: {lumpy}')
+        plt.xlabel('Constant Value')
+        plt.ylabel('Average Holding Costs')
         plt.grid()
         plt.show()
 
