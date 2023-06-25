@@ -17,6 +17,20 @@ mpl.rc('font', family='CMU Concrete')
 #
 
 
+def forecast(df, date, n_time_periods=20):
+    shifted_df = df["sales_quantity"].shift(52)
+
+    train = df.loc[df.index <= date]
+    test = df.loc[df.index > date]
+
+
+    forecast = shifted_df.loc[test.index]
+    forecast[forecast < 0] = 0
+
+
+    return forecast.values[:n_time_periods]
+
+
 import statistics
 def forecast_analysis(df, date, shouldShowPlot=False, verbose = False, n_time_periods=20):
     # Shift the 'sales_quantity' by 52 weeks
