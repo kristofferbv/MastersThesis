@@ -484,7 +484,7 @@ class DDPG():
         self.test(episodes=10)
 
     def test(self, episodes=10, path=None):
-        actor = tf.keras.models.load_model(f'models_ip_2/actor_model_2')
+        actor = tf.keras.models.load_model(f'models_ep_2/beating_MIP')
         # actor = self.actor_model
         generated_products = self.generate_products(6000,0)
         self.env.products = generated_products
