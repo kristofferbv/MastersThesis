@@ -13,7 +13,7 @@ plt.rcParams['font.family'] = 'CMU Concrete'
 def compute_average(lst):
     return sum(lst) / len(lst) if lst else None
 
-folders = ["costs-exp-beta-4-0-0-0"]
+folders = ["costs-lin-beta-4-0-0-0"]
 
 for folder in folders:
     numbers_part = folder.split('-beta-')[1]
@@ -53,8 +53,8 @@ for folder in folders:
 
         plt.figure(figsize=(10, 6))
         plt.errorbar(betas, costs, yerr=ci, fmt='o', capsize=5)  # use errorbar function
-        plt.title(f'Average Total Costs for Different Beta Values\nErratic: {erratic}, Smooth: {smooth}, Intermittent: {intermittent}, Lumpy: {lumpy}')
-        plt.xlabel('Beta Value')
+        plt.title(f'Average Total Costs for Different Gamma Values\nErratic: {erratic}, Smooth: {smooth}, Intermittent: {intermittent}, Lumpy: {lumpy}')
+        plt.xlabel('Gamma Value')
         plt.ylabel('Average Total Costs')
         plt.grid()
         plt.show()

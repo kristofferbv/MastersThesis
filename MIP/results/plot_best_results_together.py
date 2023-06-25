@@ -9,7 +9,7 @@ font_manager._rebuild()
 
 plt.rcParams['font.family'] = 'CMU Concrete'
 
-product_combination = "0-0-4-0"  # modify as needed
+product_combination = "4-0-0-0"  # modify as needed
 methods = ["exp", "con", "lin"]
 results = {}
 
