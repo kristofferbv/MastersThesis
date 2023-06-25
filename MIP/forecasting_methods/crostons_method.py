@@ -1,13 +1,16 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from statsforecast import StatsForecast
-from statsforecast.models import TSB
 
 
 
-class Croston:
-    def __init__(self, alpha=0.1):
-        self.alpha = alpha
+import numpy as np
+from matplotlib import pyplot as plt
+
+
+class TSB:
+    def __init__(self, alpha_d=0.2, alpha_p=0.2):
+        self.alpha_d = alpha_d
+        self.alpha_p = alpha_p
         self.p = None
         self.q = None
 
@@ -20,10 +23,10 @@ class Croston:
         self.q = 1.0
 
         # Calculate smoothed estimates for remaining observations
-        for val in demand[first_demand + 1:]:
+        for i, val in enumerate(demand[first_demand + 1:]):
+            self.p = self.alpha_d * val + (1 - self.alpha_d) * self.p
             if val > 0:
-                self.p = self.alpha * val + (1 - self.alpha) * self.p
-                self.q = self.alpha * 1 + (1 - self.alpha) * self.q
+                self.q = self.alpha_p * i + (1 - self.alpha_p) * self.q
 
     def forecast(self, periods):
         return np.ones(periods) * (self.p / self.q)
@@ -41,7 +44,7 @@ def forecast(df, start_date, model=None, n_time_periods=20, alpha=0.1, shouldSho
     test = test["sales_quantity"]
 
     if model is None:
-        model = Croston(alpha=alpha)
+        model = TSB(alpha_d=0.1, alpha_p=0.2)
         model.fit(train)
 
     forecast = model.forecast(n_time_periods)
@@ -65,7 +68,7 @@ def forecast_analysis(df, start_date, model=None, n_time_periods=20, alpha=0.1, 
     test = test["sales_quantity"]
 
     if model is None:
-        model = Croston(alpha=alpha)
+        model = TSB(0.1, 0.1)
         model.fit(train)
 
     forecast = model.forecast(n_time_periods)
@@ -86,7 +89,6 @@ def forecast_analysis(df, start_date, model=None, n_time_periods=20, alpha=0.1, 
     rmse = np.sqrt(np.mean((test.values[:n_time_periods] - forecast) ** 2))
 
     if verbose:
-        print(f'sMAPE Croston´s method: {smape:.2f}')
         print(f'MAE Croston´s method: {mae:.2f}')
         print(f'Std dev Croston´s method: {std_dev:.2f}')
 

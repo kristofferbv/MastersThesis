@@ -3,7 +3,7 @@ import os
 import sys
 
 from MIP.analysis.analyse_data import plot_sales_quantity
-from MIP.forecasting_methods import sarima, holt_winters_method, crostons_method, recurrent_neural_network, benchmark_avg
+from MIP.forecasting_methods import sarima, holt_winters_method, crostons_method, recurrent_neural_network, benchmark_avg, naive, TSB
 
 import retrieve_data
 from config_utils import load_config
@@ -46,7 +46,7 @@ if __name__ == '__main__':
         r = []
         for i in range(10):
             category_products = retrieve_data.read_products("2016-01-01", "2020-12-30", category)
-            number_of_products = 20
+            number_of_products = 2
             sampled_products = random.sample(category_products, number_of_products)
             if category == "erratic" or category == "smooth":
                 products = generate_seasonal_data_for_erratic_demand(sampled_products, 10000)
@@ -70,17 +70,17 @@ if __name__ == '__main__':
                     print(f"Average MSE holt_winter = {sum(h_mses) / len(h_mses)}")
                     print(f"Std dev MSE holt_winter = {np.std(h_mses)}")
                     print(f"Average MAE holt_winter = {sum(h_maes) / len(h_maes)}")
-                    c_mae, c_mse, c_rmse = crostons_method.forecast_analysis(product, start_date, verbose=False, n_time_periods=26, shouldShowPlot=False)
+                    c_mae, c_mse, c_rmse = TSB.forecast_analysis(product, start_date, verbose=False, n_time_periods=26, shouldShowPlot=True)
                     c_mses.append(c_mse)
                     c_maes.append(c_mae)
                     c_rmses.append(c_rmse)
 
-                    r = recurrent_neural_network.forecast(product,start_date, n_time_periods=26)
-                    s_mae, s_mse, s_rmse = sarima.forecast_analyse(product, start_date, n_time_periods=26)
+                    # r = recurrent_neural_network.forecast(product,start_date, n_time_periods=26)
+                    s_mae, s_mse, s_rmse = sarima.forecast_analyse(product, start_date, n_time_periods=26, shouldShowPlot=True)
                     s_mses.append(s_mse)
                     s_maes.append(s_mae)
                     s_rmses.append(s_rmse)
-                    b_mae, b_mse, b_rmse = benchmark_avg.forecast_analysis(product, start_date, n_time_periods=26)
+                    b_mae, b_mse, b_rmse = naive.forecast_analysis(product, start_date, n_time_periods=26, shouldShowPlot=True)
                     b_mses.append(b_mse)
                     b_maes.append(b_mae)
                     b_rmses.append(b_rmse)

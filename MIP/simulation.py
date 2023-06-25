@@ -17,7 +17,7 @@ from config_utils import load_config
 import generate_data
 
 
-def simulate(real_products, config, beta=None, n_time_periods=None):
+def simulate(real_products, config, beta=None, n_time_periods=None, total_costs_best_beta=None, best_beta=None):
     if n_time_periods is None:
         n_time_periods = config["deterministic_model"]["n_time_periods"]  # number of time periods we use in the deterministic model to decide actions
     n_episodes = config["simulation"]["n_episodes"]  # This is the number of times we run a full simulation
@@ -42,8 +42,11 @@ def simulate(real_products, config, beta=None, n_time_periods=None):
     if beta is None:
         beta = config["deterministic_model"]["beta"]
 
+    if best_beta is None:
+        best_beta = beta
+
     output_folder = "results"
-    output_file = f"simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
+    output_file = f"costs_simulation_output_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_beta{beta}_seed{seed}.txt"
     file_path = os.path.join(output_folder, output_file)
 
     if os.path.exists(file_path):
@@ -62,7 +65,7 @@ def simulate(real_products, config, beta=None, n_time_periods=None):
         number_of_products = product_categories[category]
         current_index += number_of_products
         if category == "erratic":
-            generated_products += generate_data.generate_seasonal_data_for_erratic_demand(real_products[last_index:current_index], generation_length, seed)
+            generated_products += generate_data.generate_seasonal_data_for_erratic_demand(real_products[last_index:current_index], generation_length, seed=seed)
         elif category == "smooth":
             generated_products += generate_data.generate_seasonal_data_for_smooth_demand(real_products[last_index:current_index], generation_length, seed)
 
@@ -74,6 +77,10 @@ def simulate(real_products, config, beta=None, n_time_periods=None):
     data_to_write.append("Number of products from each cateogry is:  Erratic: " + str(product_categories["erratic"]) + ", Smooth: " + str(product_categories["smooth"]) + ", Intermittent: " + str(product_categories["intermittent"]) + ", Lumpy: " + str(product_categories["lumpy"]))
 
     total_costs = []
+    holding_costs = []
+    shortage_costs = []
+    setup_costs = []
+
     list_mean = []
     list_sem = []
     list_std_run_time = []
@@ -91,8 +98,6 @@ def simulate(real_products, config, beta=None, n_time_periods=None):
     all_models = {}
     all_std_devs = {}
     date_range = pd.date_range(start=start_date, end=end_date, freq='W')
-
-
 
     if check_if_os_path_exists(n_products, n_erratic, n_smooth, n_intermittent, n_lumpy, seed):
         with open(f'forecasts/forecast_sp{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_seed{seed}.pkl', 'rb') as f:
@@ -115,9 +120,12 @@ def simulate(real_products, config, beta=None, n_time_periods=None):
 
         data_to_write.append(f"Start inventory levels of episode: {episode} are {inventory_levels}")
 
-        costs, inventory_levels, start_date, actions, tau_values, models, avg_run_time_time_step, std_run_time, service_level, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimality_gap, std_optimality_gap = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, config, all_forecasts, all_std_devs, models=models, inventory_levels=inventory_levels, beta=beta)
+        costs, inventory_levels, start_date, actions, tau_values, models, avg_run_time_time_step, std_run_time, service_level, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimality_gap, std_optimality_gap, holding_cost, shortage_cost, setup_cost = run_one_episode(start_date, n_time_periods, generated_products, simulation_length, config, all_forecasts, all_std_devs, models=models, inventory_levels=inventory_levels, beta=beta)
         print(f"Total costs for episode {episode} was: ", costs)
         total_costs.append(costs)
+        holding_costs.append(holding_cost)
+        shortage_costs.append(shortage_cost)
+        setup_costs.append(setup_cost)
         list_mean.append(sum(total_costs) / len(total_costs))
         list_std_run_time.append(std_run_time)
         list_avg_forecast_errors.append(avg_forecast_errors)
@@ -141,18 +149,88 @@ def simulate(real_products, config, beta=None, n_time_periods=None):
         if reset_length > 0:
             print("Resetting...")
             # resetting
-            costs, inventory_levels, start_date, _, _, models, _, _, _, _, _, _, _, _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, config, all_forecasts, all_std_devs, models=models, inventory_levels=inventory_levels)
+            costs, inventory_levels, start_date, _, _, models, _, _, _, _, _, _, _, _, _, _, _ = run_one_episode(start_date, n_time_periods, generated_products, reset_length, config, all_forecasts, all_std_devs, models=models, inventory_levels=inventory_levels)
 
         avg_run_time = avg_run_time / n_episodes
+
+        '''
+        # check first stopping criterion
         if episode > 20 and (stats.sem(total_costs) * 2 * 1.96 < 0.02 * np.mean(total_costs)):
             print(f"Stopping early after {episode} episodes")
             break
+        '''
+        # Check the stopping criterion
+        if episode > 20 and len(total_costs) > 0 and total_costs_best_beta is not None:
+
+            # Calculate differences
+            diffs = np.array(total_costs) - np.array(total_costs_best_beta[:len(total_costs)])
+
+            # Calculate mean of the differences
+            mean_diff = np.mean(diffs)
+
+            # Calculate standard error of the differences
+            se_diff = stats.sem(diffs)
+
+            # Define confidence interval (90% in this case)
+            ci = 0.90
+
+            # Degrees of freedom
+            df = len(diffs) - 1
+
+            # Calculate the confidence interval
+            ci_low, ci_high = stats.t.interval(ci, df, loc=mean_diff, scale=se_diff)
+
+            print(f"Confidence interval is: [{ci_low}, {ci_high}]")
+            data_to_write.append(f"Confidence interval is: [{ci_low}, {ci_high}]")
+
+            # Check if confidence interval contains zero
+            if ci_low > 0:
+                print(f"Beta value {best_beta} is significantly better than beta value {beta}")
+                data_to_write.append(f"Beta value {best_beta} is significantly better than beta value {beta}")
+                break
+            elif episode == n_episodes - 1:
+                mean_beta = np.mean(total_costs)
+                mean_best_beta = np.mean(total_costs_best_beta)
+                if ci_high < 0:
+                    print(f"Beta value {beta} is significantly better than beta value {best_beta}")
+                    data_to_write.append(f"Beta value {beta} is significantly better than beta value {best_beta}")
+                    best_beta = beta
+                    total_costs_best_beta = total_costs
+
+                elif mean_beta < mean_best_beta:
+                    best_beta = beta
+                    total_costs_best_beta = total_costs
+                    print(f"No beta value is significantly better than the other, but Beta value {beta} has a lower mean value {best_beta}")
+                    data_to_write.append(f"No beta value is significantly better than the other, but Beta value {beta} has a lower mean value {best_beta}")
+                else:
+                    print(f"No beta value is significantly better than the other, but Beta value {best_beta} has a lower mean value {beta}")
+                    data_to_write.append(f"No beta value is significantly better than the other, but Beta value {best_beta} has a lower mean value {beta}")
+
+            '''
+            # Calculate the variance of the difference
+            var_diff = np.var(total_costs_beta1) / len(total_costs_beta1) + np.var(total_costs_beta2) / len(total_costs_beta2)
+
+            # Calculate the standard error of the difference
+            sem_diff = np.sqrt(var_diff)
+
+            # Calculate the confidence interval
+            conf_interval = stats.t.interval(0.95, df=min(len(total_costs_beta1), len(total_costs_beta2))-1, loc=np.mean(total_costs_beta1) - np.mean(total_costs_beta2), scale=sem_diff)
+
+            # Check if the confidence interval does not include zero
+            if conf_interval[0] > 0 or conf_interval[1] < 0:
+                print(f"Beta value {beta_value1} is significantly better than beta value {beta_value2}")
+                break
+            '''
 
     if should_write:
         data_to_write.append(f"Total costs for each period are: {total_costs}")
+        data_to_write.append(f"Holding costs for each period are: {holding_costs}")
+        data_to_write.append(f"Shortage costs for each period are: {shortage_costs}")
+        data_to_write.append(f"Setup costs for each period are: {setup_costs}")
+
         # data_to_write.append(f"Total average costs for all episodes is: {sum(total_costs) / len(total_costs)}")
         data_to_write.append(f'List of mean costs for each period: {list_mean}')
-        data_to_write.append(f'List of standard deviation of costs for each period: {list_sem}')
+        data_to_write.append(f'List of standard error of mean of total costs for each period: {list_sem}')
         data_to_write.append(f"Service levels are: {service_levels}")
         # data_to_write.append(f"Actual demands are: {actual_demand_list}")
 
@@ -174,13 +252,19 @@ def simulate(real_products, config, beta=None, n_time_periods=None):
         f.close()
 
         print(f"Total average costs for all episodes is: {sum(total_costs) / len(total_costs)}")
+        print(f"Best beta value is {best_beta}")
+
+        if total_costs_best_beta is None:
+            total_costs_best_beta = total_costs
+
+        return total_costs_best_beta, best_beta
 
 
 def perform_warm_up(products, start_date, n_time_periods, config, all_forecasts, all_std_devs):
     warm_up_length = config["simulation"]["warm_up_length"]  # This is the number of time periods we are using to warm up
     inventory_levels = [0 for i in range(len(products))]
     # for i in range(simulation_length):
-    _, inventory_levels, start_date, _, _, models, _, _, _, _, _, _, _, _ = run_one_episode(start_date, n_time_periods, products, warm_up_length, config, all_forecasts, all_std_devs, inventory_levels=inventory_levels)
+    _, inventory_levels, start_date, _, _, models, _, _, _, _, _, _, _, _, _, _, _ = run_one_episode(start_date, n_time_periods, products, warm_up_length, config, all_forecasts, all_std_devs, inventory_levels=inventory_levels)
     return inventory_levels, start_date, models
 
 
@@ -198,6 +282,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
     minor_setup_ratio = config["deterministic_model"]["minor_setup_ratio"]
     if beta is None:
         beta = config["deterministic_model"]["beta"]
+    print("beta: ", beta)
 
     forecasting_method = config["simulation"]["forecasting_method"]  # number of time periods
     verbose = config["simulation"]["verbose"]  # number of time periods
@@ -218,7 +303,6 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
         inventory_levels = [0 for i in range(len(products))]
 
     total_costs = 0
-
     shortage_costs = 0
     holding_costs = 0
     setup_costs = 0
@@ -275,24 +359,27 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
                 previous_il = inventory_levels[product_index]
                 inventory_levels[product_index] = max(0, previous_il + actions[time_step - 1][product_index] - demand)
 
-            dict_demands[product_index] = forecasts[product_index]
             dict_sds[product_index] = std_devs[product_index]
+            dict_demands[product_index] = forecasts[product_index]
+
+            # storing std dev and forecast to use for updating the std deviation of errors in the forecast
             prev_std_dev[product_index] = dict_sds[product_index][1]
             prev_forecast[product_index] = dict_demands[product_index][1]
 
         total_costs += period_costs
+
         if verbose:
             print("Period costs: ")
             print(period_costs)
 
-            print("Actions at time period ", time_step - 1)
-            print(actions[time_step - 1])
+            # print("Actions at time period ", time_step - 1)
+            # print(actions[time_step - 1])
 
-            print("Actual_demand for period ", time_step - 1)
-            print(actual_demands[time_step - 1][product_index])
-
-            print("Inventory levels at start of time period ", time_step)
-            print(inventory_levels)
+            # print("Actual_demand for period ", time_step - 1)
+            # print(actual_demands[time_step - 1][product_index])
+            #
+            # print("Inventory levels at start of time period ", time_step)
+            # print(inventory_levels)
 
             print("Total costs at time period : ", time_step)
             print(total_costs)
@@ -404,7 +491,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
     avg_forecast_errors = sum(forecast_errors.values()) / len(forecast_errors.values())
     std_forecast_errors = statistics.stdev(forecast_errors.values())
 
-    return total_costs, inventory_levels, start_date, actions, orders, models, avg_run_time_time_step, std_run_time, service_levels, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimaliy_gap, std_optimality_gap
+    return total_costs, inventory_levels, start_date, actions, orders, models, avg_run_time_time_step, std_run_time, service_levels, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimaliy_gap, std_optimality_gap, holding_costs, shortage_costs, setup_costs
 
 
 def precalculate_forecasts(date_range, n_time_periods, products, config, n_products, n_erratic, n_smooth, n_intermittent, n_lumpy, seed, generation_length):
@@ -472,4 +559,5 @@ def check_if_os_path_exists(n_products, n_erratic, n_smooth, n_intermittent, n_l
         return True
     return False
 
-#heisann
+# heisann
+

@@ -197,7 +197,7 @@ model = Sequential([
 
 # Compile the model
 optimizer = Adam(learning_rate=0.001)  # You can replace 0.001 with your desired learning rate
-model.compile(optimizer=optimizer, loss='mae')  # Use mean squared error as the loss function
+model.compile(optimizer=optimizer, loss='mse')  # Use mean squared error as the loss function
 
 # Print a summary of the model
 # model.summary()

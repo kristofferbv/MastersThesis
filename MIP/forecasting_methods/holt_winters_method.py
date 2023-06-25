@@ -5,6 +5,21 @@ from statsmodels.tsa.holtwinters import ExponentialSmoothing
 import matplotlib.pyplot as plt
 
 import statistics
+import numpy as np
+import pandas as pd
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import rcParams
+import matplotlib as mpl
+
+import matplotlib.font_manager
+
+plt.rcParams["font.family"] = "CMU Concrete"
+plt.rcParams["font.family"] = "CMU Concrete"
+mpl.rc('font', family='CMU Concrete')
+
 
 
 def forecast(df, date, n_time_periods=20):
@@ -60,8 +75,8 @@ def forecast_analysis(df, date, shouldShowPlot=False, verbose = False, n_time_pe
 
         # Add labels and legend
         plt.xlabel('Date')
-        plt.ylabel('Sales Quantity')
-        plt.title('Sales Forecast Holt-Winters method')
+        plt.ylabel('Demand')
+        plt.title('Sales Forecast using Holt-Winters method')
         plt.legend()
 
         # Show the plot

@@ -26,13 +26,13 @@ plt.rcParams["font.family"] = "CMU Concrete"
 
 std_dev = 1
 # Learning rate for actor-critic models
-critic_lr = 0.003
+critic_lr = 0.001
 actor_lr = 0.00001
 
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
-total_episodes = 300
+total_episodes = 10
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
@@ -297,9 +297,9 @@ class DDPG():
 
         plt.savefig('best_agent_er2.png', dpi=300)
         plt.show()
-        with open('avg_rewards_' + str(self.lr) + '.txt', 'w') as f:
-            f.write(repr(self.avg_reward_list))
-
+        # with open('avg_rewards_critic_' + str(critic_lr) + '.txt', 'w') as f:
+        #     f.write(repr(self.avg_reward_list))
+        #
     def save_models(self):
         save_dir = 'models'
         os.makedirs(save_dir, exist_ok=True)
@@ -361,13 +361,13 @@ class DDPG():
             zip(actor_grad, self.actor_model.trainable_variables)
         )
 
-    def train(self, should_plot=True, reward_interval=1):
+    def train(self, should_plot=True, reward_interval=2):
         # actor_optimizer.learning_rate = self.lr  # increased learning rate
         #
-        actor_optimizer.learning_rate = self.lr
+        # actor_optimizer.learning_rate = self.lr
 
-        hei = tf.keras.models.load_model("actor_model_training")
-        hade = tf.keras.models.load_model("actor_model_training")
+        hei = tf.keras.models.load_model("models_ep_2/beating_MIP")
+        hade = tf.keras.models.load_model("models_ep_2/beating_MIP")
         self.actor_model = hei
         self.target_actor = hade
 
@@ -381,14 +381,14 @@ class DDPG():
         epsilon_decay = 0.995  # how quickly to decrease randomness
         generated_products = self.generate_products(5000)
         self.env.products = generated_products
-        # self.env.scaled_products = generated_products
+        self.env.scaled_products = generated_products
         achieved_service_level = {}
         achieved_service_level[0] = []
         achieved_service_level[1] = []
 
         for ep in range(total_episodes):
-            # if ep > 20:
-            #     actor_optimizer.learning_rate =0.0001 # increased learning rate
+            if ep > 20:
+                actor_optimizer.learning_rate =0.0001 # increased learning rate
             self.ep = ep
             if (ep > 380):
                 self.env.set_costs(self.products)
@@ -398,7 +398,7 @@ class DDPG():
                 self.env.products = generated_products
                 self.env.scaled_products = generated_products
             else:
-                if self.env.current_period < 4999:
+                if self.env.current_period >= 4999:
                     self.env.reset_current_period()
                     generated_products = self.generate_products(5000)
                     self.env.products = generated_products
@@ -465,9 +465,10 @@ class DDPG():
             self.avg_reward_list.append(episodic_reward)
 
             # Mean of last 40 episodes
-            avg_reward = np.mean(ep_reward_list[-30:])
+            avg_reward = np.mean(ep_reward_list[-1:])
             print("Episode * {} * Avg Reward is ==> {}".format(ep, avg_reward))
             avg_reward_list.append(avg_reward)
+        self.save_models()
         # self.actor_model.save(f'models/actor_model_ep{ep}_saved_model')
         # self.critic_model.save(f'models/critic_model_ep{ep}_saved_model')
 
@@ -478,12 +479,13 @@ class DDPG():
             plt.xlabel("Episode")
             plt.ylabel("Avg. Epsiodic Reward")
             plt.show()
-        with open('avg_rewards_' + str(self.lr) + '.txt', 'w') as f:
-            f.write(repr(self.avg_reward_list))
-        self.test(episodes=1)
+        # with open('avg_rewards_critic_' + str(critic_lr) + '.txt', 'w') as f:
+        #     f.write(repr(self.avg_reward_list))
+        self.test(episodes=10)
 
     def test(self, episodes=10, path=None):
-        actor = tf.keras.models.load_model(f'models_ep_4/actor_model_2')
+        actor = tf.keras.models.load_model(f'models_ip_2/actor_model_2')
+        # actor = self.actor_model
         generated_products = self.generate_products(6000,0)
         self.env.products = generated_products
         self.env.scaled_products = generated_products
@@ -509,7 +511,7 @@ class DDPG():
                 generated_products = self.generate_products(500)
                 self.env.products = generated_products
                 self.env.scaled_products = generated_products
-            elif self.env.current_period < 4999:
+            elif self.env.current_period >= 4900:
                 self.env.reset_current_period()
                 generated_products = self.generate_products(5000)
                 self.env.products = generated_products
@@ -526,7 +528,7 @@ class DDPG():
 
                 for i, quantity in enumerate(action):
 
-                    if quantity < 5:
+                    if quantity < 1:
                         quantity = 0
                         action[i] = quantity
                         episode_zero_order_counts[i] += 1
@@ -537,14 +539,16 @@ class DDPG():
                         else:
                             episode_counts[episode][i] += 1
                         episode_order_sums[i] += quantity
-                    # if i == 0:
-                    #     action[i] += 1.1 * action[i]
+                    if i == 1:
+                        action[i] += 0.9*action[i]
+                    # else:
+                    #     action[i] += 1.2 * action[i]
                     # else:
                     #     action[i] += action[i]
                     # episode_order_sums[i] += quantity #* 0.2
-                    # action = action * 1.5
+                    # action = action
 
-                print(action)
+                # print(action)
 
                 state, reward, done, info = self.env.step(action)
                 for i in range(len(self.products)):

@@ -99,7 +99,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.shortage_cost = []
         for product_index in range(len(products)):
             print(self.holding_cost[product_index])
-            self.shortage_cost.append(self.holding_cost[0] / (1 / 0.95 - 1))
+            self.shortage_cost.append(self.holding_cost[product_index] / (1 / 0.95 - 1))
 
 
     def reset(self, **kwargs):
@@ -191,7 +191,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         # Update the current period
 
         self.current_period += 1
-        done = self.steps == 52 #self.current_period == self.n_periods + max(self.rolling_window, self.n_periods_historical_data) + self.time_period
+        done = self.steps == 51 #self.current_period == self.n_periods + max(self.rolling_window, self.n_periods_historical_data) + self.time_period
         return self._get_observation(), individual_rewards, done, {}
 
     def _get_observation(self):

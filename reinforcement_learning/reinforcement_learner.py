@@ -118,8 +118,8 @@ if __name__ == "__main__":
     #     ma.train()
     #     ma.test()
     if method == "ddpg":
-        lrs = [0.00001, 0.000001]
+        lrs = [0.000001]
         for lr in lrs:
             ddpg = DDPG(real_products, state_shape, env, product_categories, lr)
-            ddpg.train()
-            # ddpg.test()
+            # ddpg.train()
+            ddpg.test(episodes=1000)

@@ -7,6 +7,21 @@ import os
 import matplotlib.pyplot as plt
 from tqdm import tqdm_notebook
 from itertools import product
+import numpy as np
+import pandas as pd
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import rcParams
+import matplotlib as mpl
+
+import matplotlib.font_manager
+
+plt.rcParams["font.family"] = "CMU Concrete"
+plt.rcParams["font.family"] = "CMU Concrete"
+mpl.rc('font', family='CMU Concrete')
+
 
 
 def optimize_SARIMA(df, start_date):
@@ -160,12 +175,12 @@ def forecast_analyse(df, start_date, model = None, n_time_periods=20, order=(1, 
         # plt.plot(train.index, train.values, label='Actual')
         plt.plot(test.index[:n_time_periods], test.values[:n_time_periods], label='Actual')
         plt.plot(forecast.predicted_mean.index, forecast.predicted_mean, label='Forecast')
-        plt.fill_between(conf_int.index, conf_int.iloc[:, 0], conf_int.iloc[:, 1], color='pink', label='95% Confidence Interval')
+        # plt.fill_between(conf_int.index, conf_int.iloc[:, 0], conf_int.iloc[:, 1], color='pink', label='95% Confidence Interval')
 
         # Add labels and legend
         plt.xlabel('Date')
-        plt.ylabel('Sales Quantity')
-        plt.title('Sales Forecast SARIMA method')
+        plt.ylabel('Demand')
+        plt.title('Sales Forecast using SARIMA method')
         plt.legend()
 
         # Show the plot
