@@ -26,13 +26,13 @@ plt.rcParams["font.family"] = "CMU Concrete"
 
 std_dev = 1
 # Learning rate for actor-critic models
-critic_lr = 0.001
+critic_lr = 0.003
 actor_lr = 0.00001
 
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
-total_episodes = 300
+total_episodes = 3000
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
@@ -361,15 +361,32 @@ class DDPG():
             zip(actor_grad, self.actor_model.trainable_variables)
         )
 
-    def train(self, should_plot=True, reward_interval=1):
+    def train(self, episodes = None, should_plot=True, reward_interval=1):
         # actor_optimizer.learning_rate = self.lr  # increased learning rate
         #
         # actor_optimizer.learning_rate = self.lr
+        if episodes is not None:
+            total_episodes = episodes
+        hei = tf.keras.models.load_model('actor_model_half_ratio')
+        hade = tf.keras.models.load_model('actor_model_half_ratio')
+        # self.critic_model = tf.keras.models.load_model("models_ep_2/critic_model_ep999_saved_model")
+        # self.target_critic = tf.keras.models.load_model("models_ep_2/critic_model_ep999_saved_model")
 
-        hei = tf.keras.models.load_model("actor_model_training")
-        hade = tf.keras.models.load_model("actor_model_training")
         self.actor_model = hei
         self.target_actor = hade
+        # model = self.actor_model_half_ratio
+        # # Print the summary
+        # model.summary()
+        #
+        # # Loop over each layer and print out some details
+        # for layer in model.layers:
+        #     print("Layer Name:", layer.name)
+        #     print("Layer Type:", layer.__class__.__name__)
+        #     if layer.__class__.__name__ == 'Dropout':
+        #         print("Dropout Rate:", layer.rate)
+        #     print("Number of Neurons:", layer.output_shape[-1])
+        #     print("-----")
+        #     print("Learning rate:", model.optimizer.learning_rate)
 
         # To store reward history of each episode
         ep_reward_list = []
@@ -379,7 +396,7 @@ class DDPG():
         epsilon = 0.5  # start with full randomness
         epsilon_min = 0.01  # the lowest level of randomness we want
         epsilon_decay = 0.995  # how quickly to decrease randomness
-        generated_products = self.generate_products(5000)
+        generated_products = self.generate_products(7000,0)
         self.env.products = generated_products
         self.env.scaled_products = generated_products
         achieved_service_level = {}
@@ -398,7 +415,7 @@ class DDPG():
                 self.env.products = generated_products
                 self.env.scaled_products = generated_products
             else:
-                if self.env.current_period >= 4999:
+                if self.env.current_period < 4900:
                     self.env.reset_current_period()
                     generated_products = self.generate_products(5000)
                     self.env.products = generated_products
@@ -467,7 +484,7 @@ class DDPG():
             self.avg_reward_list.append(episodic_reward)
 
             # Mean of last 40 episodes
-            avg_reward = np.mean(ep_reward_list[-1:])
+            avg_reward = np.mean(ep_reward_list[-30:])
             print("Episode * {} * Avg Reward is ==> {}".format(ep, avg_reward))
             avg_reward_list.append(avg_reward)
         self.save_models()
@@ -486,7 +503,7 @@ class DDPG():
         self.test(episodes=10)
 
     def test(self, episodes=10, path=None):
-        actor = tf.keras.models.load_model('actor_test_2')
+        actor = tf.keras.models.load_model('models_ep_2/best_er_half_ratio')
         # actor = self.best_one
         generated_products = self.generate_products(6000,0)
         self.env.products = generated_products
@@ -515,7 +532,7 @@ class DDPG():
                 self.env.scaled_products = generated_products
             elif self.env.current_period >= 4900:
                 self.env.reset_current_period()
-                generated_products = self.generate_products(5000)
+                generated_products = self.generate_products(5000,0)
                 self.env.products = generated_products
                 self.env.scaled_products = generated_products
 
@@ -542,7 +559,7 @@ class DDPG():
                             episode_counts[episode][i] += 1
                         episode_order_sums[i] += quantity
                     # if i == 1:
-                    action[i] += 2*action[i]
+                    # action[i] -= 0.5*action[i]
                     # if i == 1:
                     #     action[i] += 0.9*action[i]
                     # else:

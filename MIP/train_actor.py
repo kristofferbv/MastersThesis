@@ -166,21 +166,21 @@ class TransformerBlock(layers.Layer):
 # Set some hyperparameters
 n_products = 2
 n_features = 14
-n_neurons = 100 # Number of neurons in the hidden layer, can be adjusted
+n_neurons = 200 # Number of neurons in the hidden layer, can be adjusted
 
 # Define the model
 # input_data = np.transpose(input_data, (0,2,1))
 # model = get_actor(n_features, n_products)
 print(input_data.shape)
 model = Sequential([
-    layers.GRU(n_neurons, activation='relu', return_sequences=True, input_shape=(n_features, n_products)),
-    layers.Dropout(0.4),
+    layers.LSTM(n_neurons, activation='relu', return_sequences=True, input_shape=(n_features, n_products)),
+    layers.Dropout(0.5),
     # layers.GRU(n_neurons, activation='relu', return_sequences=True, input_shape=(n_features, n_products)),
     # layers.Dropout(0.5),
     # TransformerBlock(embed_dim=100, num_heads=2, ff_dim=100), # embed_dim should match the output dimension of the previous layer
     # layers.Dropout(0.5),
-    layers.GRU(n_neurons, activation='relu'),
-    layers.Dropout(0.4),
+    layers.LSTM(n_neurons, activation='relu'),
+    layers.Dropout(0.5),
     layers.Dense(n_products)
 ])
 
