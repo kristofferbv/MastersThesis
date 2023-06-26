@@ -3,8 +3,11 @@ import numpy as np
 from scipy import stats
 import ast
 #stochasstic vs MIP comparison:
-file_path = 'simulation_output_p4_er1_sm1_in1_lu1_t13_ep100_S2500_r1.2_beta1_seed0.txt'
-# file_path= 'stochastic_1_1_1_1.txt'
+#det
+# file_path = 'simulation_output_p4_er1_sm1_in1_lu1_t13_ep100_S2500_r1.2_beta1_seed2.txt'
+#stoch
+# file_path = 'costs_simulation_output_p4_er1_sm1_in1_lu1_t13_ep100_S2500_r1.2_beta1_seed2.txt'
+
 # file_path = 'simulation_output_p16_er4_sm4_in4_lu4_t13_ep100_S2500_r1.2_beta1_seed2.txt'
 # file_path = 'simulation_output_p16_er4_sm4_in4_lu4_t13_ep100_S2500_r1.2_beta0.995_seed2.txt'
 
@@ -12,12 +15,22 @@ file_path = 'simulation_output_p4_er1_sm1_in1_lu1_t13_ep100_S2500_r1.2_beta1_see
 # file_path = '4_4_4_4_deterministic_seed_2.txt'
 # file_path = '1_1_1_1_deterministic_seed_0.txt'
 
+# Different costs:
+file_path = 'compare_with_rl_erratic/compare_with_RL_output_p2_er2_sm0_in0_lu0_t13_ep100_S1250_r1.2_beta0.05_seed0.txt'
+
 
 
 # The MIP vs RL comparison:
-file_path = 'simulation_output_p2_er0_sm0_in2_lu0_t52_ep100_S2500_r1.2_beta1_seed0.txt'
+# file_path = 'costs_simulation_output_p2_er0_sm0_in2_lu0_t52_ep100_S2500_r1.2_beta1_seed0.txt'
+# file_path = 'costs_simulation_output_p2_er0_sm0_in0_lu2_t13_ep100_S2500_r1.2_beta1_seed2.txt'
+# file_path = 'costs_simulation_output_p2_er0_sm2_in0_lu0_t13_ep100_S2500_r1.2_beta1_seed0.txt'
+# file_path = 'costs_simulation_output_p2_er2_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta1_seed0.txt'
+# file_path = 'costs_simulation_output_p2_er0_sm0_in0_lu2_t13_ep100_S2500_r1.2_beta1_seed2.txt'
+
+
+# file_path = 'costs_simulation_output_p2_er0_sm0_in2_lu0_t52_ep100_S2500_r1.2_beta1_seed0.txt'
 # file_path = 'simulation_output_p2_er0_sm2_in0_lu0_t13_ep100_S2500_r1.2_beta0.085_seed1.txt'
-# file_path = 'simulation_output_p2_er2_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta0.05_seed0.txt'
+# file_path = 'simulation_output_p2_er2_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta0.995_seed0.txt'
 with open(file_path, 'r') as f:
     content = f.read()
 match = re.search(r'Total costs for each period are: \[(.*?)\]', content)
@@ -29,10 +42,10 @@ if match:
     costs = list(map(float, costs_str.split(',')))
 
     # Calculate the mean
-    mean = np.mean(costs[1:])
+    mean = np.mean(costs)
 
     # Calculate the standard error
-    se = stats.sem(costs[1:])
+    se = stats.sem(costs)
 
     # Calculate the confidence interval
     confidence = 0.95
@@ -112,3 +125,36 @@ for key, sum_value in total_avg_sums.items():
     overall_avg = sum_value / total_avg_counts[key]
     avg_zero_counts = total_zero_counts[key] / len(episode_sums.items())
     print(f"For action {key}, average order quantity over all episodes: {overall_avg}, number of non-orders: {avg_zero_counts}")
+
+
+def get_mean_from_text(pattern, text):
+    match = re.search(pattern, text)
+    if match:
+        str_list = match.group(1)
+        list_values = list(map(float, str_list.split(',')))
+        return np.mean(list_values)
+    return None
+
+# Read your .txt file
+with open(file_path, 'r') as f:
+    content = f.read()
+
+# Define patterns
+holding_costs_pattern = r'Holding costs for each period are: \[(.*?)\]'
+shortage_costs_pattern = r'Shortage costs for each period are: \[(.*?)\]'
+setup_costs_pattern = r'Setup costs for each period are: \[(.*?)\]'
+total_costs_pattern = r'Total costs for each period are: \[(.*?)\]'
+
+
+# Get means
+mean_holding_costs = get_mean_from_text(holding_costs_pattern, content)
+mean_shortage_costs = get_mean_from_text(shortage_costs_pattern, content)
+mean_setup_costs = get_mean_from_text(setup_costs_pattern, content)
+total_costs = get_mean_from_text(total_costs_pattern, content)
+
+
+# Print means
+print(f'The mean holding costs are {mean_holding_costs}')
+print(f'The mean shortage costs are {mean_shortage_costs}')
+print(f'The mean setup costs are {mean_setup_costs}')
+print(f'The mean total costs are {total_costs}')

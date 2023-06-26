@@ -121,7 +121,7 @@ def sample_data(file_path, start_date, n_time_periods, products, episode_length,
                 if var.x < threshold:
                     dict_actions[time_index + 13 * time_step].append(0)
                 else:
-                    dict_actions[time_index + 13 * time_step].append(var.x)
+                    dict_actions[time_index + 13 * time_step].append(var.x+0.2*var.x)
         for i in range(0, 12):
             dict_inventory_levels[i] = inventory_levels[:]
 

@@ -32,7 +32,7 @@ actor_lr = 0.00001
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
-total_episodes = 10
+total_episodes = 300
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
@@ -361,13 +361,13 @@ class DDPG():
             zip(actor_grad, self.actor_model.trainable_variables)
         )
 
-    def train(self, should_plot=True, reward_interval=2):
+    def train(self, should_plot=True, reward_interval=1):
         # actor_optimizer.learning_rate = self.lr  # increased learning rate
         #
         # actor_optimizer.learning_rate = self.lr
 
-        hei = tf.keras.models.load_model("models_ep_2/beating_MIP")
-        hade = tf.keras.models.load_model("models_ep_2/beating_MIP")
+        hei = tf.keras.models.load_model("actor_model_training")
+        hade = tf.keras.models.load_model("actor_model_training")
         self.actor_model = hei
         self.target_actor = hade
 
@@ -424,6 +424,8 @@ class DDPG():
                 for i in range(len(action)):
                     if action[i] < 5:
                         action[i] = 0
+                    # elif i == 1:
+                    #     action[i] += action[i]*0.1
 
                 # Recieve state and reward from environment.
                 state, reward, done, info = self.env.step(action)
@@ -469,7 +471,7 @@ class DDPG():
             print("Episode * {} * Avg Reward is ==> {}".format(ep, avg_reward))
             avg_reward_list.append(avg_reward)
         self.save_models()
-        # self.actor_model.save(f'models/actor_model_ep{ep}_saved_model')
+        # self.best_one.save(f'models/actor_model_ep{ep}_saved_model')
         # self.critic_model.save(f'models/critic_model_ep{ep}_saved_model')
 
         if should_plot:
@@ -484,8 +486,8 @@ class DDPG():
         self.test(episodes=10)
 
     def test(self, episodes=10, path=None):
-        actor = tf.keras.models.load_model(f'models_ep_2/beating_MIP')
-        # actor = self.actor_model
+        actor = tf.keras.models.load_model('actor_test_2')
+        # actor = self.best_one
         generated_products = self.generate_products(6000,0)
         self.env.products = generated_products
         self.env.scaled_products = generated_products
@@ -528,7 +530,7 @@ class DDPG():
 
                 for i, quantity in enumerate(action):
 
-                    if quantity < 1:
+                    if quantity < 5:
                         quantity = 0
                         action[i] = quantity
                         episode_zero_order_counts[i] += 1
@@ -539,8 +541,10 @@ class DDPG():
                         else:
                             episode_counts[episode][i] += 1
                         episode_order_sums[i] += quantity
-                    if i == 1:
-                        action[i] += 0.9*action[i]
+                    # if i == 1:
+                    action[i] += 2*action[i]
+                    # if i == 1:
+                    #     action[i] += 0.9*action[i]
                     # else:
                     #     action[i] += 1.2 * action[i]
                     # else:
