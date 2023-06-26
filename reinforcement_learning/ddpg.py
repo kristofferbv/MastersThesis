@@ -367,14 +367,14 @@ class DDPG():
         # actor_optimizer.learning_rate = self.lr
         if episodes is not None:
             total_episodes = episodes
-        hei = tf.keras.models.load_model('actor_model_half_ratio')
-        hade = tf.keras.models.load_model('actor_model_half_ratio')
+        hei = tf.keras.models.load_model('actor_model')
+        hade = tf.keras.models.load_model('actor_model')
         # self.critic_model = tf.keras.models.load_model("models_ep_2/critic_model_ep999_saved_model")
         # self.target_critic = tf.keras.models.load_model("models_ep_2/critic_model_ep999_saved_model")
 
         self.actor_model = hei
         self.target_actor = hade
-        # model = self.actor_model_half_ratio
+        # model = self.actor_model_half_ratio_training
         # # Print the summary
         # model.summary()
         #
@@ -503,7 +503,7 @@ class DDPG():
         self.test(episodes=10)
 
     def test(self, episodes=10, path=None):
-        actor = tf.keras.models.load_model('models_ep_2/best_er_half_ratio')
+        actor = tf.keras.models.load_model('models_ep_4/actor_model_2')
         # actor = self.best_one
         generated_products = self.generate_products(6000,0)
         self.env.products = generated_products

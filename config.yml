@@ -1,8 +1,8 @@
 deterministic_model:
   product_categories: { "erratic": 2, "smooth": 0, "intermittent": 0, "lumpy": 0}
   n_time_periods: 13
-  joint_setup_cost: 5000
-  minor_setup_ratio: 1.2
+  joint_setup_cost: 2500
+  minor_setup_ratio: 2.4
   service_level: 0.95
   should_include_safety_stock: False
   beta: 1
@@ -10,7 +10,7 @@ rl_model:
   product_categories: { "erratic": 2, "smooth": 0, "intermittent": 0, "lumpy": 0 }
   n_time_periods: 13
   joint_setup_cost: 2500
-  minor_setup_ratio: 0.6
+  minor_setup_ratio: 2.4
   service_level: 0.95
   beta: 1
   method: "ddpg"
