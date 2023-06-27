@@ -6,17 +6,21 @@ import numpy as np
 from matplotlib import font_manager
 font_manager._rebuild()
 
+font_path = '\\Users\annag\appdata\local\microsoft\windows\fonts\cmu.concrete-roman.ttf'
+
 plt.rcParams['font.family'] = 'CMU Concrete'
+plt.rcParams['font.size'] = 14  # Set the font size to 14
+
 
 
 def compute_average(lst):
     return sum(lst) / len(lst) if lst else None
 
-folders = ["costs_con-beta4-0-0-0"]
+folders = ["costs-exp-beta-4-0-0-0"]
 
 for folder in folders:
     # extract the product types from the folder name
-    numbers_part = folder.split('-beta')[1]
+    numbers_part = folder.split('-beta-')[1]
     erratic, smooth, intermittent, lumpy = map(int, numbers_part.split('-'))
 
     folder_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), folder)
@@ -49,7 +53,8 @@ for folder in folders:
         # create a line plot for costs
         plt.figure(figsize=(10, 6))
         plt.plot(betas, costs, marker='o')   # use 'o' to mark the data points
-        plt.title(f'Average Holding Costs for Different Constant Values\nErratic: {erratic}, Smooth: {smooth}, Intermittent: {intermittent}, Lumpy: {lumpy}')
+        #plt.title(f'Average Holding Costs for Different Constant Values\nErratic: {erratic}, Smooth: {smooth}, Intermittent: {intermittent}, Lumpy: {lumpy}')
+        plt.title('')
         plt.xlabel('Constant Value')
         plt.ylabel('Average Holding Costs')
         plt.grid()
