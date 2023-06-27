@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import statistics
 
-product_combination = "0-0-4-0"  # modify as needed
+product_combination = "4-0-0-0"  # modify as needed
 methods = ["exp-beta", "con-beta", "lin-beta"]
 results = {}
 
@@ -41,7 +41,7 @@ plt.figure(figsize=(10, 6))
 
 data = [results[method] for method in methods]
 custom_blue = (0.25, 0.5, 1)  # RGB tuple representing a color in between 'blue' and 'lightblue'
-bp = plt.boxplot(data, labels=methods, patch_artist=True, medianprops={'color': 'black'},
+bp = plt.boxplot(data, labels=['exp 0.995' , 'con 0.965', 'lin 0.0'], showfliers=False, patch_artist=True, medianprops={'color': 'black'},
                  boxprops={'facecolor': custom_blue, 'edgecolor': custom_blue},
                  whiskerprops={'color': custom_blue}, capprops={'color': custom_blue},
                  flierprops={'markeredgecolor': custom_blue})
