@@ -26,9 +26,10 @@ def forecast(df, date, n_time_periods=20):
 
     forecast = shifted_df.loc[test.index]
     forecast[forecast < 0] = 0
+    forecast = forecast.values[:n_time_periods]
 
 
-    return forecast.values[:n_time_periods]
+    return np.insert(forecast, 0, 0), train
 
 
 import statistics

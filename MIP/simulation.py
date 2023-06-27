@@ -11,7 +11,7 @@ from scipy import stats
 
 import deterministic_model as det_mod
 from MIP.analysis.analyse_data import plot_sales_quantity
-from MIP.forecasting_methods import holt_winters_method, sarima
+from MIP.forecasting_methods import holt_winters_method, sarima, naive
 from MIP.standard_deviation import get_initial_std_dev, get_std_dev
 from config_utils import load_config
 import generate_data
@@ -514,14 +514,14 @@ def precalculate_forecasts(date_range, n_time_periods, products, config, n_produ
             if forecasting_method == "holt_winter":
 
                 if count == 0:
-                    forecasts[product_index], train = holt_winters_method.forecast(product, date, n_time_periods=n_time_periods)
+                    forecasts[product_index], train = naive.forecast(product, date, n_time_periods=n_time_periods)
                     std_devs[product_index] = get_initial_std_dev(train, n_time_periods)
                     prev_std_dev[product_index] = std_devs[product_index][1]
                     prev_forecast[product_index] = forecasts[product_index][1]
                 else:
                     demand = products[product_index].loc[date, "sales_quantity"]
                     forecast_errors[product_index] = abs(demand - prev_forecast[product_index])
-                    forecasts[product_index], train = holt_winters_method.forecast(product, date, n_time_periods=n_time_periods)
+                    forecasts[product_index], train = naive.forecast(product, date, n_time_periods=n_time_periods)
                     std_devs[product_index] = get_std_dev(prev_std_dev[product_index], forecast_errors[product_index], n_time_periods, alpha=0.1)
                     prev_std_dev[product_index] = std_devs[product_index][1]
                     prev_forecast[product_index] = forecasts[product_index][1]

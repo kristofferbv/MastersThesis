@@ -304,7 +304,7 @@ class DDPG():
         save_dir = 'models'
         os.makedirs(save_dir, exist_ok=True)
         print('Saving models...')
-        self.actor_model.save(f'models_ep_4/actor_model_2')
+        self.actor_model.save(f'models_ep_4/best_minor_double')
         self.critic_model.save(f'models_ep_4/critic_model_2')
 
     def learn(self):
@@ -503,7 +503,7 @@ class DDPG():
         self.test(episodes=10)
 
     def test(self, episodes=10, path=None):
-        actor = tf.keras.models.load_model('models_ep_4/actor_model_2')
+        actor = tf.keras.models.load_model('models_ep_4/best_minor_double')
         # actor = self.best_one
         generated_products = self.generate_products(6000,0)
         self.env.products = generated_products

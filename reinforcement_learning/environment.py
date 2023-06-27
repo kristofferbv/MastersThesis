@@ -99,7 +99,7 @@ class JointReplenishmentEnv(gym.Env, ABC):
         self.shortage_cost = []
         for product_index in range(len(products)):
             print(self.holding_cost[product_index])
-            self.shortage_cost.append(self.holding_cost[product_index]/ (1 / 0.95 - 1))
+            self.shortage_cost.append(self.holding_cost[0]/ (1 / 0.95 - 1))
 
 
     def reset(self, **kwargs):
