@@ -10,14 +10,14 @@ import scipy.stats as stats
 font_path = '\\Users\annag\appdata\local\microsoft\windows\fonts\cmu.concrete-roman.ttf'
 
 plt.rcParams['font.family'] = 'CMU Concrete'
-plt.rcParams['font.size'] = 14  # Set the font size to 14
+plt.rcParams['font.size'] = 16  # Set the font size to 14
 
 
 
 def compute_average(lst):
     return sum(lst) / len(lst) if lst else None
 
-folders = ["costs-exp-beta-4-0-0-0"]
+folders = ["costs-lin-beta-4-0-0-0"]
 
 for folder in folders:
     numbers_part = folder.split('-beta-')[1]
@@ -36,7 +36,7 @@ for folder in folders:
 
                 with open(os.path.join(folder_path, filename), 'r') as file:
                     file_contents = file.read()
-                    match_costs = re.search(r'Shortage costs for each period are: \[(.*?)\]', file_contents)
+                    match_costs = re.search(r'Total costs for each period are: \[(.*?)\]', file_contents)
                     if match_costs:
                         costs = [float(cost) for cost in match_costs.group(1).split(', ')]
                         avg_cost = np.mean(costs)
@@ -59,10 +59,17 @@ for folder in folders:
         plt.errorbar(betas, costs, yerr=ci, fmt='o', capsize=5)  # use errorbar function
         #plt.title(f'Average Total Costs for Different Gamma Values\nErratic: {erratic}, Smooth: {smooth}, Intermittent: {intermittent}, Lumpy: {lumpy}')
         plt.title('')
-        plt.xlabel('Beta Value')
-        plt.ylabel('Average Shortage Costs')
+        plt.xlabel('c Value')
+        plt.ylabel('Average Total Costs')
         plt.grid()
+        plots_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'plots')
+
+        #plt.savefig(os.path.join(plots_folder, 'avg_total_exp.png'), dpi=300)
+
         plt.show()
+        
 
     else:
+
+
         print(f"No beta and cost data in folder: {folder}")
