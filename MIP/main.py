@@ -62,7 +62,7 @@ if __name__ == '__main__':
             # Setting a random seed ensure we select the same random products each time
             random.seed(seed)
 
-        if True:
+        if False:
             for category in read_product_hashes:
                 category_products = retrieve_data.read_products_with_hashes_2("2017-01-01", "2020-12-30", read_product_hashes[category], category)
                 products += category_products
@@ -104,8 +104,8 @@ if __name__ == '__main__':
         if generate_new_data:
             #print("Products")
             #print(len(products))
-            simulation.simulate(products, config)
-            # simulate_states.simulate(products)
+            # simulation.simulate(products, config)
+            simulate_states.simulate(products)
 
         else:
             start_date = products[0].index[104]

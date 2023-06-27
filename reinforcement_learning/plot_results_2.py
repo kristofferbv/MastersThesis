@@ -28,23 +28,8 @@ df_service_levels = pd.DataFrame({
     'MIP Product 2': [99.9, 99.8, 99.9, 99.9],
 })
 
-# Bar chart
-plt.figure(figsize=(10,6))
-plt.bar(df_total_costs['Setup Costs'], df_total_costs['RL Total Costs'], label='RL')
-plt.bar(df_total_costs['Setup Costs'], df_total_costs['MIP Total Costs'], label='MIP', alpha=0.5)
-plt.legend()
-plt.title('Total Costs Comparison Between RL and MIP')
-plt.xlabel('Setup Costs')
-plt.ylabel('Total Costs (NOK)')
-plt.show()
 
-# Heatmap
-plt.figure(figsize=(10,6))
-sns.heatmap(df_service_levels.set_index('Setup Costs'), annot=True, cmap='YlGnBu')
-plt.title('Achieved Service Levels under RL and MIP Approaches')
-plt.show()
-
-
+#Bar chart 1
 # Assuming you have your means and confidence intervals in the lists as follows
 RL_means = df_total_costs['RL Total Costs']
 MIP_means = df_total_costs['MIP Total Costs']
@@ -72,32 +57,7 @@ fig.tight_layout()
 
 plt.show()
 
-import seaborn as sns
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Initialize the matplotlib figure
-f, ax = plt.subplots(figsize=(10, 6))
-
-sns.set_style("whitegrid")
-
-# Draw the bars for RL and MIP and include error bars manually
-bar1 = sns.barplot(x='Setup Costs', y='RL Total Costs', data=df_total_costs, label='RL', color='b', capsize=.1)
-bar2 = sns.barplot(x='Setup Costs', y='MIP Total Costs', data=df_total_costs, label='MIP', color='r', alpha=0.7, capsize=.1)
-
-# Adding error bars manually
-for i in range(df_total_costs.shape[0]):
-    bar1.errorbar(i, df_total_costs['RL Total Costs'].iloc[i], yerr=df_total_costs['RL Confidence Interval'].iloc[i], fmt='-', color='black')
-    bar2.errorbar(i, df_total_costs['MIP Total Costs'].iloc[i], yerr=df_total_costs['MIP Confidence Interval'].iloc[i], fmt='-', color='black')
-
-# Add a legend and informative axis label
-ax.legend(ncol=2, loc="upper right", frameon=True)
-ax.set(xlim=(-0.5, 4.5), ylabel="Total Costs (NOK)", xlabel="Setup Costs")
-sns.despine(left=True, bottom=True)
-
-plt.show()
-
-
+#Bar chart 2
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
@@ -128,7 +88,7 @@ plt.xticks([r + barWidth / 2 for r in range(len(df_total_costs))], df_total_cost
 plt.legend()
 plt.show()
 
-
+#Heatmap
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -156,5 +116,127 @@ plt.title('Achieved Service Level for RL and MIP Methods Across Different Produc
 plt.xlabel('Method and Product')
 plt.ylabel('Demand Type')
 plt.show()
+
+
+#Bar chart 3
+import pandas as pd
+
+df = pd.DataFrame({
+    'Approach': ['RL', 'MIP', 'RL', 'MIP', 'RL', 'MIP', 'RL', 'MIP'],
+    'Product Category': ['Erratic', 'Erratic', 'Smooth', 'Smooth', 'Intermittent', 'Intermittent', 'Lumpy', 'Lumpy'],
+    'Total Costs (NOK)': [210532.504, 221357.578, 90070.864, 97679.267, 28289.221, 31162.351, 26829.678, 32199.262],
+    'Holding Costs (NOK)': [95235.151, 122703.391, 61276.937, 38574.016, 13364.684, 14848.105, 6117.465, 13264.621],
+    'Shortage Costs (NOK)': [29325.853, 1424.186, 14276.427, 2940.251, 3579.538, 534.246, 4701.334, 389.641],
+    'Setup Costs (NOK)': [85971.5, 97230.0, 14517.5, 56165.0, 11345.0, 15780.0, 16010.88, 18545.0]
+})
+
+RL_error = [1062.0, 517.1, 286.2, 298.7]
+MIP_error = [1707.9, 1282.8, 294.6, 1402.3]
+
+categories = df['Product Category'].unique()
+approaches = ['RL', 'MIP']
+
+barWidth = 0.35
+
+fig, ax = plt.subplots(figsize=(12, 8))
+
+bar_positions = np.arange(len(categories))
+
+for idx, approach in enumerate(approaches):
+    holding = df[df['Approach'] == approach]['Holding Costs (NOK)']
+    shortage = df[df['Approach'] == approach]['Shortage Costs (NOK)']
+    setup = df[df['Approach'] == approach]['Setup Costs (NOK)']
+
+    bar_positions_shifted = [x + idx * barWidth for x in bar_positions]
+
+    color = 'C{}'.format(idx)  # Use color based on index to match RL and MIP bars
+
+    # Add error bars to the top bars only
+    if approach == 'RL':
+        error = RL_error
+    else:
+        error = MIP_error
+
+    ax.bar(bar_positions_shifted, holding, width=barWidth, label=f'Holding Costs ({approach})', color=color, alpha=1.0)
+    ax.bar(bar_positions_shifted, shortage, bottom=holding, width=barWidth, label=f'Shortage Costs ({approach})', color=color, alpha=0.8)
+    ax.bar(bar_positions_shifted, setup, bottom=[i + j for i, j in zip(holding, shortage)], width=barWidth, label=f'Setup Costs ({approach})', color=color, alpha=0.6)
+
+    # Add error bars at the top of the top bars
+    top_bar_values = [i + j + k for i, j, k in zip(holding, shortage, setup)]
+
+    ax.errorbar(bar_positions_shifted, top_bar_values, yerr=error, fmt='none', ecolor='black', capsize=4)
+
+ax.set_xlabel('Product Category')
+ax.set_ylabel('Costs (NOK)')
+# ax.set_title('Cost Components under RL and MIP Approaches')
+ax.set_xticks([r + barWidth / 2 for r in range(len(categories))])
+ax.set_xticklabels(categories)
+ax.legend()
+
+plt.show()
+
+
+
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+df = pd.DataFrame({
+    'Approach': ['RL', 'MIP', 'RL', 'MIP', 'RL', 'MIP', 'RL', 'MIP', 'RL', 'MIP'],
+    'Product Category': ['Base Major', 'Base Major', 'Half Major', 'Half Major', 'Double Major', 'Double Major', 'Half Minor', 'Half Minor', 'Double Minor', 'Double Minor'],
+    'Total Costs (NOK)': [210532.5, 221357.6, 161437.6, 163089.2, 283887.4, 303007.3, 192308.3, 200648.6, 259400.9, 261779.7],
+    'Holding Costs (NOK)': [95235.2, 122703.4, 93867.6, 80193.7, 117702.1, 163612.4, 91536.4, 109128.0, 103873.1, 138651.0],
+    'Shortage Costs (NOK)': [29325.9, 1424.2, 23920.0, 6550.5, 22103.3, 604.9, 22854.2, 1933.1, 24785.4, 1008.7],
+    'Setup Costs (NOK)': [75971.5, 97230.0, 43650.0, 76345.0, 144082.0, 138790.0, 77917.8, 89587.5, 130742.5, 122120.0]
+})
+
+RL_error = [1062.0, 500.7, 952.2, 992.9, 942.9]
+MIP_error = [1707.9, 1873.7, 2067.2, 1662.6, 1886.6]
+
+categories = df['Product Category'].unique()
+approaches = ['RL', 'MIP']
+
+barWidth = 0.35
+
+fig, ax = plt.subplots(figsize=(12, 8))
+
+bar_positions = np.arange(len(categories))
+
+for idx, approach in enumerate(approaches):
+    holding = df[df['Approach'] == approach]['Holding Costs (NOK)']
+    shortage = df[df['Approach'] == approach]['Shortage Costs (NOK)']
+    setup = df[df['Approach'] == approach]['Setup Costs (NOK)']
+
+    bar_positions_shifted = [x + idx * barWidth for x in bar_positions]
+
+    color = 'C{}'.format(idx)  # Use color based on index to match RL and MIP bars
+
+    # Add error bars to the top bars only
+    if approach == 'RL':
+        error = RL_error
+    else:
+        error = MIP_error
+
+    ax.bar(bar_positions_shifted, holding, width=barWidth, label=f'Holding Costs ({approach})', color=color, alpha=1.0)
+    ax.bar(bar_positions_shifted, shortage, bottom=holding, width=barWidth, label=f'Shortage Costs ({approach})', color=color, alpha=0.8)
+    ax.bar(bar_positions_shifted, setup, bottom=[i + j for i, j in zip(holding, shortage)], width=barWidth, label=f'Setup Costs ({approach})', color=color, alpha=0.6)
+
+    # Add error bars at the top of the top bars
+    top_bar_values = [i + j + k for i, j, k in zip(holding, shortage, setup)]
+
+    ax.errorbar(bar_positions_shifted, top_bar_values, yerr=error, fmt='none', ecolor='black', capsize=5)
+
+ax.set_xlabel('Setup Cost Instance')
+ax.set_ylabel('Costs (NOK)')
+# ax.set_title('Cost Components under RL and MIP Approaches')
+ax.set_xticks([r + barWidth / 2 for r in range(len(categories))])
+ax.set_xticklabels(categories)
+ax.legend()
+
+plt.show()
+
+
+
 
 
