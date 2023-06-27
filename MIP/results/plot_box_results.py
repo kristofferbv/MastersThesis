@@ -7,6 +7,13 @@ folders = ["exp-beta4-0-0-0-seed2"]  # the list of folders
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
+
+font_path = '\\Users\annag\appdata\local\microsoft\windows\fonts\cmu.concrete-roman.ttf'
+
+plt.rcParams['font.family'] = 'CMU Concrete'
+plt.rcParams['font.size'] = 16  # Set the font size to 14
+
+
 for folder in folders:
     # extract the product types from the folder name
     numbers_part, seed_part = folder.split('-seed')
@@ -38,8 +45,9 @@ for folder in folders:
     # create box plots for each beta value
     plt.figure(figsize=(10, 6))
     plt.boxplot(beta_total_costs.values(), labels=beta_total_costs.keys(), sym='.')
-    plt.title(f'Boxplot of Total Costs for {folder}')
-    plt.xlabel('Beta Value')
+    #plt.title(f'Boxplot of Total Costs for {folder}')
+    plt.title('')
+    plt.xlabel('$\\beta$ Value')
     plt.ylabel('Total Costs')
     plt.grid()
     plt.show()

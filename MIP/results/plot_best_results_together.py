@@ -8,6 +8,13 @@ product_combination = "4-0-0-0"  # modify as needed
 methods = ["exp-beta", "con-beta", "lin-beta"]
 results = {}
 
+
+font_path = '\\Users\annag\appdata\local\microsoft\windows\fonts\cmu.concrete-roman.ttf'
+
+plt.rcParams['font.family'] = 'CMU Concrete'
+plt.rcParams['font.size'] = 16  # Set the font size to 14
+
+
 for method in methods:
     folder = f"{method}{product_combination}-seed2"
     
@@ -46,7 +53,8 @@ bp = plt.boxplot(data, labels=['exp 0.995' , 'con 0.965', 'lin 0.0'], showfliers
                  whiskerprops={'color': custom_blue}, capprops={'color': custom_blue},
                  flierprops={'markeredgecolor': custom_blue})
 
-plt.title(f'Boxplot of total costs for best beta for product combination {product_combination}')
+#plt.title(f'Boxplot of total costs for best beta for product combination {product_combination}')
+plt.title('')
 plt.xlabel('Method')
 plt.ylabel('Total Cost')
 plt.show()
