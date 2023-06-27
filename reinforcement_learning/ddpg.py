@@ -400,8 +400,8 @@ class DDPG():
         self.env.products = generated_products
         self.env.scaled_products = generated_products
         achieved_service_level = {}
-        achieved_service_level[0] = []
-        achieved_service_level[1] = []
+        for i in range(len(self.products)):
+            achieved_service_level[i] = []
 
         for ep in range(total_episodes):
             if ep > 20:
@@ -467,7 +467,7 @@ class DDPG():
                     self.update_target(self.target_critic.variables, self.critic_model.variables, tau)
                     # if ep > 20:
                     self.update_target(self.target_actor.variables, self.actor_model.variables, tau)
-                for i in range(2):
+                for i in range(len(self.products)):
                     achieved_service_level[i].append(self.env.achieved_service_level[i])
                 # End this episode when `done` is True
                 if ep + 1 % 50 == 0:

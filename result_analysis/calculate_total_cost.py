@@ -40,7 +40,17 @@ file_path = 'compare_with_rl_erratic/compare_with_RL_output_p2_er2_sm0_in0_lu0_t
 
 
 #4 products comparison:
-# file_path = 'costs-exp-beta-4-0-0-0/costs_simulation_output_p4_er4_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta0.96_seed2.txt'
+file_path = 'costs-exp-beta-4-0-0-0/costs_simulation_output_p4_er4_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta0.96_seed2.txt'
+
+
+
+#ordering frequency comparison:
+file_path = 'varying costs -erratic 2 - without warm-up/costs_simulation_output_p2_er2_sm0_in0_lu0_t13_ep2_S1250_r1.2_beta1_seed2.txt'
+# file_path = 'varying costs -erratic 2 - without warm-up/costs_simulation_output_p2_er2_sm0_in0_lu0_t13_ep2_S2500_r0.6_beta1_seed2.txt'
+# file_path = 'varying costs -erratic 2 - without warm-up/costs_simulation_output_p2_er2_sm0_in0_lu0_t13_ep2_S2500_r1.2_beta1_seed2.txt'
+# file_path = 'varying costs -erratic 2 - without warm-up/costs_simulation_output_p2_er2_sm0_in0_lu0_t13_ep2_S1250_r1.2_beta1_seed2.txt'
+# file_path = 'varying costs -erratic 2 - without warm-up/costs_simulation_output_p2_er2_sm0_in0_lu0_t13_ep2_S5000_r1.2_beta1_seed2.txt'
+
 
 with open(file_path, 'r') as f:
     content = f.read()
@@ -102,11 +112,16 @@ episode_zero_counts = collections.defaultdict(lambda: collections.defaultdict(in
 joint_counts = []
 
 # Process each line
+orders = {}
+orders[0] = []
+orders[1] = []
+count = 0
 for line in lines:
     # Use regular expressions to find the episode number and the dictionary of actions
     match = re.match(r"Actions for episode (\d+) are: (.*)", line)
     joint_count = 0
     if match:
+        count += 1
         episode = int(match.group(1))
         actions_str = match.group(2)
 
@@ -117,15 +132,20 @@ for line in lines:
         for action, values in actions.items():
             has_joint = True
             for key, value in values.items():
+                print(key)
                 if value == 0:
+                    orders[key].append(0)
                     episode_zero_counts[episode][key] += 1
                     has_joint = False
                 else:
+                    orders[key].append(1)
                     episode_sums[episode][key] += value
                     episode_counts[episode][key] += 1
             if has_joint:
                 joint_count += 1
     joint_counts.append(joint_count)
+    if count == 1:
+        break
 
 
 # Now calculate averages per episode and then overall average, and print the results
@@ -158,6 +178,8 @@ def get_mean_from_text(pattern, text):
 # Read your .txt file
 with open(file_path, 'r') as f:
     content = f.read()
+print("ORDERS:")
+print(orders)
 
 # Define patterns
 holding_costs_pattern = r'Holding costs for each period are: \[(.*?)\]'

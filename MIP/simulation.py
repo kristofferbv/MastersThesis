@@ -312,8 +312,11 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
 
     run_time_list = []
     gap_list = []
+    orders_2 = {}
+    orders_2[0] = []
+    orders_2[1] = []
 
-    for time_step in range(episode_length):
+    for time_step in range(episode_length + 1):
         print(f"Time step {time_step}/{episode_length}")
         if time_step != 0:
             start_date = start_date + timedelta(days=7)
@@ -347,6 +350,7 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
 
                 # add setup costs:
                 if actions[time_step - 1][product_index] > 0:
+                    orders_2[product_index].append(1)
                     setup_costs += deterministic_model.minor_setup_cost[product_index]
                     period_costs += deterministic_model.minor_setup_cost[product_index]
 
@@ -355,6 +359,8 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
                         setup_costs += deterministic_model.major_setup_cost
                         period_costs += deterministic_model.major_setup_cost
                         major_setup_added = True
+                else:
+                    orders_2[product_index].append(0)
 
                 previous_il = inventory_levels[product_index]
                 inventory_levels[product_index] = max(0, previous_il + actions[time_step - 1][product_index] - demand)
@@ -490,7 +496,8 @@ def run_one_episode(start_date, n_time_periods, products, episode_length, config
 
     avg_forecast_errors = sum(forecast_errors.values()) / len(forecast_errors.values())
     std_forecast_errors = statistics.stdev(forecast_errors.values())
-
+    for i in orders_2.keys():
+        print(orders_2[i])
     return total_costs, inventory_levels, start_date, actions, orders, models, avg_run_time_time_step, std_run_time, service_levels, actual_demands, avg_forecast_errors, std_forecast_errors, avg_optimaliy_gap, std_optimality_gap, holding_costs, shortage_costs, setup_costs
 
 

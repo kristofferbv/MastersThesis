@@ -4,65 +4,35 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib
+from matplotlib import font_manager
+import matplotlib as mpl
+
 
 matplotlib.rc('font', family='CMU Concrete')
 plt.rcParams['font.size'] = 13
+mpl.rc('font', family='CMU Concrete')
 
 # the rest of your plotting code
 
 
-# Hypothetical DataFrames (Replace with your actual data)
-df_total_costs = pd.DataFrame({
-    'Setup Costs': ['Base Major', 'Half Major', 'Double Major', 'Half Minor', 'Double Minor'],
-    'RL Total Costs': [210532.5, 161437.6, 283887.4, 192308.3, 259400.9],
-    'MIP Total Costs': [221357.6, 163089.2, 303007.3, 200648.6, 261779.7],
-    'RL Confidence Interval': [1062.0, 500.7, 952.2, 992.9, 942.9],
-    'MIP Confidence Interval': [1707.9, 1873.7, 2067.2, 1662.6, 1886.6]
-})
-
-
-df_service_levels = pd.DataFrame({
-    'Setup Costs': ['Base Major', 'Half Major', 'Double Major', 'Half Minor'],
-    'RL Product 1': [98.6, 98.9, 98.9, 99.0],
-    'RL Product 2': [99.0, 99.4, 98.6, 97.8],
-    'MIP Product 1': [99.9, 99.5, 99.9, 99.8],
-    'MIP Product 2': [99.9, 99.8, 99.9, 99.9],
-})
-
-
-
-#Bar chart 2
-import seaborn as sns
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Initialize the matplotlib figure
-f, ax = plt.subplots(figsize=(10, 6))
-
-sns.set_style("whitegrid")
-
-# Adjust bar width
-barWidth = 0.35
-
-# Define bar positions
-r1 = np.arange(len(df_total_costs))
-r2 = [x + barWidth for x in r1]
-
-# Draw the bars for RL and MIP and include error bars manually
-bar1 = plt.bar(r1, df_total_costs['RL Total Costs'], width=barWidth, label='RL', color='b', yerr=df_total_costs['RL Confidence Interval'], capsize=7)
-bar2 = plt.bar(r2, df_total_costs['MIP Total Costs'], width=barWidth, label='MIP', color='r', alpha=0.7, yerr=df_total_costs['MIP Confidence Interval'], capsize=7)
-
-# Add xticks on the middle of the grouped bars
-plt.title('Total Costs Comparison Between RL and MIP')
-plt.xlabel('Setup Costs', fontweight='bold')
-plt.ylabel('Total Costs (NOK)')
-plt.xticks([r + barWidth / 2 for r in range(len(df_total_costs))], df_total_costs['Setup Costs'])
-
-# Create legend & Show graphic
-plt.legend()
-plt.show()
-
-#Heatmap
+# # Hypothetical DataFrames (Replace with your actual data)
+# df_total_costs = pd.DataFrame({
+#     'Setup Costs': ['Base Major', 'Half Major', 'Double Major', 'Half Minor', 'Double Minor'],
+#     'RL Total Costs': [210532.5, 161437.6, 283887.4, 192308.3, 259400.9],
+#     'MIP Total Costs': [221357.6, 163089.2, 303007.3, 200648.6, 261779.7],
+#     'RL Confidence Interval': [1062.0, 500.7, 952.2, 992.9, 942.9],
+#     'MIP Confidence Interval': [1707.9, 1873.7, 2067.2, 1662.6, 1886.6]
+# })
+#
+# df_service_levels = pd.DataFrame({
+#     'Setup Costs': ['Base Major', 'Half Major', 'Double Major', 'Half Minor'],
+#     'RL Product 1': [98.6, 98.9, 98.9, 99.0],
+#     'RL Product 2': [99.0, 99.4, 98.6, 97.8],
+#     'MIP Product 1': [99.9, 99.5, 99.9, 99.8],
+#     'MIP Product 2': [99.9, 99.8, 99.9, 99.9],
+# })
+#
+# Heatmap
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -86,13 +56,13 @@ annot = df.applymap(lambda x: f'{x:.1f}%')
 plt.figure(figsize=(10, 5))
 sns.heatmap(df, annot=annot, cmap="YlGnBu", fmt='', linewidths=.5)
 
-plt.title('Achieved Service Level for RL and MIP Methods Across Different Products')
 plt.xlabel('Method and Product')
 plt.ylabel('Demand Type')
+plt.savefig('achieved_service_level.png', dpi=300)
+
 plt.show()
 
-
-#Bar chart 3
+# Bar chart holding costs each category
 import pandas as pd
 
 df = pd.DataFrame({
@@ -112,7 +82,7 @@ approaches = ['RL', 'MIP']
 
 barWidth = 0.35
 
-fig, ax = plt.subplots(figsize=(12, 8))
+fig, ax = plt.subplots(figsize=(10, 8))
 
 bar_positions = np.arange(len(categories))
 
@@ -146,15 +116,11 @@ ax.set_ylabel('Costs (NOK)')
 ax.set_xticks([r + barWidth / 2 for r in range(len(categories))])
 ax.set_xticklabels(categories)
 ax.legend()
+plt.savefig('cost_distributions_category.png', dpi=300)
 
 plt.show()
 
-
-
-
-
-import numpy as np
-import matplotlib.pyplot as plt
+# Bar chart for each setup cost setting
 
 df = pd.DataFrame({
     'Approach': ['RL', 'MIP', 'RL', 'MIP', 'RL', 'MIP', 'RL', 'MIP', 'RL', 'MIP'],
@@ -165,7 +131,6 @@ df = pd.DataFrame({
     'Setup Costs (NOK)': [75971.5, 97230.0, 43650.0, 76345.0, 144082.0, 138790.0, 77917.8, 89587.5, 123294.0, 122120.0]
 })
 
-
 RL_error = [1062.0, 500.7, 952.2, 992.9, 942.9]
 MIP_error = [1707.9, 1873.7, 2067.2, 1662.6, 1886.6]
 
@@ -174,7 +139,7 @@ approaches = ['RL', 'MIP']
 
 barWidth = 0.35
 
-fig, ax = plt.subplots(figsize=(12, 8))
+fig, ax = plt.subplots(figsize=(10, 8))
 
 bar_positions = np.arange(len(categories))
 
@@ -208,11 +173,11 @@ ax.set_ylabel('Costs (NOK)')
 ax.set_xticks([r + barWidth / 2 for r in range(len(categories))])
 ax.set_xticklabels(categories)
 ax.legend()
-
+plt.savefig('comparing_cost_ratios.png', dpi=300)
 plt.show()
 
 
-import matplotlib.pyplot as plt
+plt.rcParams['font.size'] = 11
 
 # setup costs structures
 costs = ['Major double', 'Major half', 'Ratio half', 'Double minor']
@@ -228,19 +193,6 @@ avg_non_order_periods_1 = [46.17, 42.93, 35.41, 45.17]
 # calculate order frequencies
 order_freq_0 = [52 - non_order for non_order in avg_non_order_periods_0]
 order_freq_1 = [52 - non_order for non_order in avg_non_order_periods_1]
-
-# plot average order quantities
-plt.figure(figsize=(10, 5))
-plt.bar(costs, avg_order_quantities_0, width=0.4, align='edge', label='Product 0')
-plt.bar(costs, avg_order_quantities_1, width=-0.4, align='edge', label='Product 1')
-plt.xlabel('Setup Costs Structure')
-plt.ylabel('Average Order Quantity')
-plt.title('Average Order Quantity vs Setup Costs Structure')
-plt.legend()
-plt.show()
-
-# setup costs structures
-costs = ['Base Case', 'Major double', 'Major half', 'Minor ratio double', 'Minor ratio half']
 
 # average order quantities for RL model
 avg_order_quantities_rl_0 = [83.722, 96.96, 83.15, 81.92, 77.50]
@@ -269,16 +221,12 @@ avg_total_costs_mip = [221357.6, 303007.31, 162760.16, 261779.73, 200648.57]
 
 # Joint order frequencies for both RL and MIP models.
 # Add placeholder for base case joint order frequency - you will need to provide this.
-joint_order_freq_rl = [min(order_freq_rl_0[0], order_freq_rl_1[0]), min(order_freq_rl_0[1], order_freq_rl_1[1]), min(order_freq_rl_0[2], order_freq_rl_1[2]), min(order_freq_rl_0[3], order_freq_rl_1[3]),15.369]
+joint_order_freq_rl = [min(order_freq_rl_0[0], order_freq_rl_1[0]), min(order_freq_rl_0[1], order_freq_rl_1[1]), min(order_freq_rl_0[2], order_freq_rl_1[2]), min(order_freq_rl_0[3], order_freq_rl_1[3]), 15.369]
 joint_order_freq_mip = [7.38, 7.08, 9.15, 6.46, 10.03]
 
 
 
-
-import numpy as np
-import matplotlib.pyplot as plt
-
-# setup costs structures
+# Bar chart costs structures for each setup cost category
 costs = ['Base Case', 'Major double', 'Major half', 'Minor Double', 'Minor Half']
 x = np.arange(len(costs))  # the label locations
 
@@ -289,12 +237,10 @@ fig, ax = plt.subplots()
 # Create some additional space between RL and MIP
 space = 0.1
 
-rects1 = ax.bar(x - width - space, avg_order_quantities_rl_0, width, label='RL Product 0', color='b')
-rects2 = ax.bar(x - space, avg_order_quantities_rl_1, width, label='RL Product 1', color='b', alpha=0.5)
-rects3 = ax.bar(x + space, avg_order_quantities_mip_0, width, label='MIP Product 0', color='g')
-rects4 = ax.bar(x + width + space, avg_order_quantities_mip_1, width, label='MIP Product 1', color='g', alpha=0.5)
-
-
+rects1 = ax.bar(x - width - space, avg_order_quantities_rl_0, width, label='Product 1 (RL)', color='C0')
+rects2 = ax.bar(x - space, avg_order_quantities_rl_1, width, label='Product 2 (RL)', color='C0', alpha=0.5)
+rects3 = ax.bar(x + space, avg_order_quantities_mip_0, width, label='Product 1 (MIP)', color='C1')
+rects4 = ax.bar(x + width + space, avg_order_quantities_mip_1, width, label='Product 2 (MIP', color='C1', alpha=0.5)
 
 # Add some text for labels, title and custom x-axis tick labels, etc.
 ax.set_ylabel('Average Order Quantity')
@@ -305,6 +251,8 @@ ax.legend()
 plt.ylim([0, 130])
 
 fig.tight_layout()
+plt.savefig('order_frequency.png', dpi=300)
+
 plt.show()
 
 # Repeat for Order Frequency and Average Total Cost
@@ -319,13 +267,13 @@ fig, ax = plt.subplots()
 # Create some additional space between RL and MIP
 space = 0.05
 
-rects1 = ax.bar(x - 2*width - space, order_freq_rl_0, width, label='RL Product 1', color='b')
-rects2 = ax.bar(x - width - space, order_freq_rl_1, width, label='RL Product 2',color='b',alpha=0.65)
-rects3 = ax.bar(x - space, joint_order_freq_rl, width, label='RL Joint',color='b',alpha=0.35)
+rects1 = ax.bar(x - 2 * width - space, order_freq_rl_0, width, label='Product 1 (RL)', color='C0')
+rects2 = ax.bar(x - width - space, order_freq_rl_1, width, label='Product 2 (RL)', color='C0', alpha=0.7)
+rects3 = ax.bar(x - space, joint_order_freq_rl, width, label='Joint (RL)', color='C0', alpha=0.35)
 
-rects4 = ax.bar(x + 2*space, order_freq_mip_0, width, label='MIP Product 1',color='g')
-rects5 = ax.bar(x + width + 2*space, order_freq_mip_1, width, label='MIP Product 2', color='g',  alpha=0.65)
-rects6 = ax.bar(x + 2*width + 2*space, joint_order_freq_mip, width, label='MIP Joint', color='g', alpha=0.35)
+rects4 = ax.bar(x + 2 * space, order_freq_mip_0, width, label='Product 1 (MIP)', color='C1')
+rects5 = ax.bar(x + width + 2 * space, order_freq_mip_1, width, label='Product 2 (MIP)', color='C1', alpha=0.7)
+rects6 = ax.bar(x + 2 * width + 2 * space, joint_order_freq_mip, width, label='Joint (MIP)', color='C1', alpha=0.35)
 
 # Add some text for labels, title and custom x-axis tick labels, etc.
 ax.set_ylabel('Order Frequency')
@@ -337,34 +285,46 @@ ax.set_xticklabels(costs)
 ax.legend()
 
 fig.tight_layout()
+plt.savefig('order_quantity.png', dpi=300)
 plt.show()
 
-import matplotlib.pyplot as plt
 
-product_1 = [1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0]
-product_2 = [1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0]
-time_steps = range(1, len(product_1) + 1)
 
-product_1_orders = [t for t, ordered in zip(time_steps, product_1) if ordered]
-product_2_orders = [t for t, ordered in zip(time_steps, product_2) if ordered]
-
-plt.figure(figsize=(15, 3))
-
-for i in time_steps:
-    plt.axvline(x=i, linewidth=0.2, color='gray')
-
-plt.scatter(product_1_orders, [0.7]*len(product_1_orders), color='b', label='Product 1', edgecolor='k')
-plt.scatter(product_2_orders, [0.5]*len(product_2_orders), color='g', label='Product 2', edgecolor='k')
-
-plt.yticks([0.7, 0.5], ['Product 1', 'Product 2'])
-plt.xticks(time_steps)
-plt.ylim(0.2, 1.8)  # Adjust y-axis limits
-
-plt.xlabel('Time step')
-plt.title('Order timeline for Products 1 and 2')
-plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
-plt.grid(False)
-plt.box(False)
-
-plt.show()
-
+# Showing order frewuency
+# import matplotlib.pyplot as plt
+# product_1_mip = [1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1]
+# product_2_mip = [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0]
+# product_1_rl =[1, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0]
+# product_2_rl = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]
+#
+#
+# time_steps = range(1, len(product_1_mip) + 1)
+#
+# product_1_orders_mip = [t for t, ordered in zip(time_steps, product_1_mip) if ordered]
+# product_2_orders_mip = [t for t, ordered in zip(time_steps, product_2_mip) if ordered]
+# product_1_orders_rl = [t for t, ordered in zip(time_steps, product_1_rl) if ordered]
+# product_2_orders_rl = [t for t, ordered in zip(time_steps, product_2_rl) if ordered]
+#
+# plt.figure(figsize=(15, 3))
+# plt.subplots_adjust(left=0.08, right=0.92)
+# for i in time_steps:
+#     plt.axvline(x=i, linewidth=0.65, color='gray')
+#
+# plt.scatter(product_1_orders_mip, [1.4] * len(product_1_orders_mip), color='g',  edgecolor='k')
+# plt.scatter(product_2_orders_mip, [1.2] * len(product_2_orders_mip), color='g', label='MIP', edgecolor='k')
+#
+# plt.scatter(product_1_orders_rl, [0.6] * len(product_1_orders_rl), color='b', edgecolor='k')
+# plt.scatter(product_2_orders_rl, [0.4] * len(product_2_orders_rl), color='b', label='RL', edgecolor='k')
+#
+# plt.yticks([0.6, 0.4, 1.4, 1.2], ['Product 1', 'Product 2', 'Product 1', 'Product 2'])
+#
+# plt.xticks(time_steps)
+# plt.ylim(0.2, 1.6)  # Adjust y-axis limits
+#
+# plt.xlabel('Time step')
+# plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+# plt.grid(False)
+# plt.box(False)
+# plt.savefig('orders_base_case.png', dpi=300)
+#
+# plt.show()
