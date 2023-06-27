@@ -122,4 +122,4 @@ if __name__ == "__main__":
         for lr in lrs:
             ddpg = DDPG(real_products, state_shape, env, product_categories, lr)
             # ddpg.train(episodes=1000)
-            ddpg.test(episodes=1000)
+            ddpg.test(episodes=1)

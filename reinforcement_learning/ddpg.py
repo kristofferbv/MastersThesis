@@ -503,7 +503,7 @@ class DDPG():
         self.test(episodes=10)
 
     def test(self, episodes=10, path=None):
-        actor = tf.keras.models.load_model('models_ep_2/best_minor_double')
+        actor = tf.keras.models.load_model('models_ep_2/best_er_half_ratio')
         # actor = self.best_one
         generated_products = self.generate_products(6000,0)
         self.env.products = generated_products
@@ -518,7 +518,13 @@ class DDPG():
         shortage_costs = []
         holding_costs = []
         setup_costs = []
+        joint_ordering_count_list = []
+        orders = {}
+        orders[0] = []
+        orders[1] = []
         for episode in range(episodes):
+            orders[0] = []
+            orders[1] = []
             print(f"episode: {episode}")
             self.env.set_costs(self.products)
             episode_counts[episode] = {}
@@ -539,7 +545,7 @@ class DDPG():
             episodic_reward = 0
             prev_state = self.env.reset()
             prev_state = tf.transpose(prev_state, perm=[1, 0])
-
+            joint_ordering_count = 0
             while True:
                 tf_prev_state = tf.convert_to_tensor([prev_state])
                 action = tf.squeeze(actor(tf_prev_state, training=False)).numpy()
@@ -551,8 +557,10 @@ class DDPG():
                         quantity = 0
                         action[i] = quantity
                         episode_zero_order_counts[i] += 1
+                        orders[i].append(0)
 
                     else:
+                        orders[i].append(1)
                         if i not in episode_counts[episode].keys():
                             episode_counts[episode][i] = 1
                         else:
@@ -568,8 +576,8 @@ class DDPG():
                     #     action[i] += action[i]
                     # episode_order_sums[i] += quantity #* 0.2
                     # action = action
-
-                # print(action)
+                count_major_setup_sharing = len([i for i in action if i > 0])
+                joint_ordering_count += count_major_setup_sharing == len(self.products)
 
                 state, reward, done, info = self.env.step(action)
                 for i in range(len(self.products)):
@@ -585,6 +593,10 @@ class DDPG():
                     holding_costs.append(self.env.real_holding_costs)
                     setup_costs.append(self.env.real_setup_costs)
                     self.env.reset_costs()
+                    joint_ordering_count_list.append(joint_ordering_count)
+                    print(orders[0])
+                    print(orders[1])
+
                     break
 
                 prev_state = state
@@ -606,7 +618,7 @@ class DDPG():
             if product in product_zero_order_counts:
                 avg_zero_orders = product_zero_order_counts[product] / episodes
                 print(f"Average non-order count for product {product}: {avg_zero_orders}")
-
+        print(f"Average joint ordering count per year is: {sum(joint_ordering_count_list)/len(joint_ordering_count_list)}")
         se = stats.sem(avg_reward_list)
         confidence = 0.95
         ci = se * stats.t.ppf((1 + confidence) / 2., len(avg_reward_list) - 1)

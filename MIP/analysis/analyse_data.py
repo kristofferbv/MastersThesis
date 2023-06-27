@@ -145,3 +145,6 @@ def decompose_sales_quantity(df, product_name = 0, freq = 52):
 
     plt.tight_layout()
     plt.show()
+
+
+
