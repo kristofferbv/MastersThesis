@@ -86,5 +86,5 @@ def forecast_analysis(df, date, shouldShowPlot=False, verbose = False, n_time_pe
         print("df", df)
         print("date", date)
 
-    return mae, mse, rmse
+    return mae, mse, rmse, forecast.values
 

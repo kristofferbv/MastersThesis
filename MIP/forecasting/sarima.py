@@ -153,14 +153,14 @@ def forecast_analyse(df, start_date, model = None, n_time_periods=20, order=(1, 
     forecast = model.get_prediction(start=start_date + timedelta(days=7), end=end_date, dynamic=False)
 
     # calculate standard deviation:
-    conf_int = forecast.conf_int(alpha=0.05)  # 95% confidence interval
+    # conf_int = forecast.conf_int(alpha=0.05)  # 95% confidence interval
 
     if shouldShowPlot:
         # Evaluate the forecast
         # plt.plot(train.index, train.values, label='Actual')
         plt.plot(test.index[:n_time_periods], test.values[:n_time_periods], label='Actual')
         plt.plot(forecast.predicted_mean.index, forecast.predicted_mean, label='Forecast')
-        plt.fill_between(conf_int.index, conf_int.iloc[:, 0], conf_int.iloc[:, 1], color='pink', label='95% Confidence Interval')
+        # plt.fill_between(conf_int.index, conf_int.iloc[:, 0], conf_int.iloc[:, 1], color='pink', label='95% Confidence Interval')
 
         # Add labels and legend
         plt.xlabel('Date')
@@ -192,4 +192,4 @@ def forecast_analyse(df, start_date, model = None, n_time_periods=20, order=(1, 
         raise ValueError("predictions contains NaN values")
 
     # Dividing by 10 because safety stock is too high
-    return mae, mse, rmse
+    return mae, mse, rmse, forecast.predicted_mean

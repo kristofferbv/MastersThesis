@@ -82,4 +82,4 @@ def forecast_analysis(df, start_date, model=None, n_time_periods=20, alpha=0.1, 
     if np.isnan(predictions).any():
         raise ValueError("predictions contains NaN values")
 
-    return mae, mse, rmse
+    return mae, mse, rmse, forecast
