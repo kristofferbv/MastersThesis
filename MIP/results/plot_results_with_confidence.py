@@ -4,10 +4,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as stats
 
-from matplotlib import font_manager
-font_manager._rebuild()
+#from matplotlib import font_manager
+#font_manager._rebuild()
+
+font_path = '\\Users\annag\appdata\local\microsoft\windows\fonts\cmu.concrete-roman.ttf'
 
 plt.rcParams['font.family'] = 'CMU Concrete'
+plt.rcParams['font.size'] = 16  # Set the font size to 14
+
 
 
 def compute_average(lst):
@@ -53,11 +57,19 @@ for folder in folders:
 
         plt.figure(figsize=(10, 6))
         plt.errorbar(betas, costs, yerr=ci, fmt='o', capsize=5)  # use errorbar function
-        plt.title(f'Average Total Costs for Different Gamma Values\nErratic: {erratic}, Smooth: {smooth}, Intermittent: {intermittent}, Lumpy: {lumpy}')
-        plt.xlabel('Gamma Value')
+        #plt.title(f'Average Total Costs for Different Gamma Values\nErratic: {erratic}, Smooth: {smooth}, Intermittent: {intermittent}, Lumpy: {lumpy}')
+        plt.title('')
+        plt.xlabel('c Value')
         plt.ylabel('Average Total Costs')
         plt.grid()
+        plots_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'plots')
+
+        #plt.savefig(os.path.join(plots_folder, 'avg_total_exp.png'), dpi=300)
+
         plt.show()
+        
 
     else:
+
+
         print(f"No beta and cost data in folder: {folder}")
