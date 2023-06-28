@@ -17,10 +17,10 @@ plt.rcParams['font.size'] = 16  # Set the font size to 14
 def compute_average(lst):
     return sum(lst) / len(lst) if lst else None
 
-folders = ["costs-lin-beta-4-0-0-0"]
+folders = ["pre_testing_beta2-0-0-0"]
 
 for folder in folders:
-    numbers_part = folder.split('-beta-')[1]
+    numbers_part = folder.split('beta')[1]
     erratic, smooth, intermittent, lumpy = map(int, numbers_part.split('-'))
 
     folder_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), folder)
@@ -29,7 +29,7 @@ for folder in folders:
     beta_std_errors = []
 
     for filename in os.listdir(folder_path):
-        if filename.startswith('costs_simulation_output'):
+        if filename.startswith('simulation_output'):
             match = re.search(r'_beta(\d+(\.\d+)?)_', filename)
             if match:
                 beta = float(match.group(1))
@@ -59,12 +59,14 @@ for folder in folders:
         plt.errorbar(betas, costs, yerr=ci, fmt='o', capsize=5)  # use errorbar function
         #plt.title(f'Average Total Costs for Different Gamma Values\nErratic: {erratic}, Smooth: {smooth}, Intermittent: {intermittent}, Lumpy: {lumpy}')
         plt.title('')
-        plt.xlabel('c Value')
+        plt.xlabel('$\\beta$ Value')
         plt.ylabel('Average Total Costs')
+        #plt.yticks(range(200000, 214000, 2000))
+
         plt.grid()
         plots_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'plots')
 
-        #plt.savefig(os.path.join(plots_folder, 'avg_total_exp.png'), dpi=300)
+        plt.savefig(os.path.join(plots_folder, 'pre2_avg_total_exp.png'), dpi=300)
 
         plt.show()
         
