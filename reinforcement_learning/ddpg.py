@@ -510,7 +510,7 @@ class DDPG():
         self.test(episodes=10)
 
     def test(self, episodes=10, path=None):
-        actor = tf.keras.models.load_model('actor_model')
+        actor = tf.keras.models.load_model('models_ep_4_150_1/actor_model_2')
         # actor = self.best_one
         generated_products = self.generate_products(6000,0)
         self.env.products = generated_products
@@ -527,8 +527,8 @@ class DDPG():
         setup_costs = []
         joint_ordering_count_list = []
         orders = {}
-        orders[0] = []
-        orders[1] = []
+        for i in range(len(self.products)):
+            orders[i] = []
         for episode in range(episodes):
             orders[0] = []
             orders[1] = []
@@ -567,7 +567,7 @@ class DDPG():
                         orders[i].append(0)
 
                     else:
-                        # orders[i].append(1)
+                        orders[i].append(1)
                         if i not in episode_counts[episode].keys():
                             episode_counts[episode][i] = 1
                         else:
@@ -601,7 +601,8 @@ class DDPG():
                     setup_costs.append(self.env.real_setup_costs)
                     self.env.reset_costs()
                     joint_ordering_count_list.append(joint_ordering_count)
-                    # print(orders[0])
+                    for i in range(len(self.products)):
+                        print(orders[i])
                     # print(orders[1])
 
                     break
