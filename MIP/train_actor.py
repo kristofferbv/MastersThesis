@@ -179,7 +179,6 @@ model = Sequential([
     # layers.Dropout(0.5),
     # TransformerBlock(embed_dim=100, num_heads=2, ff_dim=100), # embed_dim should match the output dimension of the previous layer
     # layers.Dropout(0.5),
-    layers.LSTM(n_neurons, activation='relu',return_sequences=True),
     layers.LSTM(n_neurons, activation='relu'),
     layers.Dropout(0.5),
     layers.Dense(n_products)

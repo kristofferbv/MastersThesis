@@ -41,7 +41,7 @@ def simulate(real_products):
     output_folder = "results"
     current_datetime = datetime.now()
     current_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
-    output_file = f"train_data_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}_time{current_datetime}.txt"
+    output_file = f"train_data_p{n_products}_er{n_erratic}_sm{n_smooth}_in{n_intermittent}_lu{n_lumpy}_t{n_time_periods}_ep{n_episodes}_S{major_setup_cost}_r{minor_setup_ratio}.txt"
     file_path = os.path.join(output_folder, output_file)
     if os.path.exists(file_path):
         os.remove(file_path)

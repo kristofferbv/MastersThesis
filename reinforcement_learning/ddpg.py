@@ -293,20 +293,22 @@ class DDPG():
         plt.plot(np.abs(self.avg_reward_list))
         plt.xlabel('Episodes')
         plt.ylabel('Costs (NOK)')
-        plt.title('Costs as a function of episodes')
 
         plt.savefig('best_agent_er2.png', dpi=300)
         plt.show()
-        # with open('avg_rewards_critic_' + str(critic_lr) + '.txt', 'w') as f:
-        #     f.write(repr(self.avg_reward_list))
+        with open('avg_rewards.txt', 'w') as f:
+            f.write(repr(self.avg_reward_list))
         #
-    def save_models(self):
+    def save_models(self, episode = None):
         save_dir = 'models'
         os.makedirs(save_dir, exist_ok=True)
         print('Saving models...')
-        self.actor_model.save(f'models_ep_4/actor_model_2')
-        self.critic_model.save(f'models_ep_4/critic_model_2')
-
+        if episode is not None:
+            self.actor_model.save(f'models_ep_4_{str(episode)}/actor_model_2')
+            self.critic_model.save(f'models_ep_4_{str(episode)}/critic_model_2')
+        else:
+            self.actor_model.save(f'models_ep_4_/actor_model_2')
+            self.critic_model.save(f'models_ep_4_/critic_model_2')
     def learn(self):
         # Get sampling range
         record_range = min(self.buffer.buffer_counter, self.buffer.buffer_capacity)
@@ -404,8 +406,8 @@ class DDPG():
             achieved_service_level[i] = []
 
         for ep in range(total_episodes):
-            if ep > 20:
-                actor_optimizer.learning_rate =0.0001 # increased learning rate
+            # if ep > 20:
+            #     actor_optimizer.learning_rate =0.0001 # increased learning rate
             self.ep = ep
             if (ep > 380):
                 self.env.set_costs(self.products)
@@ -467,6 +469,7 @@ class DDPG():
                     self.update_target(self.target_critic.variables, self.critic_model.variables, tau)
                     # if ep > 20:
                     self.update_target(self.target_actor.variables, self.actor_model.variables, tau)
+
                 for i in range(len(self.products)):
                     achieved_service_level[i].append(self.env.achieved_service_level[i])
                 # End this episode when `done` is True
@@ -477,6 +480,9 @@ class DDPG():
                     break
 
                 prev_state = state
+            if ep % 50 == 0:
+                self.save_models(ep)
+
             for i in range(len(self.products)):
                 print(sum(achieved_service_level[i])/len(achieved_service_level[i]))
 
@@ -498,12 +504,13 @@ class DDPG():
             plt.xlabel("Episode")
             plt.ylabel("Avg. Epsiodic Reward")
             plt.show()
-        # with open('avg_rewards_critic_' + str(critic_lr) + '.txt', 'w') as f:
-        #     f.write(repr(self.avg_reward_list))
+        with open('avg_rewards.txt', 'w') as f:
+            f.write(repr(self.avg_reward_list))
+
         self.test(episodes=10)
 
     def test(self, episodes=10, path=None):
-        actor = tf.keras.models.load_model('models_ep_2/best_er_half_ratio')
+        actor = tf.keras.models.load_model('actor_model')
         # actor = self.best_one
         generated_products = self.generate_products(6000,0)
         self.env.products = generated_products
@@ -560,7 +567,7 @@ class DDPG():
                         orders[i].append(0)
 
                     else:
-                        orders[i].append(1)
+                        # orders[i].append(1)
                         if i not in episode_counts[episode].keys():
                             episode_counts[episode][i] = 1
                         else:
@@ -594,8 +601,8 @@ class DDPG():
                     setup_costs.append(self.env.real_setup_costs)
                     self.env.reset_costs()
                     joint_ordering_count_list.append(joint_ordering_count)
-                    print(orders[0])
-                    print(orders[1])
+                    # print(orders[0])
+                    # print(orders[1])
 
                     break
 

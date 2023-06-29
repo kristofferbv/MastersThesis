@@ -45,7 +45,7 @@ file_path = 'costs-exp-beta-4-0-0-0/costs_simulation_output_p4_er4_sm0_in0_lu0_t
 
 
 #ordering frequency comparison:
-file_path = 'varying costs -erratic 2 - without warm-up/costs_simulation_output_p2_er2_sm0_in0_lu0_t13_ep2_S1250_r1.2_beta1_seed2.txt'
+# file_path = 'varying costs -erratic 2 - without warm-up/costs_simulation_output_p2_er2_sm0_in0_lu0_t13_ep2_S1250_r1.2_beta1_seed2.txt'
 # file_path = 'varying costs -erratic 2 - without warm-up/costs_simulation_output_p2_er2_sm0_in0_lu0_t13_ep2_S2500_r0.6_beta1_seed2.txt'
 # file_path = 'varying costs -erratic 2 - without warm-up/costs_simulation_output_p2_er2_sm0_in0_lu0_t13_ep2_S2500_r1.2_beta1_seed2.txt'
 # file_path = 'varying costs -erratic 2 - without warm-up/costs_simulation_output_p2_er2_sm0_in0_lu0_t13_ep2_S1250_r1.2_beta1_seed2.txt'
