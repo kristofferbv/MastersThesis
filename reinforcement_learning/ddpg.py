@@ -296,7 +296,7 @@ class DDPG():
 
         plt.savefig('best_agent_er2.png', dpi=300)
         plt.show()
-        with open('avg_rewards.txt', 'w') as f:
+        with open('avg_rewards_best_er_4.txt', 'w') as f:
             f.write(repr(self.avg_reward_list))
         #
     def save_models(self, episode = None):
@@ -504,13 +504,13 @@ class DDPG():
             plt.xlabel("Episode")
             plt.ylabel("Avg. Epsiodic Reward")
             plt.show()
-        with open('avg_rewards.txt', 'w') as f:
+        with open('avg_rewards_best_er_4.txt', 'w') as f:
             f.write(repr(self.avg_reward_list))
 
         self.test(episodes=10)
 
     def test(self, episodes=10, path=None):
-        actor = tf.keras.models.load_model('models_ep_4_150_1/actor_model_2')
+        actor = tf.keras.models.load_model('models_ep_4_550_best_one_so_far/actor_model_2')
         # actor = self.best_one
         generated_products = self.generate_products(6000,0)
         self.env.products = generated_products
@@ -560,7 +560,7 @@ class DDPG():
 
                 for i, quantity in enumerate(action):
 
-                    if quantity < 5:
+                    if quantity < 10:
                         quantity = 0
                         action[i] = quantity
                         episode_zero_order_counts[i] += 1
@@ -573,7 +573,10 @@ class DDPG():
                         else:
                             episode_counts[episode][i] += 1
                         episode_order_sums[i] += quantity
-                    # if i == 1:
+                    if i == 3:
+                        action[i] += 0.2*action[i]
+
+
                     # action[i] -= 0.5*action[i]
                     # if i == 1:
                     #     action[i] += 0.9*action[i]

@@ -4,6 +4,7 @@ from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
+plt.rcParams['font.size'] = 13
 
 def get_non_stationary_products(products, start_date=None, should_plot=False, verbose=False):
     n = len(products)
@@ -84,13 +85,13 @@ def plot_sales_quantity(products, start_date=None, should_includ_hash = True):
             else:
                 df.plot(ax=ax)
 
-        ax.set_ylabel('sales quantity')
-        ax.legend()
+        ax.set_ylabel('demand')
+        # ax.legend()
 
     # Customize the plot by adding a title and x-axis label
-    axes[0].set_title(f'Comparison of sales quantities for different products')
+    # axes[0].set_title(f'Comparison of sales quantities for different products')
     axes[-1].set_xlabel('Date')
-
+    plt.savefig("sales_smooth.png", dpi = 300)
     # Show the plot
     plt.show()
 

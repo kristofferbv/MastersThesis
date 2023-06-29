@@ -290,41 +290,46 @@ plt.show()
 
 
 
-# # Showing order frewuency
-# import matplotlib.pyplot as plt
-# product_1_mip = [1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1]
-# product_2_mip = [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0]
-# product_1_rl =[1, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0]
-# product_2_rl = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]
-#
-#
-# time_steps = range(1, len(product_1_mip) + 1)
-#
-# product_1_orders_mip = [t for t, ordered in zip(time_steps, product_1_mip) if ordered]
-# product_2_orders_mip = [t for t, ordered in zip(time_steps, product_2_mip) if ordered]
-# product_1_orders_rl = [t for t, ordered in zip(time_steps, product_1_rl) if ordered]
-# product_2_orders_rl = [t for t, ordered in zip(time_steps, product_2_rl) if ordered]
-#
-# plt.figure(figsize=(15, 3))
-# plt.subplots_adjust(left=0.08, right=0.92)
-# for i in time_steps:
-#     plt.axvline(x=i, linewidth=0.65, color='gray')
-#
-# plt.scatter(product_1_orders_mip, [1.4] * len(product_1_orders_mip), color='g',  edgecolor='k')
-# plt.scatter(product_2_orders_mip, [1.2] * len(product_2_orders_mip), color='g', label='MIP', edgecolor='k')
-#
-# plt.scatter(product_1_orders_rl, [0.6] * len(product_1_orders_rl), color='b', edgecolor='k')
-# plt.scatter(product_2_orders_rl, [0.4] * len(product_2_orders_rl), color='b', label='RL', edgecolor='k')
-#
-# plt.yticks([0.6, 0.4, 1.4, 1.2], ['Product 1', 'Product 2', 'Product 1', 'Product 2'])
-#
-# plt.xticks(time_steps)
-# plt.ylim(0.2, 1.6)  # Adjust y-axis limits
-#
-# plt.xlabel('Time step')
-# plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
-# plt.grid(False)
-# plt.box(False)
-# plt.savefig('orders_base_case.png', dpi=300)
-#
-# plt.show()
+# Showing order frewuency
+import matplotlib.pyplot as plt
+product_1_mip =[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]
+
+product_2_mip = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]
+
+
+product_1_rl =[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0]
+
+product_2_rl = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0]
+
+
+
+time_steps = range(1, len(product_1_mip) + 1)
+
+product_1_orders_mip = [t for t, ordered in zip(time_steps, product_1_mip) if ordered]
+product_2_orders_mip = [t for t, ordered in zip(time_steps, product_2_mip) if ordered]
+product_1_orders_rl = [t for t, ordered in zip(time_steps, product_1_rl) if ordered]
+product_2_orders_rl = [t for t, ordered in zip(time_steps, product_2_rl) if ordered]
+
+plt.figure(figsize=(15, 3))
+plt.subplots_adjust(left=0.08, right=0.92)
+for i in time_steps:
+    plt.axvline(x=i, linewidth=0.65, color='gray')
+
+plt.scatter(product_1_orders_mip, [1.4] * len(product_1_orders_mip), color='g',  edgecolor='k')
+plt.scatter(product_2_orders_mip, [1.2] * len(product_2_orders_mip), color='g', label='MIP', edgecolor='k')
+
+plt.scatter(product_1_orders_rl, [0.6] * len(product_1_orders_rl), color='b', edgecolor='k')
+plt.scatter(product_2_orders_rl, [0.4] * len(product_2_orders_rl), color='b', label='RL', edgecolor='k')
+
+plt.yticks([0.6, 0.4, 1.4, 1.2], ['Product 1', 'Product 2', 'Product 1', 'Product 2'])
+
+plt.xticks(time_steps)
+plt.ylim(0.2, 1.6)  # Adjust y-axis limits
+
+plt.xlabel('Time step')
+plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+plt.grid(False)
+plt.box(False)
+plt.savefig('smooth.png', dpi=300)
+
+plt.show()

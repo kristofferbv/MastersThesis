@@ -24,7 +24,7 @@ file_path = 'compare_with_rl_erratic/compare_with_RL_output_p2_er2_sm0_in0_lu0_t
 # #erratic minor:
 # file_path = 'compare_with_rl_erratic/compare_with_RL_output_p2_er2_sm0_in0_lu0_t13_ep100_S2500_r0.6_beta0.05_seed0.txt'
 # file_path = 'compare_with_rl_erratic/compare_with_RL_output_p2_er2_sm0_in0_lu0_t13_ep100_S2500_r2.4_beta0.05_seed0.txt'
-
+file_path = 'costs_simulation_output_p2_er0_sm2_in0_lu0_t13_ep100_S1250_r1.2_beta1_seed0.txt'
 
 # The MIP vs RL comparison:
 # file_path = 'costs_simulation_output_p2_er0_sm0_in2_lu0_t52_ep100_S2500_r1.2_beta1_seed0.txt'
@@ -40,7 +40,7 @@ file_path = 'compare_with_rl_erratic/compare_with_RL_output_p2_er2_sm0_in0_lu0_t
 
 
 #4 products comparison:
-file_path = 'costs-exp-beta-4-0-0-0/costs_simulation_output_p4_er4_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta0.96_seed2.txt'
+# file_path = 'costs-exp-beta-4-0-0-0/costs_simulation_output_p4_er4_sm0_in0_lu0_t13_ep100_S2500_r1.2_beta0.96_seed2.txt'
 
 
 
